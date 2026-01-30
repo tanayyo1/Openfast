@@ -1,0 +1,37 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit checks..."
+
+# Check branch name
+BRANCH_NAME=$(git symbolic-ref --short HEAD)
+if [ "$BRANCH_NAME" = "main" ] || [ "$BRANCH_NAME" = "develop" ]; then
+  echo "❌ ERROR: Direct commits to $BRANCH_NAME branch are forbidden!"
+  echo "Create a feature branch: git checkout -b feature/LIN-XXX-description"
+  exit 1
+fi
+
+# Check branch naming convention
+if [[ ! $BRANCH_NAME =~ ^(feature|bugfix|hotfix|docs|refactor|test)/LIN-[0-9]+-[a-z0-9-]+$ ]]; then
+  echo "❌ ERROR: Invalid branch name: $BRANCH_NAME"
+  echo "Branch must follow pattern: type/LIN-XXX-description"
+  echo "Valid types: feature, bugfix, hotfix, docs, refactor, test"
+  echo "Example: feature/LIN-123-add-scheduler"
+  exit 1
+fi
+
+echo "✅ Branch name is valid"
+
+# Run lint-staged (ESLint + Prettier)
+echo "📝 Running linters..."
+npx lint-staged
+
+# Run TypeScript check
+echo "🔍 Running TypeScript check..."
+npm run typecheck
+
+# Run unit tests for changed files
+echo "🧪 Running unit tests..."
+npm run test:unit -- --findRelatedTests $(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx)$' | head -20)
+
+echo "✅ Pre-commit checks passed!"

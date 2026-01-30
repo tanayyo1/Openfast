@@ -1,0 +1,22 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Get the commit message
+COMMIT_MSG_FILE=$1
+COMMIT_MSG=$(cat $COMMIT_MSG_FILE)
+
+# Check if commit message follows the format: LIN-XXX: Description
+if [[ ! $COMMIT_MSG =~ ^LIN-[0-9]+:\ .+ ]]; then
+  echo "❌ ERROR: Commit message format is invalid!"
+  echo ""
+  echo "Expected format: LIN-XXX: Brief description"
+  echo "Example: LIN-123: Add scheduler service for delayed posts"
+  echo ""
+  echo "Your message:"
+  echo "$COMMIT_MSG"
+  echo ""
+  echo "Fix your commit message and try again."
+  exit 1
+fi
+
+echo "✅ Commit message format is valid"

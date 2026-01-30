@@ -217,6 +217,371 @@ ReditFast/
 
 ---
 
+## ⚠️ MANDATORY RULES - ZERO EXCEPTIONS
+
+### 1. Git Workflow (ABSOLUTE - NO EXCEPTIONS)
+
+**❌ NEVER commit to `main` or `develop` directly**
+
+**✅ ALWAYS create feature branch:**
+```bash
+git checkout -b feature/LIN-123-short-description
+```
+
+**Branch Naming Convention (STRICT):**
+- Features: `feature/LIN-123-short-desc` (e.g., `feature/LIN-456-add-scheduler`)
+- Bugs: `bugfix/LIN-123-short-desc` (e.g., `bugfix/LIN-789-fix-oauth`)
+- Hotfixes: `hotfix/LIN-123-short-desc` (e.g., `hotfix/LIN-101-critical-fix`)
+- Docs: `docs/LIN-123-short-desc` (e.g., `docs/LIN-202-update-api-docs`)
+- Refactor: `refactor/LIN-123-short-desc`
+- Tests: `test/LIN-123-short-desc`
+
+**MANDATORY REQUIREMENTS:**
+- [ ] Linear issue ID **MUST** be in branch name (LIN-XXX)
+- [ ] PR **REQUIRED** for all code changes
+- [ ] Minimum **1 human review** before merge
+- [ ] All status checks **MUST PASS**
+- [ ] Linear issue **MUST** be linked in PR
+
+**Workflow:**
+1. Create branch from `main`: `git checkout -b feature/LIN-XXX-desc`
+2. Make changes, commit with Linear reference
+3. Push branch: `git push origin feature/LIN-XXX-desc`
+4. Create PR with template
+5. Request review
+6. Merge only after approval + checks pass
+
+---
+
+### 2. Before Starting ANY Work (MANDATORY CHECKLIST)
+
+**⛔ DO NOT TOUCH CODE UNTIL YOU VERIFY:**
+
+- [ ] Read AGENTS.md (this file) completely
+- [ ] Read docs/DECISIONS.md for architectural context
+- [ ] Check Linear issue for specific requirements
+- [ ] Verify current branch: `git status` (should be feature/LIN-XXX)
+- [ ] Pull latest changes: `git pull origin main`
+- [ ] Verify no uncommitted changes: `git status` should be clean
+- [ ] Understand the scope (don't go beyond issue requirements)
+
+**If you're not on a feature branch, STOP and create one:**
+```bash
+git checkout main
+git pull origin main
+git checkout -b feature/LIN-XXX-description
+```
+
+---
+
+### 3. Code Quality Gates (MUST PASS BEFORE PR)
+
+**🚫 PR WILL BE REJECTED IF THESE FAIL:**
+
+```bash
+# Run these commands - ALL MUST PASS
+npm run lint          # Zero ESLint errors
+npm run typecheck     # Zero TypeScript errors
+npm run test:unit     # All unit tests pass
+npm run format:check  # Prettier formatting correct
+```
+
+**Additional Requirements:**
+- [ ] No `console.log` in production code (use logger)
+- [ ] No `debugger` statements
+- [ ] No hardcoded secrets/API keys
+- [ ] No commented-out code (delete it)
+- [ ] All DB queries scoped by `workspace_id`
+- [ ] Proper error handling with structured responses
+- [ ] JSDoc comments for public functions
+
+---
+
+### 4. Commit Message Format (STANDARDIZED)
+
+**Format:**
+```
+LIN-123: Brief imperative description (50 chars max)
+
+- Detailed explanation if needed (wrap at 72 chars)
+- Include what changed and why
+- Reference related issues or PRs
+
+Refs: LIN-123
+Closes: LIN-456
+```
+
+**Examples:**
+```
+LIN-456: Add scheduler service for delayed posts
+
+- Implemented BullMQ queue for scheduled posts
+- Added idempotency keys for publish jobs
+- Created retry logic with exponential backoff
+
+Refs: LIN-456
+```
+
+```
+LIN-789: Fix Reddit OAuth token refresh failure
+
+- Updated token refresh logic to handle 401s
+- Added retry with fallback to reconnect flow
+- Improved error logging for debugging
+
+Closes: LIN-789
+```
+
+**Rules:**
+- Start with capital letter
+- Use imperative mood ("Add" not "Added")
+- No period at end of subject line
+- Reference Linear issue ID
+
+---
+
+### 5. Security Rules (NON-NEGOTIABLE - ZERO TOLERANCE)
+
+**❌ ABSOLUTELY FORBIDDEN:**
+
+- **NEVER** commit `.env` or `.env.local` files
+- **NEVER** log tokens, passwords, PII, or secrets
+- **NEVER** bypass workspace isolation in DB queries
+- **NEVER** disable auth checks (even for "testing")
+- **NEVER** commit private keys or API keys
+- **NEVER** store plaintext tokens
+- **NEVER** skip encryption for sensitive data
+- **NEVER** test against real Reddit in development
+
+**✅ ALWAYS:**
+- Encrypt Reddit tokens at rest (AES-256)
+- Hash IP addresses in logs
+- Use parameterized queries (Prisma)
+- Validate all inputs (Zod schemas)
+- Scope queries by workspace_id
+- Sanitize user-generated content
+- Use HTTPS for all external calls
+
+**Violations = Immediate revert + incident report**
+
+---
+
+### 6. AI Agent Conduct Rules
+
+**⛔ ASK FIRST, CODE SECOND:**
+
+- **ASK** before overriding existing patterns
+- **ASK** before introducing new dependencies
+- **ASK** before changing database schema
+- **ASK** before modifying CI/CD workflows
+- **ASK** before changing environment requirements
+
+**✅ DOCUMENT EVERYTHING:**
+- Explain architectural decisions in PR description
+- Add JSDoc comments to public APIs
+- Update AGENTS.md if patterns change
+- Update docs/API.md if endpoints change
+- Update docs/DECISIONS.md for major choices
+
+**✅ TEST YOUR WORK:**
+- Verify changes work before claiming complete
+- Run full test suite locally
+- Test edge cases
+- Verify no regressions
+
+**❌ NEVER:**
+- Assume something works without testing
+- Ignore failing tests
+- Skip code review
+- Merge your own PR without review
+- Commit directly to main
+
+---
+
+### 7. Linear Integration (MANDATORY)
+
+**Every piece of work MUST trace back to Linear:**
+
+**Branch Naming:**
+```
+feature/LIN-123-add-scheduler
+bugfix/LIN-456-fix-oauth-timeout
+docs/LIN-789-update-readme
+```
+
+**PR Title Format:**
+```
+[LIN-123] Add scheduler service for delayed posts
+```
+
+**PR Description MUST Include:**
+```markdown
+## Linear Issue
+Closes LIN-123 (or Relates to LIN-123)
+
+## Changes
+- Change 1
+- Change 2
+
+## Testing
+- [ ] Tested locally
+- [ ] Unit tests pass
+- [ ] Integration tests pass
+
+## Checklist
+- [ ] Read AGENTS.md
+- [ ] Branch named correctly
+- [ ] All quality gates pass
+- [ ] Documentation updated
+```
+
+**Linear Status Updates:**
+- When PR opened: Move to "In Review"
+- When PR approved: Move to "Ready to Merge"
+- When PR merged: Move to "Done"
+
+---
+
+### 8. Testing Requirements (STRICT)
+
+**Test Coverage Mandates:**
+
+| Component | Minimum Coverage | Required Tests |
+|-----------|------------------|----------------|
+| Services | 80% | Unit tests |
+| Utilities | 90% | Unit tests |
+| API Routes | 70% | Integration tests |
+| Database | 60% | Integration tests |
+| UI Components | 50% | Unit + E2E |
+| Critical Flows | 100% | E2E tests |
+
+**NEVER Test Against Real Reddit:**
+- Use mocks for Reddit API
+- Use test database for integration tests
+- Never use production credentials in tests
+
+**Test File Locations:**
+```
+tests/
+├── unit/
+│   ├── services/
+│   └── utils/
+├── integration/
+│   └── api/
+└── e2e/
+    └── flows/
+```
+
+---
+
+### 9. Pre-PR Checklist (MUST COMPLETE)
+
+**Before Creating Pull Request:**
+
+- [ ] Branch is up to date with `main` (rebased)
+- [ ] `git status` is clean (no uncommitted changes)
+- [ ] All tests pass: `npm run test`
+- [ ] Linting passes: `npm run lint`
+- [ ] TypeScript passes: `npm run typecheck`
+- [ ] No merge conflicts
+- [ ] Code reviewed by at least 1 human
+- [ ] PR template filled out completely
+- [ ] Linear issue linked in PR
+- [ ] Documentation updated (if needed)
+- [ ] Migration files included (if schema changed)
+- [ ] Environment variables documented (if added)
+- [ ] CHANGELOG.md updated (if user-facing)
+
+**PR Size Limits:**
+- Max 500 lines changed (exceptions require justification)
+- Single concern per PR (don't mix features)
+- Logical commits (rebase/squash if messy)
+
+---
+
+### 10. Forbidden Patterns (ZERO TOLERANCE)
+
+**❌ These Will Result in Immediate Rejection:**
+
+- Auto-posting to Reddit without approval
+- Storing plaintext tokens anywhere
+- Hardcoding subreddit lists
+- Disabling rate limits for "convenience"
+- Skipping preflight checks
+- Committing to main directly
+- PRs >500 lines without justification
+- TODO comments without Linear issue reference
+- `any` types in TypeScript
+- `// @ts-ignore` without explanation
+- Dead code (commented out)
+- Hardcoded test data in production
+- Secrets in logs or error messages
+
+**Reviewers: REJECT PRs with these patterns**
+
+---
+
+### 11. Emergency Procedures
+
+**If You Commit to Main by Accident:**
+```bash
+# DON'T PANIC
+# 1. Notify team immediately
+# 2. Do NOT push more changes
+# 3. Team lead will handle revert
+```
+
+**If You Commit Secrets:**
+```bash
+# 1. IMMEDIATELY notify security team
+# 2. Rotate the exposed secret
+# 3. Follow incident response plan
+# 4. NEVER try to hide it
+```
+
+**If Tests Fail on PR:**
+```bash
+# 1. Fix the tests - NEVER disable them
+# 2. If flaky, identify root cause
+# 3. Document in PR why tests were updated
+```
+
+---
+
+### 12. Workflow Summary
+
+```
+Linear Issue Created
+        ↓
+git checkout -b feature/LIN-XXX-description
+        ↓
+Make Changes + Write Tests
+        ↓
+npm run lint && npm run typecheck && npm run test
+        ↓
+git commit -m "LIN-XXX: Description"
+        ↓
+git push origin feature/LIN-XXX-description
+        ↓
+Create PR with template
+        ↓
+Request Review
+        ↓
+Address Feedback
+        ↓
+All Checks Pass + Approved
+        ↓
+Merge to main
+        ↓
+Deploy to Staging
+        ↓
+Deploy to Production
+```
+
+**Questions? Ask in Slack #dev-questions or Linear issue comments.**
+
+---
+
 ## Environment Variables
 
 ```bash

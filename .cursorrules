@@ -1,0 +1,157 @@
+# Cursor IDE Rules for ReditFast
+# These rules apply when using Cursor IDE with this project
+
+# Always read these files first
+always_read:
+  - AGENTS.md
+  - docs/DECISIONS.md
+  - .cursorrules
+
+# Context awareness
+context:
+  - This is a Reddit marketing automation platform
+  - Built with Next.js 14, TypeScript, Prisma, Redis
+  - Multi-tenant SaaS with strict security requirements
+  - Human-in-the-loop approval required for all Reddit posts
+
+# Code generation rules
+code_generation:
+  # TypeScript strict mode - no any types
+  typescript_strict: true
+  
+  # Always scope database queries by workspace_id
+  database_isolation: true
+  
+  # Never commit secrets or API keys
+  no_hardcoded_secrets: true
+  
+  # Include JSDoc for public functions
+  require_jsdoc: true
+  
+  # Follow existing code patterns
+  consistency: true
+
+# Git workflow rules
+git:
+  # Never commit to main directly
+  no_direct_main_commits: true
+  
+  # Always use feature branches with Linear issue ID
+  branch_pattern: "feature/LIN-XXX-description"
+  
+  # Commit messages must include Linear ID
+  commit_message_format: "LIN-XXX: Description"
+  
+  # Pull required before starting work
+  pull_before_start: true
+
+# Security rules
+security:
+  # Never log tokens or PII
+  no_sensitive_logging: true
+  
+  # Encrypt tokens at rest
+  encryption_required: true
+  
+  # Validate all inputs with Zod
+  input_validation: true
+  
+  # Workspace isolation mandatory
+  workspace_scoping: true
+
+# Testing rules
+testing:
+  # Unit tests for services
+  unit_test_coverage: 80
+  
+  # Integration tests for APIs
+  integration_tests: true
+  
+  # Never test against real Reddit
+  mock_external_apis: true
+
+# Quality gates
+quality:
+  # Run before claiming done
+  lint: "npm run lint"
+  typecheck: "npm run typecheck"
+  test: "npm run test:unit"
+  format: "npm run format:check"
+
+# Questions to ask before major changes
+ask_before:
+  - Changing database schema
+  - Adding new dependencies
+  - Modifying CI/CD workflows
+  - Changing architecture patterns
+  - Overriding existing code styles
+
+# Documentation requirements
+documentation:
+  # Update these when patterns change
+  files_to_update:
+    - AGENTS.md
+    - docs/API.md
+    - docs/DECISIONS.md
+    - README.md
+  
+  # PR must include description of changes
+  pr_description_required: true
+
+# Performance considerations
+performance:
+  # Cache expensive operations
+  use_redis_cache: true
+  
+  # Optimize database queries
+  query_optimization: true
+  
+  # Lazy load heavy components
+  lazy_loading: true
+
+# Common imports and patterns
+imports:
+  # Prefer these aliases
+  aliases:
+    "@/*": "./src/*"
+    "@/components/*": "./src/components/*"
+    "@/lib/*": "./src/lib/*"
+    "@/services/*": "./src/services/*"
+    "@/types/*": "./src/types/*"
+    "@/utils/*": "./src/utils/*"
+
+# Error handling
+errors:
+  # Use structured error format
+  format: "{ code: string, message: string, details?: object }"
+  
+  # Always handle async errors
+  async_error_handling: true
+  
+  # Log errors with context
+  structured_logging: true
+
+# AI Agent behavior
+behavior:
+  # Explain reasoning
+  explain_decisions: true
+  
+  # Suggest tests for new code
+  suggest_tests: true
+  
+  # Flag potential security issues
+  security_audit: true
+  
+  # Check for existing solutions first
+  search_existing: true
+
+# Reminders
+reminders:
+  - "Read AGENTS.md before making changes"
+  - "Create feature branch before coding"
+  - "Include Linear issue ID in all commits"
+  - "Run quality checks before submitting"
+  - "Never commit to main directly"
+  - "Ask before changing architecture"
+  - "Document breaking changes"
+  - "Test your changes thoroughly"

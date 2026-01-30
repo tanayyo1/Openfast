@@ -33,6 +33,9 @@ yarn-error.log*
 # Local env files
 .env*.local
 
+# Linear MCP configuration (contains sensitive data)
+.linear/
+
 # Vercel
 .vercel
 

@@ -1,20 +1,22 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { MaxWidth } from '@/components/public/MaxWidth'
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { MaxWidth } from "@/components/public/MaxWidth";
 
 function setDemoAuthCookie() {
   // Demo-only auth gate for the MVP frontend. Backend auth will replace this.
-  document.cookie = `rf_demo_auth=1; Path=/; Max-Age=${60 * 60 * 24 * 30}`
+  document.cookie = `rf_demo_auth=1; Path=/; Max-Age=${60 * 60 * 24 * 30}`;
 }
 
 export default function LoginPage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const rawNext = searchParams.get('next') ?? '/dashboard'
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawNext = searchParams.get("next") ?? "/dashboard";
   const next =
-    rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/dashboard'
+    rawNext.startsWith("/") && !rawNext.startsWith("//")
+      ? rawNext
+      : "/dashboard";
 
   return (
     <div className="py-16">
@@ -53,8 +55,8 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => {
-                setDemoAuthCookie()
-                router.push(next)
+                setDemoAuthCookie();
+                router.push(next);
               }}
               className="w-full rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
             >
@@ -70,5 +72,5 @@ export default function LoginPage() {
         </div>
       </MaxWidth>
     </div>
-  )
+  );
 }

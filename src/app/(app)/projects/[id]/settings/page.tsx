@@ -1,22 +1,22 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { useParams } from 'next/navigation'
-import { useMemo } from 'react'
-import { useDemoStore } from '@/stores/demoStore'
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useMemo } from "react";
+import { useDemoStore } from "@/stores/demoStore";
 
 export default function ProjectSettingsPage() {
-  const params = useParams<{ id: string }>()
-  const projectId = params?.id ? decodeURIComponent(params.id) : ''
+  const params = useParams<{ id: string }>();
+  const projectId = params?.id ? decodeURIComponent(params.id) : "";
 
   const project = useDemoStore((state) =>
-    state.projects.find((p) => p.id === projectId)
-  )
+    state.projects.find((p) => p.id === projectId),
+  );
 
   const goalsText = useMemo(() => {
-    if (!project) return 'Not set'
-    return project.goals.length > 0 ? project.goals.join(', ') : 'Not set'
-  }, [project])
+    if (!project) return "Not set";
+    return project.goals.length > 0 ? project.goals.join(", ") : "Not set";
+  }, [project]);
 
   if (!project) {
     return (
@@ -26,7 +26,7 @@ export default function ProjectSettingsPage() {
           Back to projects
         </Link>
       </div>
-    )
+    );
   }
 
   return (
@@ -50,18 +50,20 @@ export default function ProjectSettingsPage() {
           <div>
             <p className="text-sm font-semibold">Product URL</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              {project.url ?? 'Not provided'}
+              {project.url ?? "Not provided"}
             </p>
           </div>
         </div>
         <div className="mt-4">
           <p className="text-sm font-semibold">Description</p>
-          <p className="mt-2 text-sm text-muted-foreground">{project.description}</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {project.description}
+          </p>
         </div>
         <div className="mt-4">
           <p className="text-sm font-semibold">Brand voice</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            {project.brandVoice || 'Not set'}
+            {project.brandVoice || "Not set"}
           </p>
         </div>
         <div className="mt-4">
@@ -85,5 +87,5 @@ export default function ProjectSettingsPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

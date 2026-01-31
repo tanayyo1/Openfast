@@ -1,35 +1,35 @@
-import Link from 'next/link'
-import { MaxWidth } from './MaxWidth'
+import Link from "next/link";
+import { MaxWidth } from "./MaxWidth";
 
 const footerSections = [
   {
-    title: 'Product',
+    title: "Product",
     links: [
-      { label: 'Pricing', href: '/pricing' },
-      { label: 'Post generator', href: '/tools/post-generator' },
-      { label: 'Subreddit analyzer', href: '/tools/subreddit-analyzer' },
-      { label: 'Shadowban check', href: '/tools/shadowban-check' },
+      { label: "Pricing", href: "/pricing" },
+      { label: "Post generator", href: "/tools/post-generator" },
+      { label: "Subreddit analyzer", href: "/tools/subreddit-analyzer" },
+      { label: "Shadowban check", href: "/tools/shadowban-check" },
     ],
   },
   {
-    title: 'Company',
+    title: "Company",
     links: [
-      { label: 'About', href: '/seo/guides/getting-started' },
-      { label: 'Alternatives', href: '/seo/alternatives/mediafast' },
-      { label: 'Guides', href: '/seo/guides/reddit-marketing' },
-      { label: 'Support', href: '/seo/guides/support' },
+      { label: "About", href: "/seo/guides/getting-started" },
+      { label: "Alternatives", href: "/seo/alternatives/mediafast" },
+      { label: "Guides", href: "/seo/guides/reddit-marketing" },
+      { label: "Support", href: "/seo/guides/support" },
     ],
   },
   {
-    title: 'Resources',
+    title: "Resources",
     links: [
-      { label: 'SEO hub', href: '/seo/industry/saas' },
-      { label: 'Industry', href: '/seo/industry/indie-founders' },
-      { label: 'City', href: '/seo/city/san-francisco' },
-      { label: 'Security', href: '/seo/guides/security' },
+      { label: "SEO hub", href: "/seo/industry/saas" },
+      { label: "Industry", href: "/seo/industry/indie-founders" },
+      { label: "City", href: "/seo/city/san-francisco" },
+      { label: "Security", href: "/seo/guides/security" },
     ],
   },
-]
+];
 
 export function PublicFooter() {
   return (
@@ -70,5 +70,5 @@ export function PublicFooter() {
         </div>
       </MaxWidth>
     </footer>
-  )
+  );
 }

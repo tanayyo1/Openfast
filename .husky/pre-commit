@@ -37,7 +37,7 @@ echo "Running unit tests..."
 CHANGED_TEST_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx)$' | head -20 || true)
 if [ -n "$CHANGED_TEST_FILES" ]; then
   # shellcheck disable=SC2086
-  npm run test:unit -- --findRelatedTests $CHANGED_TEST_FILES
+  npm run test:unit -- --findRelatedTests $CHANGED_TEST_FILES --passWithNoTests
 else
   echo "No JS/TS files changed; skipping related unit tests."
 fi

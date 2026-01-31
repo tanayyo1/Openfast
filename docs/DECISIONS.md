@@ -8,23 +8,28 @@ This document tracks major architectural decisions and their rationale.
 **Date:** 2026-01-30
 
 ### Context
+
 We need to prevent user bans on Reddit while still providing automation value.
 
 ### Decision
+
 All posts require explicit user approval before scheduling. No auto-posting by default.
 
 ### Rationale
+
 - Reddit mods can ban for "spammy" behavior even if technically allowed
 - Automation without approval feels inauthentic
 - Legal/compliance risk if we auto-post without consent
 - Differentiates us from "bot" tools
 
 ### Consequences
+
 - Positive: Safer, more compliant, better UX
 - Negative: Users must actively engage with tool daily
 - Mitigation: Mobile app for quick approvals (future)
 
 ### Alternatives Considered
+
 - Auto-post with high safety threshold (rejected: still risky)
 - Opt-in auto-post for trusted accounts (rejected: complexity)
 
@@ -36,12 +41,15 @@ All posts require explicit user approval before scheduling. No auto-posting by d
 **Date:** 2026-01-30
 
 ### Context
+
 Need to choose database access layer for PostgreSQL.
 
 ### Decision
+
 Use Prisma ORM with TypeScript client.
 
 ### Rationale
+
 - Type-safe queries
 - Auto-generated migrations
 - Excellent DX with schema-first approach
@@ -49,10 +57,12 @@ Use Prisma ORM with TypeScript client.
 - Strong ecosystem integration with Next.js
 
 ### Consequences
+
 - Positive: Faster development, fewer bugs, team onboarding
 - Negative: Less control over complex queries (mitigation: raw queries when needed)
 
 ### Alternatives Considered
+
 - Drizzle (newer, less mature)
 - Knex (more manual, less type-safe)
 - Raw SQL (error-prone)
@@ -65,12 +75,15 @@ Use Prisma ORM with TypeScript client.
 **Date:** 2026-01-30
 
 ### Context
+
 Need reliable background job processing for roadmap generation, publishing, analytics.
 
 ### Decision
+
 Use BullMQ (Redis-based) for job queues.
 
 ### Rationale
+
 - Mature, well-maintained
 - BullMQ Pro has rate limiting built-in
 - Excellent observability (RedisInsight, Arena UI)
@@ -78,10 +91,12 @@ Use BullMQ (Redis-based) for job queues.
 - Delayed jobs (critical for scheduling)
 
 ### Consequences
+
 - Positive: Reliable scheduling, horizontal scaling, good monitoring
 - Negative: Redis dependency (acceptable, we use Redis anyway)
 
 ### Alternatives Considered
+
 - Inngest (serverless functions, less control)
 - Temporal (heavy, complex)
 - SQS/RabbitMQ (more infra overhead)
@@ -94,22 +109,27 @@ Use BullMQ (Redis-based) for job queues.
 Date: 2026-01-30
 
 ### Context
+
 Need vector similarity search for subreddit matching, duplicate detection.
 
 ### Decision
+
 Use pgvector (PostgreSQL extension) instead of dedicated vector DB.
 
 ### Rationale
+
 - One less database to manage
 - ACID compliance with relational data
 - Good enough performance for our scale (10K-100K vectors)
 - Simpler backups, one source of truth
 
 ### Consequences
+
 - Positive: Simpler stack, consistent backups, joins with relational data
 - Negative: May need migration if scale > 1M vectors (future problem)
 
 ### Alternatives Considered
+
 - Pinecone (managed, more expensive)
 - Weaviate (more features than needed)
 - Milvus (too heavy)
@@ -122,23 +142,28 @@ Use pgvector (PostgreSQL extension) instead of dedicated vector DB.
 Date: 2026-01-30
 
 ### Context
+
 Choosing Next.js routing paradigm.
 
 ### Decision
+
 Use Next.js 14 App Router, not Pages Router.
 
 ### Rationale
+
 - Server Components by default (better performance)
 - Built-in layouts and loading states
 - Server Actions for mutations
 - Future of Next.js
 
 ### Consequences
+
 - Positive: Better performance, simpler data fetching
 - Negative: Learning curve, some libraries not compatible yet
 - Mitigation: Mix of App Router and API routes for external webhooks
 
 ### Alternatives Considered
+
 - Pages Router (legacy, less performant)
 - Remix (different paradigm, less ecosystem)
 - SvelteKit (smaller ecosystem)
@@ -151,12 +176,15 @@ Use Next.js 14 App Router, not Pages Router.
 Date: 2026-01-30
 
 ### Context
+
 Need UI component library for consistent design.
 
 ### Decision
+
 Use shadcn/ui (copy-paste components) over installed library.
 
 ### Rationale
+
 - Full control over components
 - No dependency hell
 - Tailwind-based, customizable
@@ -164,11 +192,13 @@ Use shadcn/ui (copy-paste components) over installed library.
 - Matches modern SaaS aesthetic
 
 ### Consequences
+
 - Positive: Full customization, no breaking changes from updates
 - Negative: More manual work for updates, larger bundle if not careful
 - Mitigation: Tree-shaking, selective component imports
 
 ### Alternatives Considered
+
 - Material UI (too opinionated, heavy)
 - Chakra UI (v2/v3 transition pains)
 - Ant Design (too enterprise-y)
@@ -181,23 +211,28 @@ Use shadcn/ui (copy-paste components) over installed library.
 Date: 2026-01-30
 
 ### Context
+
 Reddit API authentication strategy.
 
 ### Decision
+
 Use OAuth2 flow (user grants permission) rather than app-only script.
 
 ### Rationale
+
 - Required for posting/commenting as user
 - Users control their account
 - More legitimate, less likely to be banned
 - Better rate limits (60/min vs 100/min shared)
 
 ### Consequences
+
 - Positive: Legitimate access, user trust, better limits
 - Negative: OAuth complexity, token management, refresh logic
 - Mitigation: Encrypted storage, auto-refresh, clear disconnect UI
 
 ### Alternatives Considered
+
 - App-only script (rejected: can't post as user)
 - Both (rejected: unnecessary complexity)
 
@@ -209,12 +244,15 @@ Use OAuth2 flow (user grants permission) rather than app-only script.
 Date: 2026-01-30
 
 ### Context
+
 Need runtime type validation for API inputs.
 
 ### Decision
+
 Use Zod for all input validation.
 
 ### Rationale
+
 - TypeScript-first, infers types
 - Great error messages
 - Composable schemas
@@ -222,10 +260,12 @@ Use Zod for all input validation.
 - Growing ecosystem
 
 ### Consequences
+
 - Positive: Type safety end-to-end, great DX
 - Negative: Runtime overhead (negligible)
 
 ### Alternatives Considered
+
 - Yup (less TypeScript friendly)
 - Joi (heavy, older)
 - io-ts (complex)
@@ -238,12 +278,15 @@ Use Zod for all input validation.
 Date: 2026-01-30
 
 ### Context
+
 Need payment processing for subscriptions.
 
 ### Decision
+
 Use Stripe for all billing.
 
 ### Rationale
+
 - Industry standard
 - Excellent developer experience
 - Built-in invoicing, tax (Stripe Tax)
@@ -251,11 +294,13 @@ Use Stripe for all billing.
 - Strong ecosystem
 
 ### Consequences
+
 - Positive: Reliable, feature-rich, good support
 - Negative: Fees, dependency on external service
 - Mitigation: Webhook idempotency, local entitlements cache
 
 ### Alternatives Considered
+
 - LemonSqueezy (simpler, less control)
 - Paddle (geared toward EU)
 - Custom (rejected: too much work)
@@ -268,23 +313,28 @@ Use Stripe for all billing.
 Date: 2026-01-30
 
 ### Context
+
 Need caching, job queues, and rate limiting.
 
 ### Decision
+
 Use single Redis instance for all three (Upstash managed).
 
 ### Rationale
+
 - Simpler infrastructure
 - Cost-effective at our scale
 - Fast and reliable
 - Managed service handles ops
 
 ### Consequences
+
 - Positive: One service, consistent performance
 - Negative: Single point of failure (mitigation: Redis Cluster/ Sentinel)
 - Mitigation: Upstash replication, monitoring
 
 ### Alternatives Considered
+
 - Separate services (rejected: unnecessary complexity)
 - Memcached (no persistence)
 - RabbitMQ (only queues, not cache)
@@ -297,12 +347,15 @@ Use single Redis instance for all three (Upstash managed).
 Date: 2026-01-30
 
 ### Context
+
 Need data fetching and caching in React.
 
 ### Decision
+
 Use TanStack Query v5 (React Query).
 
 ### Rationale
+
 - Excellent caching and background refetching
 - Dev tools
 - Works with Server Components
@@ -310,10 +363,12 @@ Use TanStack Query v5 (React Query).
 - Pagination helpers
 
 ### Consequences
+
 - Positive: Robust data layer, great UX
 - Negative: Learning curve, bundle size (acceptable)
 
 ### Alternatives Considered
+
 - SWR (similar, less features)
 - RTK Query (Redux-based, too heavy)
 - Apollo Client (GraphQL-specific)
@@ -326,12 +381,15 @@ Use TanStack Query v5 (React Query).
 Date: 2026-01-30
 
 ### Context
+
 Need transactional email service.
 
 ### Decision
+
 Use Resend for email delivery.
 
 ### Rationale
+
 - Built for developers
 - Great deliverability
 - Simple API
@@ -339,11 +397,13 @@ Use Resend for email delivery.
 - Cost-effective
 
 ### Consequences
+
 - Positive: Easy integration, good deliverability
 - Negative: Newer service, smaller ecosystem than SendGrid
 - Mitigation: Keep email templates simple, fallback ready
 
 ### Alternatives Considered
+
 - SendGrid (more mature, more expensive)
 - Postmark (good, pricier)
 - AWS SES (complex setup)
@@ -356,12 +416,15 @@ Use Resend for email delivery.
 Date: 2026-01-30
 
 ### Context
+
 Need to run background jobs reliably.
 
 ### Decision
+
 Deploy workers as separate service (Railway/Render), not in Next.js.
 
 ### Rationale
+
 - Next.js not designed for long-running processes
 - Workers can scale independently
 - Better resource allocation
@@ -369,11 +432,13 @@ Deploy workers as separate service (Railway/Render), not in Next.js.
 - No Vercel function timeout limits
 
 ### Consequences
+
 - Positive: Reliable job processing, independent scaling
 - Negative: More infrastructure, separate deploys
 - Mitigation: Railway/Render auto-deploy from same repo
 
 ### Alternatives Considered
+
 - Next.js API routes (timeout limits)
 - Vercel Cron (limited frequency)
 - Inngest (managed, less control)
@@ -386,12 +451,15 @@ Deploy workers as separate service (Railway/Render), not in Next.js.
 Date: 2026-01-30
 
 ### Context
+
 Need LLM for draft generation.
 
 ### Decision
+
 Use OpenAI GPT-4 (turbo) as primary LLM.
 
 ### Rationale
+
 - Best-in-class reasoning
 - Good at following complex instructions
 - JSON mode for structured output
@@ -399,11 +467,13 @@ Use OpenAI GPT-4 (turbo) as primary LLM.
 - Cost-effective at our scale
 
 ### Consequences
+
 - Positive: High quality drafts, good compliance
 - Negative: Cost, dependency, rate limits
 - Mitigation: Caching, request batching, fallback to GPT-3.5 for simple tasks
 
 ### Alternatives Considered
+
 - Claude 3.5 (similar quality, higher cost)
 - Llama 2/3 (self-hosting complexity)
 - Gemini (newer, less proven)
@@ -418,12 +488,14 @@ Use OpenAI GPT-4 (turbo) as primary LLM.
 **Context:** Users asking for other platforms.
 
 **Options:**
+
 1. Build LinkedIn integration
 2. Build X integration
 3. Both
 4. Neither (focus on Reddit excellence)
 
 **Considerations:**
+
 - Different APIs, different rules
 - User demand vs. focus
 - Engineering bandwidth
@@ -436,6 +508,7 @@ Use OpenAI GPT-4 (turbo) as primary LLM.
 **Context:** Users want to manage client accounts.
 
 **Options:**
+
 1. Build agency features (multiple clients, reporting)
 2. Stay solo-founder focused
 3. Partner with existing agency tools

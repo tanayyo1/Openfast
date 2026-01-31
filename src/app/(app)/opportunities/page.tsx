@@ -1,37 +1,37 @@
-import Link from 'next/link'
-import { SimpleTable } from '@/components/app/tables/SimpleTable'
+import Link from "next/link";
+import { SimpleTable } from "@/components/app/tables/SimpleTable";
 
 type Row = {
-  title: string
-  subreddit: string
-  velocity: string
-  gap: string
-  risk: string
-}
+  title: string;
+  subreddit: string;
+  velocity: string;
+  gap: string;
+  risk: string;
+};
 
 const rows: Row[] = [
   {
-    title: 'How do you validate pricing before launch?',
-    subreddit: 'r/startups',
-    velocity: 'Fast',
-    gap: 'Few helpful answers',
-    risk: 'Low',
+    title: "How do you validate pricing before launch?",
+    subreddit: "r/startups",
+    velocity: "Fast",
+    gap: "Few helpful answers",
+    risk: "Low",
   },
   {
-    title: 'What does your onboarding checklist look like?',
-    subreddit: 'r/SaaS',
-    velocity: 'Medium',
-    gap: 'Needs examples',
-    risk: 'Low',
+    title: "What does your onboarding checklist look like?",
+    subreddit: "r/SaaS",
+    velocity: "Medium",
+    gap: "Needs examples",
+    risk: "Low",
   },
   {
-    title: 'Tooling to automate weekly reports?',
-    subreddit: 'r/Entrepreneur',
-    velocity: 'Fast',
-    gap: 'Open ended',
-    risk: 'Medium',
+    title: "Tooling to automate weekly reports?",
+    subreddit: "r/Entrepreneur",
+    velocity: "Fast",
+    gap: "Open ended",
+    risk: "Medium",
   },
-]
+];
 
 export default function OpportunitiesPage() {
   return (
@@ -64,11 +64,15 @@ export default function OpportunitiesPage() {
 
       <SimpleTable<Row>
         columns={[
-          { key: 'title', header: 'Thread', render: (row) => row.title },
-          { key: 'sub', header: 'Subreddit', render: (row) => row.subreddit },
-          { key: 'velocity', header: 'Velocity', render: (row) => row.velocity },
-          { key: 'gap', header: 'Comment gap', render: (row) => row.gap },
-          { key: 'risk', header: 'Risk', render: (row) => row.risk },
+          { key: "title", header: "Thread", render: (row) => row.title },
+          { key: "sub", header: "Subreddit", render: (row) => row.subreddit },
+          {
+            key: "velocity",
+            header: "Velocity",
+            render: (row) => row.velocity,
+          },
+          { key: "gap", header: "Comment gap", render: (row) => row.gap },
+          { key: "risk", header: "Risk", render: (row) => row.risk },
         ]}
         getRowKey={(row) => `${row.subreddit}-${row.title}`}
         rows={rows}
@@ -77,9 +81,10 @@ export default function OpportunitiesPage() {
       <div className="rounded-[24px] border border-border bg-card/80 p-6">
         <p className="text-sm font-semibold">Next steps (preview)</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Selecting an opportunity should generate a comment draft and attach it to a task.
+          Selecting an opportunity should generate a comment draft and attach it
+          to a task.
         </p>
       </div>
     </div>
-  )
+  );
 }

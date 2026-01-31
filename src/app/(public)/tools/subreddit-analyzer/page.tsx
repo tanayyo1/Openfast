@@ -1,4 +1,4 @@
-import { MaxWidth } from '@/components/public/MaxWidth'
+import { MaxWidth } from "@/components/public/MaxWidth";
 
 export default function SubredditAnalyzerPage() {
   return (
@@ -48,21 +48,25 @@ export default function SubredditAnalyzerPage() {
             <div className="rounded-[24px] border border-border bg-background/80 p-6">
               <p className="text-sm font-semibold">Best-time windows</p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {['Tue 09:00', 'Thu 13:00', 'Sat 10:00', 'Sun 18:00'].map((slot) => (
-                  <div
-                    key={slot}
-                    className="rounded-2xl border border-border bg-card/80 px-4 py-3 text-sm font-semibold"
-                  >
-                    {slot}
-                  </div>
-                ))}
+                {["Tue 09:00", "Thu 13:00", "Sat 10:00", "Sun 18:00"].map(
+                  (slot) => (
+                    <div
+                      key={slot}
+                      className="rounded-2xl border border-border bg-card/80 px-4 py-3 text-sm font-semibold"
+                    >
+                      {slot}
+                    </div>
+                  ),
+                )}
               </div>
             </div>
             <div className="rounded-[24px] border border-border bg-background/80 p-6">
               <p className="text-sm font-semibold">Risk signals</p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">Promo tolerance</p>
+                  <p className="text-xs text-muted-foreground">
+                    Promo tolerance
+                  </p>
                   <p className="text-sm font-semibold">Low</p>
                 </div>
                 <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
@@ -70,7 +74,9 @@ export default function SubredditAnalyzerPage() {
                   <p className="text-sm font-semibold">Moderate</p>
                 </div>
                 <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">Posting cadence</p>
+                  <p className="text-xs text-muted-foreground">
+                    Posting cadence
+                  </p>
                   <p className="text-sm font-semibold">2 posts per week</p>
                 </div>
                 <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
@@ -83,5 +89,5 @@ export default function SubredditAnalyzerPage() {
         </div>
       </MaxWidth>
     </div>
-  )
+  );
 }

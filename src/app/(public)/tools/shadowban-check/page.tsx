@@ -1,4 +1,4 @@
-import { MaxWidth } from '@/components/public/MaxWidth'
+import { MaxWidth } from "@/components/public/MaxWidth";
 
 export default function ShadowbanCheckPage() {
   return (
@@ -52,11 +52,15 @@ export default function ShadowbanCheckPage() {
                   <p className="text-sm font-semibold">82 / 100</p>
                 </div>
                 <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">Recent removals</p>
+                  <p className="text-xs text-muted-foreground">
+                    Recent removals
+                  </p>
                   <p className="text-sm font-semibold">0 in last 30 days</p>
                 </div>
                 <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">Suggested cadence</p>
+                  <p className="text-xs text-muted-foreground">
+                    Suggested cadence
+                  </p>
                   <p className="text-sm font-semibold">3 posts per week</p>
                 </div>
                 <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
@@ -69,5 +73,5 @@ export default function ShadowbanCheckPage() {
         </div>
       </MaxWidth>
     </div>
-  )
+  );
 }

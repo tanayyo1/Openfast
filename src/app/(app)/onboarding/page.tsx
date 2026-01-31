@@ -1,25 +1,27 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 const steps = [
   {
-    title: 'Create your first project',
-    description: 'Define your product, goals, and initial constraints.',
-    href: '/onboarding/create-project',
-    action: 'Create project',
+    title: "Create your first project",
+    description: "Define your product, goals, and initial constraints.",
+    href: "/onboarding/create-project",
+    action: "Create project",
   },
   {
-    title: 'Connect Reddit account',
-    description: 'Secure OAuth connection with rate limits and token encryption.',
-    href: '/onboarding/connect-reddit',
-    action: 'Connect account',
+    title: "Connect Reddit account",
+    description:
+      "Secure OAuth connection with rate limits and token encryption.",
+    href: "/onboarding/connect-reddit",
+    action: "Connect account",
   },
   {
-    title: 'Generate your roadmap',
-    description: 'This will be available once projects and Reddit are connected.',
-    href: '/roadmaps',
-    action: 'View roadmaps',
+    title: "Generate your roadmap",
+    description:
+      "This will be available once projects and Reddit are connected.",
+    href: "/roadmaps",
+    action: "View roadmaps",
   },
-]
+];
 
 export default function OnboardingPage() {
   return (
@@ -82,5 +84,5 @@ export default function OnboardingPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

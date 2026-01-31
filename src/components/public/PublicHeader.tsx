@@ -1,12 +1,12 @@
-import Link from 'next/link'
-import { MaxWidth } from './MaxWidth'
+import Link from "next/link";
+import { MaxWidth } from "./MaxWidth";
 
 const navItems = [
-  { label: 'Pricing', href: '/pricing' },
-  { label: 'Tools', href: '/tools/post-generator' },
-  { label: 'SEO', href: '/seo/industry/saas' },
-  { label: 'Login', href: '/login' },
-]
+  { label: "Pricing", href: "/pricing" },
+  { label: "Tools", href: "/tools/post-generator" },
+  { label: "SEO", href: "/seo/industry/saas" },
+  { label: "Login", href: "/login" },
+];
 
 export function PublicHeader() {
   return (
@@ -18,7 +18,9 @@ export function PublicHeader() {
           </div>
           <div>
             <p className="text-lg font-semibold tracking-tight">ReditFast</p>
-            <p className="text-xs text-muted-foreground">Compliance-first Reddit growth</p>
+            <p className="text-xs text-muted-foreground">
+              Compliance-first Reddit growth
+            </p>
           </div>
         </Link>
         <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
@@ -48,5 +50,5 @@ export function PublicHeader() {
         </div>
       </MaxWidth>
     </header>
-  )
+  );
 }

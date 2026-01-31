@@ -2,7 +2,7 @@
 
 **Date:** 2026-01-31  
 **Timezone:** Asia/Kolkata  
-**Scope:** A feature-complete, MediaFast-like SaaS for Reddit marketing: subreddit discovery, best-time windows, roadmap tasks, AI content generation, scheduling/auto-posting (only after human approval), analytics, smart post finder, and account health/shadowban inference — plus public free tools and SEO content engine.
+**Scope:** A feature-complete, MediaFast-like SaaS for Reddit marketing: subreddit discovery, best-time windows, roadmap tasks, AI content generation, scheduling/auto-posting, analytics, smart post finder, and account health/shadowban inference — plus public free tools and SEO content engine.
 
 ---
 
@@ -36,7 +36,7 @@ This document specifies a production-ready blueprint for building a MediaFast-st
 - **Core API**: auth, projects, tasks, orchestration.
 - **Reddit Service**: OAuth, posting, commenting, reading.
 - **Subreddit Intel**: ingestion + best-time windows + stats.
-- **Roadmap/Reco**: best 5 subreddits + daily tasks.
+- **Roadmap & Recommendation Service**: best 5 subreddits + daily tasks.
 - **AI Content**: post/comment generation + rewriting + filters.
 - **Scheduler + Workers**: run-at-time jobs, retries, idempotency.
 - **Analytics**: time series + rollups + dashboards.
@@ -188,8 +188,7 @@ This document specifies a production-ready blueprint for building a MediaFast-st
 
 ## 3) Data Model (Postgres) — SQL Schema (MVP+)
 
-> Conceptual schema only. Align with Prisma and add `workspace_id` to all tenant-scoped tables to satisfy workspace isolation.
-> Uses `pgcrypto` + `citext`.
+> Copy/paste into a migration. Uses `pgcrypto` + `citext`.
 
 ```sql
 -- Enable useful extensions
@@ -199,9 +198,6 @@ CREATE EXTENSION IF NOT EXISTS citext;
 -- =========================
 -- USERS / AUTH / BILLING
 -- =========================
-
--- NOTE: For multi-tenant support in ReditFast, add workspace tables and
--- include workspace_id on tenant-scoped entities (projects, roadmaps, tasks, etc).
 
 CREATE TABLE users (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -683,7 +679,7 @@ sequenceDiagram
   W-->>U: Show 3 variants + editor
 ```
 
-### 5.5 Schedule + Publish (approval required)
+### 5.5 Schedule + Publish
 ```mermaid
 sequenceDiagram
   participant U as User
@@ -696,7 +692,7 @@ sequenceDiagram
   participant DB as Postgres
   participant Risk as Risk Service
 
-  U->>W: Click "Schedule" after approval
+  U->>W: Click "Schedule"
   W->>API: POST /tasks/:id/schedule {run_at}
   API->>Risk: check health + entitlement
   API->>DB: insert scheduled_jobs(queued)
@@ -958,7 +954,7 @@ sequenceDiagram
 - **Caching:** subreddit stats/windows cached in Redis; DB is source of truth.
 - **Failure UI:** show *why* publish failed (scope, restrictions, automod).
 - **Ingestion:** start curated + user-requested; expand later.
-- **Safety:** review-before-post is mandatory; auto-post is not allowed without explicit human approval.
+- **Safety:** review-before-post by default; auto-post only if health is OK.
 
 ---
 

@@ -1,15 +1,15 @@
-'use client'
+"use client";
 
-import { useRouter } from 'next/navigation'
-import { useDemoStore } from '@/stores/demoStore'
+import { useRouter } from "next/navigation";
+import { useDemoStore } from "@/stores/demoStore";
 
 function clearDemoAuthCookie() {
-  document.cookie = 'rf_demo_auth=; Path=/; Max-Age=0'
+  document.cookie = "rf_demo_auth=; Path=/; Max-Age=0";
 }
 
 export default function SettingsPage() {
-  const router = useRouter()
-  const resetDemo = useDemoStore((state) => state.resetDemo)
+  const router = useRouter();
+  const resetDemo = useDemoStore((state) => state.resetDemo);
 
   return (
     <div className="space-y-8">
@@ -19,7 +19,8 @@ export default function SettingsPage() {
         </p>
         <h1 className="mt-3 text-3xl font-semibold">Workspace settings</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Demo settings for the MVP frontend. Backend settings will replace this.
+          Demo settings for the MVP frontend. Backend settings will replace
+          this.
         </p>
       </div>
 
@@ -46,8 +47,8 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={() => {
-              clearDemoAuthCookie()
-              router.push('/login')
+              clearDemoAuthCookie();
+              router.push("/login");
             }}
             className="mt-6 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
           >
@@ -56,5 +57,5 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

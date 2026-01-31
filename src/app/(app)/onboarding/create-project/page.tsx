@@ -1,31 +1,37 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
-import { useDemoStore } from '@/stores/demoStore'
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { useDemoStore } from "@/stores/demoStore";
 
 const goalOptions = [
-  { label: 'Traffic', description: 'Send qualified visits to your landing page.' },
-  { label: 'Feedback', description: 'Validate positioning and roadmap decisions.' },
-  { label: 'Leads', description: 'Collect demos and signups without spam.' },
-  { label: 'Community', description: 'Build long-term presence and trust.' },
-]
+  {
+    label: "Traffic",
+    description: "Send qualified visits to your landing page.",
+  },
+  {
+    label: "Feedback",
+    description: "Validate positioning and roadmap decisions.",
+  },
+  { label: "Leads", description: "Collect demos and signups without spam." },
+  { label: "Community", description: "Build long-term presence and trust." },
+];
 
 export default function CreateProjectPage() {
-  const router = useRouter()
-  const createProject = useDemoStore((state) => state.createProject)
+  const router = useRouter();
+  const createProject = useDemoStore((state) => state.createProject);
 
-  const [name, setName] = useState('')
-  const [url, setUrl] = useState('')
-  const [description, setDescription] = useState('')
-  const [brandVoice, setBrandVoice] = useState('')
-  const [selectedGoals, setSelectedGoals] = useState<string[]>([])
-  const [error, setError] = useState<string | null>(null)
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [description, setDescription] = useState("");
+  const [brandVoice, setBrandVoice] = useState("");
+  const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const isValid = useMemo(() => {
-    return name.trim().length > 1 && description.trim().length > 10
-  }, [name, description])
+    return name.trim().length > 1 && description.trim().length > 10;
+  }, [name, description]);
 
   return (
     <div className="space-y-8">
@@ -33,9 +39,12 @@ export default function CreateProjectPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Onboarding
         </p>
-        <h1 className="mt-3 text-3xl font-semibold">Create your first project</h1>
+        <h1 className="mt-3 text-3xl font-semibold">
+          Create your first project
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Add core details so we can recommend subreddits and safe posting cadence.
+          Add core details so we can recommend subreddits and safe posting
+          cadence.
         </p>
       </div>
 
@@ -101,7 +110,7 @@ export default function CreateProjectPage() {
           <p className="text-sm font-semibold">Goals</p>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             {goalOptions.map((goal) => {
-              const checked = selectedGoals.includes(goal.label)
+              const checked = selectedGoals.includes(goal.label);
               return (
                 <label
                   key={goal.label}
@@ -114,19 +123,21 @@ export default function CreateProjectPage() {
                       setSelectedGoals((prev) =>
                         checked
                           ? prev.filter((item) => item !== goal.label)
-                          : [...prev, goal.label]
-                      )
+                          : [...prev, goal.label],
+                      );
                     }}
                     className="mt-1 h-4 w-4"
                   />
                   <span>
-                    <span className="block text-sm font-semibold">{goal.label}</span>
+                    <span className="block text-sm font-semibold">
+                      {goal.label}
+                    </span>
                     <span className="mt-1 block text-sm text-muted-foreground">
                       {goal.description}
                     </span>
                   </span>
                 </label>
-              )
+              );
             })}
           </div>
         </div>
@@ -136,7 +147,9 @@ export default function CreateProjectPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
               Safety pacing
             </p>
-            <p className="mt-2 text-sm font-semibold">Conservative by default</p>
+            <p className="mt-2 text-sm font-semibold">
+              Conservative by default
+            </p>
             <p className="mt-2 text-sm text-muted-foreground">
               New accounts start with light posting and heavier commenting.
             </p>
@@ -145,7 +158,9 @@ export default function CreateProjectPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
               Compliance notes
             </p>
-            <p className="mt-2 text-sm font-semibold">Human approval required</p>
+            <p className="mt-2 text-sm font-semibold">
+              Human approval required
+            </p>
             <p className="mt-2 text-sm text-muted-foreground">
               Drafts must be approved before scheduling to protect your account.
             </p>
@@ -163,10 +178,12 @@ export default function CreateProjectPage() {
             type="button"
             disabled={!isValid}
             onClick={() => {
-              setError(null)
+              setError(null);
               if (!isValid) {
-                setError('Please provide a project name and a short description.')
-                return
+                setError(
+                  "Please provide a project name and a short description.",
+                );
+                return;
               }
 
               const projectId = createProject({
@@ -175,9 +192,11 @@ export default function CreateProjectPage() {
                 description: description.trim(),
                 brandVoice: brandVoice.trim(),
                 goals: selectedGoals,
-              })
+              });
 
-              router.push(`/onboarding/connect-reddit?projectId=${encodeURIComponent(projectId)}`)
+              router.push(
+                `/onboarding/connect-reddit?projectId=${encodeURIComponent(projectId)}`,
+              );
             }}
             className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
           >
@@ -192,5 +211,5 @@ export default function CreateProjectPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

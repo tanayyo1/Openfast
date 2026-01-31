@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function SchedulingPage() {
   return (
@@ -45,10 +45,10 @@ export default function SchedulingPage() {
       <div className="rounded-[24px] border border-border bg-background/70 p-6">
         <p className="text-sm font-semibold">Safety reminder</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Posts must be approved before scheduling. If an account is new or health is low,
-          the system should recommend comments instead of posts.
+          Posts must be approved before scheduling. If an account is new or
+          health is low, the system should recommend comments instead of posts.
         </p>
       </div>
     </div>
-  )
+  );
 }

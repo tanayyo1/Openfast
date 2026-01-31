@@ -1,54 +1,62 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { useMemo } from 'react'
-import { useDemoStore } from '@/stores/demoStore'
+import Link from "next/link";
+import { useMemo } from "react";
+import { useDemoStore } from "@/stores/demoStore";
 
 export default function DashboardPage() {
-  const projects = useDemoStore((state) => state.projects)
-  const tasks = useDemoStore((state) => state.tasks)
-  const drafts = useDemoStore((state) => state.drafts)
+  const projects = useDemoStore((state) => state.projects);
+  const tasks = useDemoStore((state) => state.tasks);
+  const drafts = useDemoStore((state) => state.drafts);
 
   const stats = useMemo(() => {
-    const pendingApprovals = tasks.filter((t) => t.status === 'Needs approval').length
-    const scheduled = tasks.filter((t) => t.status === 'Scheduled').length
+    const pendingApprovals = tasks.filter(
+      (t) => t.status === "Needs approval",
+    ).length;
+    const scheduled = tasks.filter((t) => t.status === "Scheduled").length;
 
     return [
       {
-        label: 'Projects',
+        label: "Projects",
         value: String(projects.length),
-        detail: projects.length > 0 ? 'Ready for roadmaps' : 'Create your first project',
-        href: '/projects',
+        detail:
+          projects.length > 0
+            ? "Ready for roadmaps"
+            : "Create your first project",
+        href: "/projects",
       },
       {
-        label: 'Drafts',
+        label: "Drafts",
         value: String(drafts.length),
-        detail: pendingApprovals > 0 ? `${pendingApprovals} need approval` : 'No approvals pending',
-        href: '/content',
+        detail:
+          pendingApprovals > 0
+            ? `${pendingApprovals} need approval`
+            : "No approvals pending",
+        href: "/content",
       },
       {
-        label: 'Scheduled',
+        label: "Scheduled",
         value: String(scheduled),
-        detail: scheduled > 0 ? 'Ready to publish (demo)' : 'Nothing scheduled',
-        href: '/scheduling/queue',
+        detail: scheduled > 0 ? "Ready to publish (demo)" : "Nothing scheduled",
+        href: "/scheduling/queue",
       },
-    ]
-  }, [drafts.length, projects.length, tasks])
+    ];
+  }, [drafts.length, projects.length, tasks]);
 
   const priority = useMemo(() => {
     const ordering = {
-      'Needs approval': 0,
+      "Needs approval": 0,
       Draft: 1,
       Approved: 2,
       Scheduled: 3,
       Published: 4,
       Failed: 5,
-    } as const
+    } as const;
 
     return [...tasks]
       .sort((a, b) => ordering[a.status] - ordering[b.status])
-      .slice(0, 5)
-  }, [tasks])
+      .slice(0, 5);
+  }, [tasks]);
 
   return (
     <div className="space-y-8">
@@ -59,7 +67,8 @@ export default function DashboardPage() {
           </p>
           <h1 className="mt-3 text-3xl font-semibold">MVP demo workspace</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Follow the flow: project, connect, roadmap, task, draft, approve, schedule, analytics.
+            Follow the flow: project, connect, roadmap, task, draft, approve,
+            schedule, analytics.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -154,5 +163,5 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

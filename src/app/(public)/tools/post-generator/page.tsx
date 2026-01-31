@@ -1,4 +1,4 @@
-import { MaxWidth } from '@/components/public/MaxWidth'
+import { MaxWidth } from "@/components/public/MaxWidth";
 
 export default function PostGeneratorPage() {
   return (
@@ -9,9 +9,12 @@ export default function PostGeneratorPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
               Free tool
             </p>
-            <h1 className="mt-4 text-4xl font-semibold">Reddit post generator</h1>
+            <h1 className="mt-4 text-4xl font-semibold">
+              Reddit post generator
+            </h1>
             <p className="mt-4 text-sm text-muted-foreground">
-              Draft Reddit posts with structure hints, tone control, and compliance cues.
+              Draft Reddit posts with structure hints, tone control, and
+              compliance cues.
             </p>
             <div className="mt-8 rounded-[24px] border border-border bg-card/80 p-6">
               <p className="text-sm font-semibold">Input</p>
@@ -79,8 +82,8 @@ export default function PostGeneratorPage() {
                     Title placeholder for your Reddit post
                   </p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Body preview will appear here. It should include context, value, and a
-                    clear discussion prompt.
+                    Body preview will appear here. It should include context,
+                    value, and a clear discussion prompt.
                   </p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
@@ -100,5 +103,5 @@ export default function PostGeneratorPage() {
         </div>
       </MaxWidth>
     </div>
-  )
+  );
 }

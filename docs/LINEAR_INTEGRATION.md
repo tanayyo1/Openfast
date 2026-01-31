@@ -33,9 +33,11 @@ This guide walks you through integrating Linear with GitHub for seamless issue t
 **In Linear → Settings → Integrations → GitHub:**
 
 #### ☑️ Link Pull Requests to Issues
+
 Enable automatic linking when PR title contains issue ID.
 
 #### ☑️ Update Issue Status on PR Events
+
 Configure status mapping:
 
 ```
@@ -46,12 +48,15 @@ PR Closed (not merged) → "Cancelled"
 ```
 
 #### ☑️ Show PR Status in Linear
+
 See PR checks and merge status directly in Linear.
 
 #### ☑️ Create Branches from Linear
+
 Enable "Create branch" button in Linear issues.
 
 **Branch format template:**
+
 ```
 {{type}}/{{identifier}}-{{title}}
 # Results in: feature/LIN-123-add-scheduler
@@ -66,10 +71,12 @@ Enable "Create branch" button in Linear issues.
 #### Webhook Configuration (Auto-created by Linear)
 
 The integration automatically creates a webhook:
+
 - **Payload URL:** Linear's endpoint
 - **Events:** Pull requests, Pushes, Comments
 
 Verify webhook is active:
+
 1. GitHub → Settings → Webhooks
 2. Look for Linear webhook
 3. Check "Recent Deliveries" for green checkmarks
@@ -77,6 +84,7 @@ Verify webhook is active:
 #### Branch Protection Integration
 
 Ensure these settings align:
+
 - PR titles must include Linear issue ID
 - CI checks validate Linear linking
 - Merge requires Linear issue reference
@@ -96,6 +104,7 @@ Ensure these settings align:
 7. **Cancelled** - Closed without merging
 
 **Setup:**
+
 1. Linear → Settings → Workflow
 2. Add/edit states
 3. Map to GitHub PR events (see Step 2)
@@ -108,10 +117,8 @@ Ensure these settings align:
 
 1. Create Linear issue: "Add user dashboard"
    - Issue ID: `LIN-100`
-   
 2. Click "Create branch" in Linear
    - Suggested: `feature/LIN-100-add-user-dashboard`
-   
 3. Copy command:
    ```bash
    git checkout -b feature/LIN-100-add-user-dashboard
@@ -135,6 +142,7 @@ git push origin feature/LIN-100-add-user-dashboard
 5. Add `Closes LIN-100` in description
 
 **Expected in Linear:**
+
 - Issue status changes to "In Review"
 - PR link appears in issue
 - PR status (checks) visible
@@ -146,6 +154,7 @@ git push origin feature/LIN-100-add-user-dashboard
 3. Check Linear
 
 **Expected in Linear:**
+
 - Issue status changes to "Done"
 - Merged indicator shown
 - Git commit links added
@@ -178,6 +187,7 @@ GitHub: "urgent" → Linear: "Urgent"
 ```
 
 Setup:
+
 1. Linear → Settings → Integrations → GitHub → Labels
 2. Add mappings
 
@@ -196,6 +206,7 @@ Setup:
 ### Daily Workflow
 
 **Developer morning routine:**
+
 1. Open Linear
 2. Check "Todo" and "In Progress" issues
 3. Pick next issue
@@ -203,6 +214,7 @@ Setup:
 5. Start coding
 
 **Developer end of day:**
+
 1. Push changes
 2. Create PR if ready
 3. Update Linear issue with notes
@@ -213,14 +225,15 @@ Setup:
 **Create templates in Linear for consistency:**
 
 **Bug Template:**
+
 ```
 ## Bug Description
 <!-- What happened? -->
 
 ## Steps to Reproduce
-1. 
-2. 
-3. 
+1.
+2.
+3.
 
 ## Expected Behavior
 <!-- What should happen? -->
@@ -229,12 +242,13 @@ Setup:
 <!-- If applicable -->
 
 ## Environment
-- OS: 
-- Browser: 
-- Version: 
+- OS:
+- Browser:
+- Version:
 ```
 
 **Feature Template:**
+
 ```
 ## Feature Description
 <!-- What should be built? -->
@@ -252,6 +266,7 @@ Setup:
 ```
 
 Setup:
+
 1. Linear → Settings → Templates
 2. Create new template
 3. Set as default for issue type
@@ -263,6 +278,7 @@ Setup:
 ### Issue Creation
 
 **Good Linear Issue:**
+
 - ✅ Clear, specific title
 - ✅ Detailed description
 - ✅ Acceptance criteria
@@ -272,6 +288,7 @@ Setup:
 - ✅ Linked to project/roadmap
 
 **Bad Linear Issue:**
+
 - ❌ Vague title ("Fix stuff")
 - ❌ No description
 - ❌ No acceptance criteria
@@ -283,12 +300,14 @@ Setup:
 **One Issue = One Branch = One PR**
 
 Don't:
+
 - ❌ Put multiple issues in one PR
 - ❌ Create branch without Linear issue
 - ❌ Leave branches open for weeks
 - ❌ Merge without Linear reference
 
 Do:
+
 - ✅ Create branch from Linear
 - ✅ Small, focused changes
 - ✅ Merge quickly (within days)
@@ -319,6 +338,7 @@ WIP
 **Problem:** PR created but Linear issue doesn't show it.
 
 **Solutions:**
+
 1. Check PR title format: `[LIN-XXX] Description`
 2. Verify Linear ID exists
 3. Check webhook delivery (GitHub → Settings → Webhooks)
@@ -329,6 +349,7 @@ WIP
 **Problem:** Merged PR but Linear issue still "In Review".
 
 **Solutions:**
+
 1. Check webhook is active
 2. Verify workflow mapping in Linear
 3. Manually move status (one-time fix)
@@ -339,6 +360,7 @@ WIP
 **Problem:** Linear suggests branch name already exists.
 
 **Solutions:**
+
 1. Delete old branch if no longer needed
 2. Use descriptive suffix: `feature/LIN-123-add-auth-v2`
 3. Clean up old branches regularly
@@ -348,6 +370,7 @@ WIP
 **Problem:** Was working, now stopped.
 
 **Solutions:**
+
 1. Check Linear integration settings
 2. Re-authorize GitHub access
 3. Check webhook delivery status
@@ -431,6 +454,7 @@ jobs:
 Linear shows this automatically in issue history.
 
 **Target metrics:**
+
 - Bug fixes: < 2 days
 - Small features: < 1 week
 - Large features: < 2 weeks
@@ -440,6 +464,7 @@ Linear shows this automatically in issue history.
 **Track time in "In Review" state:**
 
 Linear workflow analytics show:
+
 - Average review time
 - Issues stuck in review
 - Review bottlenecks
@@ -451,16 +476,19 @@ Linear workflow analytics show:
 ### From Jira
 
 **Export Jira issues:**
+
 1. Jira → Issues → Export
 2. Save as CSV
 
 **Import to Linear:**
+
 1. Linear → Settings → Import
 2. Select Jira CSV
 3. Map fields
 4. Import
 
 **Update branch naming:**
+
 - Old: `feature/PROJ-123-description`
 - New: `feature/LIN-123-description`
 
@@ -469,12 +497,14 @@ Update `.husky/commit-msg` if needed.
 ### From GitHub Issues
 
 **Sync existing issues:**
+
 1. Linear → Settings → Integrations → GitHub
 2. Enable "Import GitHub Issues"
 3. Select issues to import
 4. Map to Linear project
 
 **Update workflow:**
+
 - Remind team to use Linear, not GitHub Issues
 - Close GitHub Issues tab
 - Update issue templates
@@ -488,10 +518,12 @@ Update `.husky/commit-msg` if needed.
 **Who can see what:**
 
 **Linear:**
+
 - Workspace members: Full access
 - Guests: Limited access (if invited)
 
 **GitHub:**
+
 - Repository access determines Linear visibility
 - Private repo = Private Linear issues
 
@@ -508,11 +540,13 @@ Update `.husky/commit-msg` if needed.
 ### Audit Trail
 
 **Linear maintains history:**
+
 - All status changes logged
 - All comments preserved
 - All links tracked
 
 **For compliance:**
+
 - Export data regularly
 - Archive old issues
 - Document retention policy
@@ -522,6 +556,7 @@ Update `.husky/commit-msg` if needed.
 ## Quick Reference
 
 **Create Issue:**
+
 ```
 Linear → New Issue
 Title: Clear, specific description
@@ -532,17 +567,20 @@ Due: Target date
 ```
 
 **Create Branch:**
+
 ```
 Linear issue → Click "Create branch"
 Copy: git checkout -b feature/LIN-XXX-description
 ```
 
 **Commit:**
+
 ```bash
 git commit -m "LIN-XXX: Description"
 ```
 
 **Create PR:**
+
 ```
 GitHub → New Pull Request
 Title: [LIN-XXX] Description
@@ -551,6 +589,7 @@ Reviewers: Assign at least 1
 ```
 
 **Status Flow:**
+
 ```
 Todo → In Progress → In Review → Ready to Merge → Done
 ```
@@ -560,15 +599,19 @@ Todo → In Progress → In Review → Ready to Merge → Done
 ## Resources
 
 **Linear Documentation:**
+
 - https://linear.app/docs
 
 **GitHub Integration:**
+
 - https://linear.app/docs/github-integration
 
 **API Reference:**
+
 - https://developers.linear.app/docs/
 
 **Team Support:**
+
 - Linear Slack community
 - GitHub community forums
 

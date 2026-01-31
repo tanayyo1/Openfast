@@ -6,6 +6,7 @@ const navItems = [
   { label: 'Onboarding', href: '/onboarding' },
   { label: 'Roadmaps', href: '/roadmaps' },
   { label: 'Content', href: '/content' },
+  { label: 'Approvals', href: '/approvals' },
   { label: 'Scheduling', href: '/scheduling' },
   { label: 'Analytics', href: '/analytics' },
   { label: 'Opportunities', href: '/opportunities' },
@@ -38,7 +39,7 @@ export function AppSidebar() {
             className="flex items-center justify-between rounded-2xl border border-transparent px-3 py-2 text-muted-foreground transition hover:border-border hover:bg-background/70 hover:text-foreground"
           >
             <span>{item.label}</span>
-            <span className="text-xs text-muted-foreground">{item.label === 'Projects' ? '3' : ''}</span>
+            <span className="text-xs text-muted-foreground" />
           </Link>
         ))}
       </nav>

@@ -1,6 +1,11 @@
-import Link from 'next/link'
+'use client'
 
-const goals = [
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useMemo, useState } from 'react'
+import { useDemoStore } from '@/stores/demoStore'
+
+const goalOptions = [
   { label: 'Traffic', description: 'Send qualified visits to your landing page.' },
   { label: 'Feedback', description: 'Validate positioning and roadmap decisions.' },
   { label: 'Leads', description: 'Collect demos and signups without spam.' },
@@ -8,6 +13,20 @@ const goals = [
 ]
 
 export default function CreateProjectPage() {
+  const router = useRouter()
+  const createProject = useDemoStore((state) => state.createProject)
+
+  const [name, setName] = useState('')
+  const [url, setUrl] = useState('')
+  const [description, setDescription] = useState('')
+  const [brandVoice, setBrandVoice] = useState('')
+  const [selectedGoals, setSelectedGoals] = useState<string[]>([])
+  const [error, setError] = useState<string | null>(null)
+
+  const isValid = useMemo(() => {
+    return name.trim().length > 1 && description.trim().length > 10
+  }, [name, description])
+
   return (
     <div className="space-y-8">
       <div>
@@ -29,6 +48,8 @@ export default function CreateProjectPage() {
             <input
               id="name"
               type="text"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
               placeholder="Pulse CRM"
               className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm"
             />
@@ -40,6 +61,8 @@ export default function CreateProjectPage() {
             <input
               id="url"
               type="url"
+              value={url}
+              onChange={(event) => setUrl(event.target.value)}
               placeholder="https://yourproduct.com"
               className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm"
             />
@@ -53,6 +76,8 @@ export default function CreateProjectPage() {
           <textarea
             id="desc"
             rows={5}
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
             placeholder="Describe what you do, who it helps, and why it is different."
             className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm"
           />
@@ -65,6 +90,8 @@ export default function CreateProjectPage() {
           <textarea
             id="voice"
             rows={4}
+            value={brandVoice}
+            onChange={(event) => setBrandVoice(event.target.value)}
             placeholder="Helpful, concise, and honest. No hype."
             className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm"
           />
@@ -73,20 +100,34 @@ export default function CreateProjectPage() {
         <div className="mt-4">
           <p className="text-sm font-semibold">Goals</p>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
-            {goals.map((goal) => (
-              <label
-                key={goal.label}
-                className="flex items-start gap-3 rounded-[20px] border border-border bg-background/70 px-4 py-3"
-              >
-                <input type="checkbox" className="mt-1 h-4 w-4" />
-                <span>
-                  <span className="block text-sm font-semibold">{goal.label}</span>
-                  <span className="mt-1 block text-sm text-muted-foreground">
-                    {goal.description}
+            {goalOptions.map((goal) => {
+              const checked = selectedGoals.includes(goal.label)
+              return (
+                <label
+                  key={goal.label}
+                  className="flex items-start gap-3 rounded-[20px] border border-border bg-background/70 px-4 py-3"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => {
+                      setSelectedGoals((prev) =>
+                        checked
+                          ? prev.filter((item) => item !== goal.label)
+                          : [...prev, goal.label]
+                      )
+                    }}
+                    className="mt-1 h-4 w-4"
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold">{goal.label}</span>
+                    <span className="mt-1 block text-sm text-muted-foreground">
+                      {goal.description}
+                    </span>
                   </span>
-                </span>
-              </label>
-            ))}
+                </label>
+              )
+            })}
           </div>
         </div>
 
@@ -111,10 +152,34 @@ export default function CreateProjectPage() {
           </div>
         </div>
 
+        {error ? (
+          <p className="mt-4 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-muted-foreground">
+            {error}
+          </p>
+        ) : null}
+
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             type="button"
-            className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
+            disabled={!isValid}
+            onClick={() => {
+              setError(null)
+              if (!isValid) {
+                setError('Please provide a project name and a short description.')
+                return
+              }
+
+              const projectId = createProject({
+                name: name.trim(),
+                url: url.trim() || undefined,
+                description: description.trim(),
+                brandVoice: brandVoice.trim(),
+                goals: selectedGoals,
+              })
+
+              router.push(`/onboarding/connect-reddit?projectId=${encodeURIComponent(projectId)}`)
+            }}
+            className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
           >
             Save project
           </button>

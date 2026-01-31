@@ -1,27 +1,11 @@
-import Link from 'next/link'
+'use client'
 
-const projects = [
-  {
-    name: 'Pulse CRM',
-    status: 'Active',
-    niche: 'B2B SaaS',
-    tasks: '12 scheduled',
-  },
-  {
-    name: 'FinOps Stack',
-    status: 'Draft',
-    niche: 'Finance teams',
-    tasks: '6 drafts',
-  },
-  {
-    name: 'AI Notes',
-    status: 'Active',
-    niche: 'Productivity',
-    tasks: '4 pending review',
-  },
-]
+import Link from 'next/link'
+import { useDemoStore } from '@/stores/demoStore'
 
 export default function ProjectsPage() {
+  const projects = useDemoStore((state) => state.projects)
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -35,12 +19,12 @@ export default function ProjectsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
+          <Link
+            href="/onboarding/create-project"
             className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
           >
             New project
-          </button>
+          </Link>
           <Link
             href="/projects/empty"
             className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
@@ -62,30 +46,50 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      <div className="grid gap-4">
-        {projects.map((project) => (
-          <Link
-            key={project.name}
-            href={`/projects/${encodeURIComponent(project.name)}`}
-            className="rounded-[24px] border border-border bg-card/80 p-6 transition hover:border-foreground/40"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p className="text-lg font-semibold">{project.name}</p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {project.niche}
-                </p>
+      {projects.length === 0 ? (
+        <div className="rounded-[24px] border border-border bg-card/80 p-8">
+          <p className="text-sm font-semibold">No projects yet</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Create your first project to generate subreddit recommendations and roadmaps.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/onboarding/create-project"
+              className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
+            >
+              Create project
+            </Link>
+            <Link
+              href="/onboarding"
+              className="rounded-full border border-border px-5 py-2 text-sm font-semibold"
+            >
+              Onboarding
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {projects.map((project) => (
+            <Link
+              key={project.id}
+              href={`/projects/${encodeURIComponent(project.id)}`}
+              className="rounded-[24px] border border-border bg-card/80 p-6 transition hover:border-foreground/40"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="text-lg font-semibold">{project.name}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {project.goals.length > 0 ? project.goals.join(', ') : 'No goals set'}
+                  </p>
+                </div>
+                <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
+                  Active
+                </span>
               </div>
-              <div className="text-right">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  {project.status}
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground">{project.tasks}</p>
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

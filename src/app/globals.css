@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 28 28% 96%;
+    --foreground: 24 28% 12%;
+    --card: 26 30% 97%;
+    --card-foreground: 24 28% 12%;
+    --popover: 26 30% 97%;
+    --popover-foreground: 24 28% 12%;
+    --primary: 18 85% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 200 38% 91%;
+    --secondary-foreground: 210 22% 20%;
+    --muted: 24 18% 90%;
+    --muted-foreground: 24 12% 38%;
+    --accent: 164 58% 34%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 24 16% 86%;
+    --input: 24 16% 86%;
+    --ring: 18 85% 45%;
+    --radius: 14px;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    font-family: var(--font-body);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+  }
+}
+
+@layer components {
+  .grid-surface {
+    background-image: linear-gradient(
+        90deg,
+        rgba(24, 28, 38, 0.06) 1px,
+        transparent 1px
+      ),
+      linear-gradient(rgba(24, 28, 38, 0.06) 1px, transparent 1px);
+    background-size: 36px 36px;
+  }
+
+  .gradient-orbit {
+    background: radial-gradient(
+        circle at 20% 20%,
+        rgba(255, 164, 116, 0.35),
+        transparent 40%
+      ),
+      radial-gradient(
+        circle at 80% 10%,
+        rgba(88, 180, 164, 0.28),
+        transparent 42%
+      ),
+      radial-gradient(
+        circle at 80% 80%,
+        rgba(255, 211, 160, 0.35),
+        transparent 45%
+      );
+  }
+}
+
+@layer utilities {
+  @keyframes fade-up {
+    0% {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes drift {
+    0% {
+      transform: translateY(0);
+    }
+    100% {
+      transform: translateY(-12px);
+    }
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.6s ease-out both;
+  }
+
+  .animate-fade-up-delay-1 {
+    animation: fade-up 0.6s ease-out 0.1s both;
+  }
+
+  .animate-fade-up-delay-2 {
+    animation: fade-up 0.6s ease-out 0.2s both;
+  }
+
+  .animate-fade-up-delay-3 {
+    animation: fade-up 0.6s ease-out 0.3s both;
+  }
+
+  .animate-drift {
+    animation: drift 6s ease-in-out infinite alternate;
+  }
+}

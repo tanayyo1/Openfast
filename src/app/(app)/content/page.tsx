@@ -1,29 +1,29 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { useDemoStore } from '@/stores/demoStore'
+import Link from "next/link";
+import { useDemoStore } from "@/stores/demoStore";
 
 export default function ContentPage() {
-  const drafts = useDemoStore((state) => state.drafts)
-  const tasks = useDemoStore((state) => state.tasks)
-  const projects = useDemoStore((state) => state.projects)
+  const drafts = useDemoStore((state) => state.drafts);
+  const tasks = useDemoStore((state) => state.tasks);
+  const projects = useDemoStore((state) => state.projects);
 
   const rows = drafts.map((draft) => {
-    const task = tasks.find((t) => t.id === draft.taskId)
-    const project = projects.find((p) => p.id === draft.projectId)
+    const task = tasks.find((t) => t.id === draft.taskId);
+    const project = projects.find((p) => p.id === draft.projectId);
 
     return {
       id: draft.id,
       title: draft.editedTitle,
       status: draft.status,
-      project: project?.name ?? 'Unknown',
+      project: project?.name ?? "Unknown",
       subreddit: task?.subreddit ?? draft.subreddit,
       risk:
         draft.variants[draft.selectedIndex]?.riskScore ??
         draft.variants[0]?.riskScore ??
         0,
-    }
-  })
+    };
+  });
 
   return (
     <div className="space-y-8">
@@ -95,7 +95,9 @@ export default function ContentPage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                     {draft.status}
                   </p>
-                  <p className="mt-2 text-sm text-muted-foreground">Risk: {draft.risk}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Risk: {draft.risk}
+                  </p>
                 </div>
               </div>
             </Link>
@@ -107,20 +109,31 @@ export default function ContentPage() {
         <p className="text-sm font-semibold">Quality checklist</p>
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           {[
-            { title: 'Avoid hard CTAs', detail: 'Keep language helpful and discussion-led.' },
-            { title: 'Respect rules', detail: 'Match title format, link limits, and flair.' },
-            { title: 'Prevent duplicates', detail: 'Do not re-post similar drafts across subs.' },
+            {
+              title: "Avoid hard CTAs",
+              detail: "Keep language helpful and discussion-led.",
+            },
+            {
+              title: "Respect rules",
+              detail: "Match title format, link limits, and flair.",
+            },
+            {
+              title: "Prevent duplicates",
+              detail: "Do not re-post similar drafts across subs.",
+            },
           ].map((item) => (
             <div
               key={item.title}
               className="rounded-2xl border border-border bg-card/80 p-5"
             >
               <p className="text-sm font-semibold">{item.title}</p>
-              <p className="mt-2 text-sm text-muted-foreground">{item.detail}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {item.detail}
+              </p>
             </div>
           ))}
         </div>
       </div>
     </div>
-  )
+  );
 }

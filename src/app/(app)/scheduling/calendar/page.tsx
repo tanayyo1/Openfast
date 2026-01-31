@@ -1,17 +1,17 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { useMemo } from 'react'
-import { useDemoStore } from '@/stores/demoStore'
+import Link from "next/link";
+import { useMemo } from "react";
+import { useDemoStore } from "@/stores/demoStore";
 
 export default function SchedulingCalendarPage() {
-  const tasks = useDemoStore((state) => state.tasks)
-  const drafts = useDemoStore((state) => state.drafts)
-  const scheduleTask = useDemoStore((state) => state.scheduleTask)
+  const tasks = useDemoStore((state) => state.tasks);
+  const drafts = useDemoStore((state) => state.drafts);
+  const scheduleTask = useDemoStore((state) => state.scheduleTask);
 
   const approved = useMemo(() => {
-    return tasks.filter((task) => task.status === 'Approved')
-  }, [tasks])
+    return tasks.filter((task) => task.status === "Approved");
+  }, [tasks]);
 
   return (
     <div className="space-y-8">
@@ -71,7 +71,7 @@ export default function SchedulingCalendarPage() {
         ) : (
           <div className="mt-4 space-y-3">
             {approved.map((task) => {
-              const draft = drafts.find((d) => d.taskId === task.id)
+              const draft = drafts.find((d) => d.taskId === task.id);
               return (
                 <div
                   key={task.id}
@@ -86,7 +86,7 @@ export default function SchedulingCalendarPage() {
                         Window: {task.bestWindow}
                       </p>
                       <p className="mt-2 text-sm text-muted-foreground">
-                        Draft: {draft ? draft.editedTitle : 'Not generated'}
+                        Draft: {draft ? draft.editedTitle : "Not generated"}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-3">
@@ -100,7 +100,12 @@ export default function SchedulingCalendarPage() {
                       ) : null}
                       <button
                         type="button"
-                        onClick={() => scheduleTask({ taskId: task.id, scheduledAt: task.bestWindow })}
+                        onClick={() =>
+                          scheduleTask({
+                            taskId: task.id,
+                            scheduledAt: task.bestWindow,
+                          })
+                        }
                         className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
                       >
                         Schedule
@@ -108,7 +113,7 @@ export default function SchedulingCalendarPage() {
                     </div>
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         )}
@@ -117,9 +122,10 @@ export default function SchedulingCalendarPage() {
       <div className="rounded-[24px] border border-border bg-card/80 p-6">
         <p className="text-sm font-semibold">Timezone and editing (next)</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          The MVP demo does not include timezone selection, rescheduling, or reminders yet.
+          The MVP demo does not include timezone selection, rescheduling, or
+          reminders yet.
         </p>
       </div>
     </div>
-  )
+  );
 }

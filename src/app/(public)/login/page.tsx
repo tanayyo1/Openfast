@@ -1,28 +1,30 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { signIn } from 'next-auth/react'
-import { useMemo, useState } from 'react'
-import { MaxWidth } from '@/components/public/MaxWidth'
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { useMemo, useState } from "react";
+import { MaxWidth } from "@/components/public/MaxWidth";
 
 function setDemoAuthCookie() {
   // Demo-only auth gate for the MVP frontend. Backend auth will replace this.
-  document.cookie = `rf_demo_auth=1; Path=/; Max-Age=${60 * 60 * 24 * 30}`
+  document.cookie = `rf_demo_auth=1; Path=/; Max-Age=${60 * 60 * 24 * 30}`;
 }
 
 export default function LoginPage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const next = useMemo(() => {
-    const rawNext = searchParams.get('next') ?? '/dashboard'
-    return rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/dashboard'
-  }, [searchParams])
+    const rawNext = searchParams.get("next") ?? "/dashboard";
+    return rawNext.startsWith("/") && !rawNext.startsWith("//")
+      ? rawNext
+      : "/dashboard";
+  }, [searchParams]);
 
   return (
     <div className="py-16">
@@ -38,24 +40,24 @@ export default function LoginPage() {
           <form
             className="mt-6 space-y-4"
             onSubmit={async (e) => {
-              e.preventDefault()
-              setError(null)
-              setLoading(true)
+              e.preventDefault();
+              setError(null);
+              setLoading(true);
 
-              const res = await signIn('credentials', {
+              const res = await signIn("credentials", {
                 redirect: false,
                 email,
                 password,
                 callbackUrl: next,
-              })
+              });
 
-              setLoading(false)
+              setLoading(false);
               if (!res || res.error) {
-                setError('Invalid email or password')
-                return
+                setError("Invalid email or password");
+                return;
               }
 
-              router.push(res.url ?? next)
+              router.push(res.url ?? next);
             }}
           >
             <div>
@@ -94,14 +96,14 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? "Signing in..." : "Sign in"}
             </button>
-            {process.env.NODE_ENV !== 'production' ? (
+            {process.env.NODE_ENV !== "production" ? (
               <button
                 type="button"
                 onClick={() => {
-                  setDemoAuthCookie()
-                  router.push(next)
+                  setDemoAuthCookie();
+                  router.push(next);
                 }}
                 className="w-full rounded-full border border-border bg-background px-4 py-3 text-sm font-semibold transition hover:bg-muted"
               >
@@ -118,5 +120,5 @@ export default function LoginPage() {
         </div>
       </MaxWidth>
     </div>
-  )
+  );
 }

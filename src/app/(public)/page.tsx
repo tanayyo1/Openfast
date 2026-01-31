@@ -1,56 +1,59 @@
-import Link from 'next/link'
-import { MaxWidth } from '@/components/public/MaxWidth'
+import Link from "next/link";
+import { MaxWidth } from "@/components/public/MaxWidth";
 
 const highlights = [
   {
-    title: 'Safe pacing by default',
+    title: "Safe pacing by default",
     description:
-      'Adaptive caps and rule checks reduce removals and protect account health.',
+      "Adaptive caps and rule checks reduce removals and protect account health.",
   },
   {
-    title: 'Best time windows',
+    title: "Best time windows",
     description:
-      'Subreddit intelligence ranks posting windows so each task lands when the feed is active.',
+      "Subreddit intelligence ranks posting windows so each task lands when the feed is active.",
   },
   {
-    title: 'Human approval first',
+    title: "Human approval first",
     description:
-      'Every post waits for review, keeping your tone aligned and your team in control.',
+      "Every post waits for review, keeping your tone aligned and your team in control.",
   },
-]
+];
 
 const steps = [
   {
-    title: 'Connect Reddit',
-    detail: 'Secure OAuth connection with scoped permissions and encrypted tokens.',
+    title: "Connect Reddit",
+    detail:
+      "Secure OAuth connection with scoped permissions and encrypted tokens.",
   },
   {
-    title: 'Generate the roadmap',
-    detail: 'Pick goals and get a day-by-day plan with the safest posting cadence.',
+    title: "Generate the roadmap",
+    detail:
+      "Pick goals and get a day-by-day plan with the safest posting cadence.",
   },
   {
-    title: 'Publish with confidence',
-    detail: 'Schedule, review, and track results with realtime feedback loops.',
+    title: "Publish with confidence",
+    detail: "Schedule, review, and track results with realtime feedback loops.",
   },
-]
+];
 
 const tools = [
   {
-    title: 'Post generator',
-    description: 'Craft Reddit-ready drafts with tone controls and structure hints.',
-    href: '/tools/post-generator',
+    title: "Post generator",
+    description:
+      "Craft Reddit-ready drafts with tone controls and structure hints.",
+    href: "/tools/post-generator",
   },
   {
-    title: 'Subreddit analyzer',
-    description: 'See rules, risk signals, and best-time windows at a glance.',
-    href: '/tools/subreddit-analyzer',
+    title: "Subreddit analyzer",
+    description: "See rules, risk signals, and best-time windows at a glance.",
+    href: "/tools/subreddit-analyzer",
   },
   {
-    title: 'Shadowban check',
-    description: 'Run visibility checks and track account health trends.',
-    href: '/tools/shadowban-check',
+    title: "Shadowban check",
+    description: "Run visibility checks and track account health trends.",
+    href: "/tools/shadowban-check",
   },
-]
+];
 
 export default function HomePage() {
   return (
@@ -63,11 +66,13 @@ export default function HomePage() {
                 Reddit marketing without bans
               </p>
               <h1 className="mt-6 text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
-                Build steady Reddit growth with safe automation and clear timing.
+                Build steady Reddit growth with safe automation and clear
+                timing.
               </h1>
               <p className="mt-6 text-base text-muted-foreground sm:text-lg">
-                ReditFast blends subreddit intelligence, compliance scoring, and human approval
-                so founders can scale authentic Reddit presence without risky shortcuts.
+                ReditFast blends subreddit intelligence, compliance scoring, and
+                human approval so founders can scale authentic Reddit presence
+                without risky shortcuts.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-4">
                 <Link
@@ -84,16 +89,18 @@ export default function HomePage() {
                 </Link>
               </div>
               <div className="mt-10 grid gap-4 sm:grid-cols-3">
-                {['95% safer pacing', '30 day roadmaps', 'Real-time analytics'].map(
-                  (item) => (
-                    <div
-                      key={item}
-                      className="rounded-2xl border border-border bg-background/70 px-4 py-4 text-sm font-semibold"
-                    >
-                      {item}
-                    </div>
-                  )
-                )}
+                {[
+                  "95% safer pacing",
+                  "30 day roadmaps",
+                  "Real-time analytics",
+                ].map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-2xl border border-border bg-background/70 px-4 py-4 text-sm font-semibold"
+                  >
+                    {item}
+                  </div>
+                ))}
               </div>
             </div>
             <div className="relative">
@@ -144,10 +151,10 @@ export default function HomePage() {
                 key={item.title}
                 className={`rounded-[28px] border border-border bg-card/80 p-6 shadow-sm ${
                   index === 0
-                    ? 'animate-fade-up'
+                    ? "animate-fade-up"
                     : index === 1
-                    ? 'animate-fade-up-delay-1'
-                    : 'animate-fade-up-delay-2'
+                      ? "animate-fade-up-delay-1"
+                      : "animate-fade-up-delay-2"
                 }`}
               >
                 <p className="text-lg font-semibold">{item.title}</p>
@@ -171,8 +178,8 @@ export default function HomePage() {
                 A workflow designed for compliance and clarity.
               </h2>
               <p className="mt-4 text-sm text-muted-foreground">
-                Each step is built to align with subreddit rules while keeping your team in
-                control of voice and timing.
+                Each step is built to align with subreddit rules while keeping
+                your team in control of voice and timing.
               </p>
             </div>
             <div className="grid gap-4">
@@ -181,17 +188,19 @@ export default function HomePage() {
                   key={step.title}
                   className={`rounded-[24px] border border-border bg-background/80 px-6 py-5 ${
                     index === 0
-                      ? 'animate-fade-up'
+                      ? "animate-fade-up"
                       : index === 1
-                      ? 'animate-fade-up-delay-1'
-                      : 'animate-fade-up-delay-2'
+                        ? "animate-fade-up-delay-1"
+                        : "animate-fade-up-delay-2"
                   }`}
                 >
                   <p className="text-sm font-semibold text-muted-foreground">
                     Step {index + 1}
                   </p>
                   <p className="mt-2 text-lg font-semibold">{step.title}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">{step.detail}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {step.detail}
+                  </p>
                 </div>
               ))}
             </div>
@@ -224,10 +233,10 @@ export default function HomePage() {
                 href={tool.href}
                 className={`group rounded-[28px] border border-border bg-card/80 p-6 transition hover:-translate-y-1 hover:border-foreground/40 ${
                   index === 0
-                    ? 'animate-fade-up'
+                    ? "animate-fade-up"
                     : index === 1
-                    ? 'animate-fade-up-delay-1'
-                    : 'animate-fade-up-delay-2'
+                      ? "animate-fade-up-delay-1"
+                      : "animate-fade-up-delay-2"
                 }`}
               >
                 <p className="text-lg font-semibold">{tool.title}</p>
@@ -250,8 +259,8 @@ export default function HomePage() {
               Ready to build a safer Reddit engine?
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-sm text-muted-foreground">
-              Start with the free tools, then move into full roadmaps, scheduling, and
-              analytics once you are ready to scale.
+              Start with the free tools, then move into full roadmaps,
+              scheduling, and analytics once you are ready to scale.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-4">
               <Link
@@ -271,5 +280,5 @@ export default function HomePage() {
         </MaxWidth>
       </section>
     </div>
-  )
+  );
 }

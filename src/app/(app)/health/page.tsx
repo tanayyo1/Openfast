@@ -1,22 +1,22 @@
-import Link from 'next/link'
-import { BarMeter } from '@/components/app/charts/BarMeter'
+import Link from "next/link";
+import { BarMeter } from "@/components/app/charts/BarMeter";
 
 const accounts = [
   {
-    username: 'founder_handle',
+    username: "founder_handle",
     score: 82,
-    tier: 'Established',
-    cadence: '3 to 5 posts per day',
-    flags: ['2 rule reminders'],
+    tier: "Established",
+    cadence: "3 to 5 posts per day",
+    flags: ["2 rule reminders"],
   },
   {
-    username: 'product_notes',
+    username: "product_notes",
     score: 61,
-    tier: 'New',
-    cadence: '1 to 2 posts per day',
-    flags: ['Limit links', 'Prefer comments'],
+    tier: "New",
+    cadence: "1 to 2 posts per day",
+    flags: ["Limit links", "Prefer comments"],
   },
-]
+];
 
 export default function HealthPage() {
   return (
@@ -26,7 +26,9 @@ export default function HealthPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Account health
           </p>
-          <h1 className="mt-3 text-3xl font-semibold">Protect delivery and trust</h1>
+          <h1 className="mt-3 text-3xl font-semibold">
+            Protect delivery and trust
+          </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Track removals, visibility signals, and recommended pacing tiers.
           </p>
@@ -49,7 +51,7 @@ export default function HealthPage() {
               <div>
                 <p className="text-lg font-semibold">u/{account.username}</p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Tier: {account.tier} 
+                  Tier: {account.tier}
                   <span className="mx-2 text-muted-foreground/40">|</span>
                   Suggested cadence: {account.cadence}
                 </p>
@@ -99,16 +101,18 @@ export default function HealthPage() {
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           {[
             {
-              title: 'Approval gate',
-              detail: 'Drafts must be approved before scheduling and publishing.',
+              title: "Approval gate",
+              detail:
+                "Drafts must be approved before scheduling and publishing.",
             },
             {
-              title: 'Rate limiting',
-              detail: 'Requests are paced per account to match Reddit limits.',
+              title: "Rate limiting",
+              detail: "Requests are paced per account to match Reddit limits.",
             },
             {
-              title: 'Duplicate control',
-              detail: 'Similar drafts across subreddits should be blocked or rewritten.',
+              title: "Duplicate control",
+              detail:
+                "Similar drafts across subreddits should be blocked or rewritten.",
             },
           ].map((item) => (
             <div
@@ -116,11 +120,13 @@ export default function HealthPage() {
               className="rounded-2xl border border-border bg-card/80 p-5"
             >
               <p className="text-sm font-semibold">{item.title}</p>
-              <p className="mt-2 text-sm text-muted-foreground">{item.detail}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {item.detail}
+              </p>
             </div>
           ))}
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -21,6 +21,7 @@
 ## Tech Stack
 
 ### Frontend
+
 - **Framework**: Next.js 14 (App Router)
 - **Styling**: TailwindCSS
 - **UI Components**: shadcn/ui
@@ -28,6 +29,7 @@
 - **Animations**: Framer Motion
 
 ### Backend
+
 - **API**: Next.js API Routes + Node.js microservices
 - **Database**: PostgreSQL (via Prisma ORM)
 - **Cache**: Redis (Upstash)
@@ -35,12 +37,14 @@
 - **Auth**: NextAuth.js + Reddit OAuth2
 
 ### AI/ML
+
 - **LLM**: OpenAI GPT-4 / Claude 3.5
 - **Embeddings**: OpenAI text-embedding-3-small
 - **Vector DB**: pgvector (PostgreSQL extension)
 - **RAG**: LangChain for retrieval-augmented generation
 
 ### Infrastructure
+
 - **Hosting**: Vercel (frontend) + Railway/Render (workers)
 - **CDN**: Cloudflare
 - **Storage**: Cloudflare R2 (media)
@@ -53,6 +57,7 @@
 ## Architecture Patterns
 
 ### Service Boundaries
+
 1. **Auth Service** - User auth, sessions, workspace membership
 2. **Project Service** - Project CRUD, brand voice, goals
 3. **Reddit Service** - OAuth, token management, rate limiting
@@ -63,11 +68,13 @@
 8. **Notification Service** - Email, in-app alerts
 
 ### Data Flow Patterns
+
 - **Sync**: REST API for immediate responses (CRUD, queries)
 - **Async**: Job queues for background work (roadmap gen, publishing)
 - **Realtime**: WebSocket/SSE for live updates (notifications, progress)
 
 ### Critical Design Decisions
+
 - **Human-in-the-loop**: All Reddit posts require user approval before scheduling
 - **Compliance-first**: Rate limiting, rule checking, ban prevention built-in
 - **Workspace isolation**: Every query scoped by workspace_id
@@ -81,6 +88,7 @@
 **Source of truth:** `mediafast_clone_system_design_report.md` (feature parity scope, queues, flows, infra sizing).
 
 ### Expanded service map (aligns to report)
+
 1. **API Gateway / Core Backend** - Auth/session, CRUD, orchestration, billing entitlements
 2. **Billing Service** - Stripe plans, quotas, lifetime logic
 3. **Subreddit Intelligence Service** - rules ingestion, stats, time windows, risk flags
@@ -89,6 +97,7 @@
 6. **Free Tools + SEO Engine** - public tools, SEO hubs, rate-limited endpoints
 
 ### Data model highlights (MVP+)
+
 - Core: `users`, `sessions`, `plans`, `subscriptions`, `reddit_accounts`, `projects`
 - Intel: `subreddits`, `subreddit_rules`, `subreddit_stats_daily`, `subreddit_time_windows`, `subreddit_embeddings`
 - Roadmap: `project_subreddit_recos`, `roadmaps`, `tasks`, `task_content`
@@ -97,10 +106,12 @@
 - Ops: `comment_opportunities`, `notifications`
 
 ### Queue + cron map (BullMQ MVP)
+
 - Queues: `reddit.publish`, `reddit.metrics_fetch`, `subreddit.ingest`, `subreddit.compute_time_windows`, `recommendations.generate`, `roadmap.generate`, `content.generate`, `risk.account_health`, `risk.visibility_check`
 - Cron defaults: daily ingest, daily time-window compute, 30-min metrics fetch, daily reminders
 
 ### Key user flows (must match report sequence diagrams)
+
 - Reddit OAuth connect
 - Best 5 subreddit recommendations
 - Roadmap generation
@@ -109,14 +120,17 @@
 - Free tools: Subreddit Analyzer + Shadowban Detector
 
 ### Public tools + SEO surface
+
 - Public screens: home, pricing, login/signup, SEO hubs (city/industry/alternatives/guides)
 - Tools: post generator, subreddit analyzer, shadowban detector (rate-limited)
 
 ### Infra sizing assumptions
+
 - **MVP**: 1k–5k users, ~10k scheduled actions/month; 2 API + 2–4 worker nodes; single Postgres + Redis
 - **Scale**: 100k users, ~1M scheduled actions/month; multi-instance API, worker pools, queue separation, time-series store
 
 ### Implementation approach (doc + delivery order)
+
 1. **Doc alignment**: keep `mediafast_clone_system_design_report.md` current; update AGENTS.md when scope changes.
 2. **Foundation**: auth, projects, Reddit OAuth, workspace isolation, rate limits.
 3. **Intel + Reco**: subreddit ingest, rules parsing, best-time windows, recommendations.
@@ -210,11 +224,13 @@ ReditFast/
 ## Key Constraints & Guardrails
 
 ### Reddit API Limits
+
 - **OAuth**: 60 requests per minute per user
 - **Read**: 100 requests per minute per OAuth app
 - **Actions**: Account-specific (varies by karma/age)
 
 ### Security Requirements
+
 - Encrypt Reddit tokens at rest (AES-256 + KMS)
 - Never log Reddit tokens or PII
 - Workspace isolation on every query
@@ -222,6 +238,7 @@ ReditFast/
 - Audit logs for all posting actions
 
 ### Ban Prevention System
+
 - **Pacing tiers**:
   - New accounts (<100 karma): Max 1-2 posts/day, focus on comments
   - Established (100-1000 karma): 3-5 posts/day
@@ -232,6 +249,7 @@ ReditFast/
 - **Human approval required**: Default mode for all posts
 
 ### Data Retention
+
 - Reddit tokens: Until user disconnects or refresh fails
 - Post content: 90 days after project deletion
 - Analytics: 1 year (then aggregate only)
@@ -242,6 +260,7 @@ ReditFast/
 ## Development Rules
 
 ### Code Standards
+
 1. **TypeScript strict mode** - No `any` types
 2. **Workspace scoping** - Every DB query must include `workspace_id`
 3. **Never log secrets** - Reddit tokens, API keys redacted
@@ -250,18 +269,21 @@ ReditFast/
 6. **Testing** - Unit tests for services, integration for APIs, E2E for flows
 
 ### Database Patterns
+
 - Use Prisma for all DB operations
 - Soft deletes where possible
 - Partition large tables by date (clicks, snapshots)
 - Index heavily on: workspace_id, project_id, scheduled_at
 
 ### API Patterns
+
 - RESTful design with clear resource naming
 - Consistent error format: `{ error: string, code: string, details?: object }`
 - Pagination: Cursor-based for large lists
-- Rate limiting headers: X-RateLimit-*
+- Rate limiting headers: X-RateLimit-\*
 
 ### Job Queue Patterns
+
 - Use BullMQ with Redis
 - Jobs must be idempotent
 - Implement exponential backoff for retries
@@ -277,11 +299,13 @@ ReditFast/
 **❌ NEVER commit to `main` or `develop` directly**
 
 **✅ ALWAYS create feature branch:**
+
 ```bash
 git checkout -b feature/LIN-123-short-description
 ```
 
 **Branch Naming Convention (STRICT):**
+
 - Features: `feature/LIN-123-short-desc` (e.g., `feature/LIN-456-add-scheduler`)
 - Bugs: `bugfix/LIN-123-short-desc` (e.g., `bugfix/LIN-789-fix-oauth`)
 - Hotfixes: `hotfix/LIN-123-short-desc` (e.g., `hotfix/LIN-101-critical-fix`)
@@ -290,6 +314,7 @@ git checkout -b feature/LIN-123-short-description
 - Tests: `test/LIN-123-short-desc`
 
 **MANDATORY REQUIREMENTS:**
+
 - [ ] Linear issue ID **MUST** be in branch name (LIN-XXX)
 - [ ] PR **REQUIRED** for all code changes
 - [ ] Minimum **1 human review** before merge
@@ -297,6 +322,7 @@ git checkout -b feature/LIN-123-short-description
 - [ ] Linear issue **MUST** be linked in PR
 
 **Workflow:**
+
 1. Create branch from `main`: `git checkout -b feature/LIN-XXX-desc`
 2. Make changes, commit with Linear reference
 3. Push branch: `git push origin feature/LIN-XXX-desc`
@@ -319,6 +345,7 @@ git checkout -b feature/LIN-123-short-description
 - [ ] Understand the scope (don't go beyond issue requirements)
 
 **If you're not on a feature branch, STOP and create one:**
+
 ```bash
 git checkout main
 git pull origin main
@@ -340,6 +367,7 @@ npm run format:check  # Prettier formatting correct
 ```
 
 **Additional Requirements:**
+
 - [ ] No `console.log` in production code (use logger)
 - [ ] No `debugger` statements
 - [ ] No hardcoded secrets/API keys
@@ -353,6 +381,7 @@ npm run format:check  # Prettier formatting correct
 ### 4. Commit Message Format (STANDARDIZED)
 
 **Format:**
+
 ```
 LIN-123: Brief imperative description (50 chars max)
 
@@ -365,6 +394,7 @@ Closes: LIN-456
 ```
 
 **Examples:**
+
 ```
 LIN-456: Add scheduler service for delayed posts
 
@@ -386,6 +416,7 @@ Closes: LIN-789
 ```
 
 **Rules:**
+
 - Start with capital letter
 - Use imperative mood ("Add" not "Added")
 - No period at end of subject line
@@ -407,6 +438,7 @@ Closes: LIN-789
 - **NEVER** test against real Reddit in development
 
 **✅ ALWAYS:**
+
 - Encrypt Reddit tokens at rest (AES-256)
 - Hash IP addresses in logs
 - Use parameterized queries (Prisma)
@@ -430,6 +462,7 @@ Closes: LIN-789
 - **ASK** before changing environment requirements
 
 **✅ DOCUMENT EVERYTHING:**
+
 - Explain architectural decisions in PR description
 - Add JSDoc comments to public APIs
 - Update AGENTS.md if patterns change
@@ -437,12 +470,14 @@ Closes: LIN-789
 - Update docs/DECISIONS.md for major choices
 
 **✅ TEST YOUR WORK:**
+
 - Verify changes work before claiming complete
 - Run full test suite locally
 - Test edge cases
 - Verify no regressions
 
 **❌ NEVER:**
+
 - Assume something works without testing
 - Ignore failing tests
 - Skip code review
@@ -456,6 +491,7 @@ Closes: LIN-789
 **Every piece of work MUST trace back to Linear:**
 
 **Branch Naming:**
+
 ```
 feature/LIN-123-add-scheduler
 bugfix/LIN-456-fix-oauth-timeout
@@ -463,25 +499,31 @@ docs/LIN-789-update-readme
 ```
 
 **PR Title Format:**
+
 ```
 [LIN-123] Add scheduler service for delayed posts
 ```
 
 **PR Description MUST Include:**
+
 ```markdown
 ## Linear Issue
+
 Closes LIN-123 (or Relates to LIN-123)
 
 ## Changes
+
 - Change 1
 - Change 2
 
 ## Testing
+
 - [ ] Tested locally
 - [ ] Unit tests pass
 - [ ] Integration tests pass
 
 ## Checklist
+
 - [ ] Read AGENTS.md
 - [ ] Branch named correctly
 - [ ] All quality gates pass
@@ -489,6 +531,7 @@ Closes LIN-123 (or Relates to LIN-123)
 ```
 
 **Linear Status Updates:**
+
 - When PR opened: Move to "In Review"
 - When PR approved: Move to "Ready to Merge"
 - When PR merged: Move to "Done"
@@ -499,21 +542,23 @@ Closes LIN-123 (or Relates to LIN-123)
 
 **Test Coverage Mandates:**
 
-| Component | Minimum Coverage | Required Tests |
-|-----------|------------------|----------------|
-| Services | 80% | Unit tests |
-| Utilities | 90% | Unit tests |
-| API Routes | 70% | Integration tests |
-| Database | 60% | Integration tests |
-| UI Components | 50% | Unit + E2E |
-| Critical Flows | 100% | E2E tests |
+| Component      | Minimum Coverage | Required Tests    |
+| -------------- | ---------------- | ----------------- |
+| Services       | 80%              | Unit tests        |
+| Utilities      | 90%              | Unit tests        |
+| API Routes     | 70%              | Integration tests |
+| Database       | 60%              | Integration tests |
+| UI Components  | 50%              | Unit + E2E        |
+| Critical Flows | 100%             | E2E tests         |
 
 **NEVER Test Against Real Reddit:**
+
 - Use mocks for Reddit API
 - Use test database for integration tests
 - Never use production credentials in tests
 
 **Test File Locations:**
+
 ```
 tests/
 ├── unit/
@@ -546,6 +591,7 @@ tests/
 - [ ] CHANGELOG.md updated (if user-facing)
 
 **PR Size Limits:**
+
 - Max 500 lines changed (exceptions require justification)
 - Single concern per PR (don't mix features)
 - Logical commits (rebase/squash if messy)
@@ -577,6 +623,7 @@ tests/
 ### 11. Emergency Procedures
 
 **If You Commit to Main by Accident:**
+
 ```bash
 # DON'T PANIC
 # 1. Notify team immediately
@@ -585,6 +632,7 @@ tests/
 ```
 
 **If You Commit Secrets:**
+
 ```bash
 # 1. IMMEDIATELY notify security team
 # 2. Rotate the exposed secret
@@ -593,6 +641,7 @@ tests/
 ```
 
 **If Tests Fail on PR:**
+
 ```bash
 # 1. Fix the tests - NEVER disable them
 # 2. If flaky, identify root cause
@@ -675,6 +724,7 @@ APP_URL="http://localhost:3000"
 ## Common Tasks for AI Agents
 
 ### 1. Generate Roadmap for Project
+
 ```
 Input: project_id
 Flow:
@@ -687,6 +737,7 @@ Output: roadmap object with tasks[]
 ```
 
 ### 2. Create Draft for Task
+
 ```
 Input: task_id, subreddit_id, knobs (tone, length, variant_count)
 Flow:
@@ -699,6 +750,7 @@ Output: drafts[] with risk_score + fixes
 ```
 
 ### 3. Schedule Post
+
 ```
 Input: draft_id, reddit_account_id, scheduled_at
 Flow:
@@ -710,6 +762,7 @@ Output: confirmation + job_id
 ```
 
 ### 4. Publish Post (Background)
+
 ```
 Input: scheduled_post_id
 Flow:
@@ -723,6 +776,7 @@ Output: published_item or error classification
 ```
 
 ### 5. Refresh Analytics
+
 ```
 Input: published_item_id
 Flow:
@@ -735,6 +789,7 @@ Output: updated snapshot + health score
 ```
 
 ### 6. Smart Thread Discovery
+
 ```
 Input: project_id
 Flow:
@@ -750,16 +805,19 @@ Output: thread_candidates[] with drafts
 ## Testing Strategy
 
 ### Unit Tests (Jest/Vitest)
+
 - Services: Business logic isolation
 - Utilities: Helper functions
 - Validators: Input validation
 
 ### Integration Tests
+
 - API routes: Full request/response
 - Database: Prisma operations
 - External APIs: Mocked Reddit/OpenAI
 
 ### E2E Tests (Playwright)
+
 - Critical user flows:
   - Sign up → Create project → Connect Reddit → Generate roadmap
   - Approve draft → Schedule post → Verify published
@@ -767,6 +825,7 @@ Output: thread_candidates[] with drafts
 - NEVER test against real Reddit (use mocks)
 
 ### Test Data
+
 - Use factories (faker.js)
 - Seed script for development
 - Separate test database
@@ -776,18 +835,21 @@ Output: thread_candidates[] with drafts
 ## Monitoring & Observability
 
 ### Metrics to Track
+
 - **Business**: Roadmaps generated, drafts created, posts published, conversion rate
 - **Performance**: API latency, job queue depth, LLM cost per workspace
 - **Reliability**: Publish success rate, Reddit API error rate, token refresh failures
 - **Compliance**: Removal rate, risk score distribution, pacing violations
 
 ### Logging
+
 - Structured JSON logs
 - Request correlation IDs
 - Sensitive data redaction
 - Log levels: ERROR, WARN, INFO, DEBUG
 
 ### Alerting (PagerDuty/Slack)
+
 - Queue backlog > 1000 jobs
 - Publish failure rate > 5%
 - Reddit OAuth callback errors
@@ -815,6 +877,7 @@ Output: thread_candidates[] with drafts
 ## Deployment Strategy
 
 ### Development
+
 ```bash
 npm install
 npm run db:migrate
@@ -823,12 +886,14 @@ npm run dev
 ```
 
 ### Staging
+
 - Branch: `develop`
 - Auto-deploy on push
 - Test against staging Reddit app
 - Full test suite runs
 
 ### Production
+
 - Branch: `main`
 - Manual approval required
 - Blue/green deployment
@@ -836,6 +901,7 @@ npm run dev
 - Feature flags for gradual rollout
 
 ### Infrastructure
+
 ```
 Vercel (Next.js frontend + API)
   ↓
@@ -853,6 +919,7 @@ Cloudflare R2 (Object storage)
 ## API Surface Reference
 
 ### Auth
+
 ```
 POST /api/auth/register
 POST /api/auth/login
@@ -861,6 +928,7 @@ POST /api/auth/refresh
 ```
 
 ### Projects
+
 ```
 GET    /api/projects
 POST   /api/projects
@@ -870,6 +938,7 @@ DELETE /api/projects/:id
 ```
 
 ### Reddit
+
 ```
 GET  /api/reddit/oauth/start
 GET  /api/reddit/oauth/callback
@@ -878,6 +947,7 @@ DELETE /api/reddit/accounts/:id
 ```
 
 ### Roadmaps
+
 ```
 POST /api/roadmaps/generate
 GET  /api/roadmaps/:id
@@ -885,6 +955,7 @@ GET  /api/roadmaps/:id/tasks
 ```
 
 ### Drafts
+
 ```
 POST   /api/drafts
 POST   /api/drafts/:id/rewrite
@@ -893,6 +964,7 @@ DELETE /api/drafts/:id
 ```
 
 ### Scheduled Posts
+
 ```
 POST   /api/scheduled-posts
 GET    /api/scheduled-posts
@@ -901,6 +973,7 @@ DELETE /api/scheduled-posts/:id
 ```
 
 ### Analytics
+
 ```
 GET /api/analytics/projects/:id
 GET /api/analytics/accounts/:id
@@ -908,6 +981,7 @@ GET /api/analytics/dashboard
 ```
 
 ### Webhooks
+
 ```
 POST /api/webhooks/stripe
 ```
@@ -917,6 +991,7 @@ POST /api/webhooks/stripe
 ## Feature Flags & Tiers
 
 ### Free Tier
+
 - 1 project
 - 1 Reddit account
 - Basic roadmap (7 days)
@@ -925,6 +1000,7 @@ POST /api/webhooks/stripe
 - Basic analytics
 
 ### Pro ($39/mo)
+
 - 5 projects
 - 3 Reddit accounts
 - Full roadmap (30 days)
@@ -934,6 +1010,7 @@ POST /api/webhooks/stripe
 - Smart thread finder
 
 ### Lifetime ($129)
+
 - Unlimited projects
 - Unlimited accounts
 - All Pro features
@@ -947,21 +1024,25 @@ POST /api/webhooks/stripe
 ### Common Issues
 
 **"Rate limit exceeded"**
+
 - Check Redis rate limit counters
 - Verify Reddit token hasn't expired
 - Review pacing tier for account
 
 **"Failed to publish"**
+
 - Check preflight logs for rule violations
 - Verify subreddit still exists and allows posts
 - Confirm idempotency key hasn't changed
 
 **"Roadmap generation slow"**
+
 - Check LLM API rate limits
 - Review vector DB query performance
 - Consider caching popular subreddit matches
 
 **"Analytics not updating"**
+
 - Verify analytics worker is running
 - Check Reddit API availability
 - Review snapshot table for data
@@ -971,6 +1052,7 @@ POST /api/webhooks/stripe
 ## Resources & References
 
 ### Documentation
+
 - Reddit API: https://www.reddit.com/dev/api
 - Reddit OAuth: https://github.com/reddit-archive/reddit/wiki/OAuth2
 - Prisma: https://www.prisma.io/docs
@@ -978,6 +1060,7 @@ POST /api/webhooks/stripe
 - BullMQ: https://docs.bullmq.io/
 
 ### Design Inspiration
+
 - MediaFast (https://www.mediafa.st/)
 - Buffer (scheduling UX)
 - Hootsuite (dashboard design)
@@ -1002,6 +1085,7 @@ POST /api/webhooks/stripe
 ---
 
 > **Note for AI Agents**: When modifying this codebase, always:
+>
 > 1. Read this file first for context
 > 2. Check `/docs/DECISIONS.md` for architectural decisions
 > 3. Follow the directory structure conventions

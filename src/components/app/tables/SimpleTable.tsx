@@ -1,14 +1,14 @@
 type Column<Row> = {
-  key: string
-  header: string
-  render: (row: Row) => string
-}
+  key: string;
+  header: string;
+  render: (row: Row) => string;
+};
 
 type SimpleTableProps<Row> = {
-  columns: Array<Column<Row>>
-  rows: Row[]
-  getRowKey?: (row: Row, index: number) => string
-}
+  columns: Array<Column<Row>>;
+  rows: Row[];
+  getRowKey?: (row: Row, index: number) => string;
+};
 
 export function SimpleTable<Row>({
   columns,
@@ -46,5 +46,5 @@ export function SimpleTable<Row>({
         </tbody>
       </table>
     </div>
-  )
+  );
 }

@@ -16,36 +16,42 @@
 ## ✨ Features
 
 ### 🎯 Smart Roadmap Generation
+
 - AI analyzes your product and finds the best subreddits
 - Personalized 30-day posting strategy
 - Daily task recommendations with optimal timing
 - Karma-building progression for new accounts
 
 ### 📝 AI Content Creation
+
 - Generate post drafts tailored to each subreddit
 - Comment suggestions for high-engagement threads
 - Multiple variants to choose from
 - Compliance scoring to prevent removals
 
 ### ⏰ Scheduling & Automation
+
 - Queue posts for optimal times
 - Human-in-the-loop approval (never auto-post)
 - Automatic publishing at scheduled time
 - Retry logic with exponential backoff
 
 ### 🔍 Smart Thread Discovery
+
 - Find trending discussions in your niche
 - Comment opportunity scoring
 - Real-time alerts for high-value threads
 - Competitor mention tracking
 
 ### 📊 Analytics & Insights
+
 - Track karma growth and post performance
 - Removal detection and account health
 - Click attribution with UTM tracking
 - Conversion funnel analysis
 
 ### 🛡️ Ban Prevention
+
 - Subreddit rule checking before every post
 - Pacing controls based on account tier
 - Promotional language detection
@@ -56,6 +62,7 @@
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Node.js 18+
 - PostgreSQL 14+
 - Redis 6+
@@ -215,6 +222,7 @@ See [DEPLOYMENT.md](./docs/DEPLOYMENT.md) for detailed instructions.
 ## 🎯 Roadmap
 
 ### MVP (Current)
+
 - [x] User authentication & workspaces
 - [x] Reddit OAuth integration
 - [x] Project creation & management
@@ -224,6 +232,7 @@ See [DEPLOYMENT.md](./docs/DEPLOYMENT.md) for detailed instructions.
 - [x] Basic analytics
 
 ### Upcoming
+
 - [ ] Smart thread finder
 - [ ] Team collaboration
 - [ ] Advanced analytics dashboard

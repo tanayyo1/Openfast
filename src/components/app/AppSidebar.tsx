@@ -1,22 +1,22 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 const navItems = [
-  { label: 'Dashboard', href: '/dashboard' },
-  { label: 'Projects', href: '/projects' },
-  { label: 'Onboarding', href: '/onboarding' },
-  { label: 'Roadmaps', href: '/roadmaps' },
-  { label: 'Content', href: '/content' },
-  { label: 'Approvals', href: '/approvals' },
-  { label: 'Scheduling', href: '/scheduling' },
-  { label: 'Analytics', href: '/analytics' },
-  { label: 'Opportunities', href: '/opportunities' },
-  { label: 'Account health', href: '/health' },
-]
+  { label: "Dashboard", href: "/dashboard" },
+  { label: "Projects", href: "/projects" },
+  { label: "Onboarding", href: "/onboarding" },
+  { label: "Roadmaps", href: "/roadmaps" },
+  { label: "Content", href: "/content" },
+  { label: "Approvals", href: "/approvals" },
+  { label: "Scheduling", href: "/scheduling" },
+  { label: "Analytics", href: "/analytics" },
+  { label: "Opportunities", href: "/opportunities" },
+  { label: "Account health", href: "/health" },
+];
 
 const quickLinks = [
-  { label: 'Support', href: '/seo/guides/support' },
-  { label: 'Roadmap', href: '/seo/guides/reddit-marketing' },
-]
+  { label: "Support", href: "/seo/guides/support" },
+  { label: "Roadmap", href: "/seo/guides/reddit-marketing" },
+];
 
 export function AppSidebar() {
   return (
@@ -61,5 +61,5 @@ export function AppSidebar() {
         </div>
       </div>
     </aside>
-  )
+  );
 }

@@ -1,20 +1,20 @@
-'use client'
+"use client";
 
-import type { ReactNode } from 'react'
-import Link from 'next/link'
+import type { ReactNode } from "react";
+import Link from "next/link";
 
 export default function ProjectDetailError({
   error,
   reset,
 }: {
-  error: Error & { digest?: string }
-  reset: () => void
+  error: Error & { digest?: string };
+  reset: () => void;
 }): ReactNode {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Project failed to load</h1>
       <p className="text-sm text-muted-foreground">
-        {error.message || 'Unknown error'}
+        {error.message || "Unknown error"}
       </p>
       <div className="flex flex-wrap gap-3">
         <button
@@ -32,5 +32,5 @@ export default function ProjectDetailError({
         </Link>
       </div>
     </div>
-  )
+  );
 }

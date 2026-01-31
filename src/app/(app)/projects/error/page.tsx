@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function ProjectsErrorPreviewPage() {
   return (
@@ -9,8 +9,8 @@ export default function ProjectsErrorPreviewPage() {
         </p>
         <h1 className="mt-3 text-3xl font-semibold">Something went wrong</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          This is a preview of an error state. In production we will show the API error
-          message and a request id.
+          This is a preview of an error state. In production we will show the
+          API error message and a request id.
         </p>
       </div>
 
@@ -35,5 +35,5 @@ export default function ProjectsErrorPreviewPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,14 +1,14 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { useDemoStore } from '@/stores/demoStore'
+import Link from "next/link";
+import { useDemoStore } from "@/stores/demoStore";
 
 export default function ApprovalsPage() {
-  const tasks = useDemoStore((state) => state.tasks)
-  const drafts = useDemoStore((state) => state.drafts)
-  const approveDraft = useDemoStore((state) => state.approveDraft)
+  const tasks = useDemoStore((state) => state.tasks);
+  const drafts = useDemoStore((state) => state.drafts);
+  const approveDraft = useDemoStore((state) => state.approveDraft);
 
-  const pending = tasks.filter((task) => task.status === 'Needs approval')
+  const pending = tasks.filter((task) => task.status === "Needs approval");
 
   return (
     <div className="space-y-8">
@@ -54,7 +54,7 @@ export default function ApprovalsPage() {
       ) : (
         <div className="space-y-3">
           {pending.map((task) => {
-            const draft = drafts.find((d) => d.taskId === task.id)
+            const draft = drafts.find((d) => d.taskId === task.id);
             return (
               <div
                 key={task.id}
@@ -69,7 +69,7 @@ export default function ApprovalsPage() {
                       Best-time window: {task.bestWindow}
                     </p>
                     <p className="mt-2 text-sm text-muted-foreground">
-                      Draft: {draft ? draft.editedTitle : 'Not generated'}
+                      Draft: {draft ? draft.editedTitle : "Not generated"}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-3">
@@ -91,10 +91,10 @@ export default function ApprovalsPage() {
                   </div>
                 </div>
               </div>
-            )
+            );
           })}
         </div>
       )}
     </div>
-  )
+  );
 }

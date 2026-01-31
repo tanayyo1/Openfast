@@ -17,13 +17,14 @@ This document specifies a production-ready blueprint for building a MediaFast-st
 - **Infra sizing**: MVP vs scale assumptions.
 - **Clone checklist**: every screen and API required to reach feature parity (functional equivalence).
 
-> Note: This describes a *functionally similar* product. It does not require copying UI/branding/copy.
+> Note: This describes a _functionally similar_ product. It does not require copying UI/branding/copy.
 
 ---
 
 ## 1) Architecture Overview
 
 ### 1.1 Core ideas
+
 - Recommendations are driven by a **subreddit intelligence store** (metadata, rules, engagement stats, time windows).
 - A **roadmap engine** converts those insights into actionable daily tasks.
 - A **scheduler + worker fleet** safely executes scheduled posts/comments with retries and rate limiting.
@@ -48,8 +49,10 @@ This document specifies a production-ready blueprint for building a MediaFast-st
 ## 2) Exact Microservices List + Responsibilities
 
 ### 2.1 Edge Web (Landing + App UI)
+
 **Tech:** Next.js / Remix  
 **Responsibilities**
+
 - Marketing pages + SEO pages (city/industry/tools/alternatives)
 - Free tools pages (post generator, analyzer, shadowban)
 - Logged-in UI (projects, roadmap, tasks, scheduler, analytics)
@@ -58,8 +61,10 @@ This document specifies a production-ready blueprint for building a MediaFast-st
 ---
 
 ### 2.2 API Gateway / Core Backend
+
 **Tech:** Node (NestJS/Fastify) or Go  
 **Responsibilities**
+
 - Auth/session + RBAC
 - CRUD: users, reddit accounts, projects, roadmaps, tasks
 - Orchestrates downstream services
@@ -70,7 +75,9 @@ This document specifies a production-ready blueprint for building a MediaFast-st
 ---
 
 ### 2.3 Auth Service (Optional; can be merged into Core API in MVP)
+
 **Responsibilities**
+
 - Signup/login/reset
 - Social login (Google)
 - JWT/session issuance + rotation
@@ -79,7 +86,9 @@ This document specifies a production-ready blueprint for building a MediaFast-st
 ---
 
 ### 2.4 Billing Service
+
 **Responsibilities**
+
 - Stripe Checkout + Webhooks
 - Plans/entitlements: max projects, scheduled posts/month, AI gens/day
 - Lifetime plan logic
@@ -88,7 +97,9 @@ This document specifies a production-ready blueprint for building a MediaFast-st
 ---
 
 ### 2.5 Reddit Integration Service
+
 **Responsibilities**
+
 - OAuth connect/callback, refresh token rotation
 - Reddit API client with **strict rate limiting**
 - Operations:
@@ -100,7 +111,9 @@ This document specifies a production-ready blueprint for building a MediaFast-st
 ---
 
 ### 2.6 Subreddit Intelligence Service
+
 **Responsibilities**
+
 - Subreddit catalog + metadata
 - Rules ingestion + parsing into derived flags
 - Activity/engagement stats
@@ -110,7 +123,9 @@ This document specifies a production-ready blueprint for building a MediaFast-st
 ---
 
 ### 2.7 Roadmap & Recommendation Service
+
 **Responsibilities**
+
 - Candidate generation + ranking: “Best 5 subreddits”
 - Roadmap generation: daily post/comment tasks
 - Smart post finder: comment opportunities feed
@@ -119,7 +134,9 @@ This document specifies a production-ready blueprint for building a MediaFast-st
 ---
 
 ### 2.8 Content / AI Service
+
 **Responsibilities**
+
 - Generate post/comment variants (3+)
 - Rewrite, shorten, change tone
 - Quality/safety filters:
@@ -132,7 +149,9 @@ This document specifies a production-ready blueprint for building a MediaFast-st
 ---
 
 ### 2.9 Scheduler / Job Orchestrator
+
 **Responsibilities**
+
 - Accepts run-at timestamps
 - Enqueues execution jobs at the right time
 - Idempotency & dedup
@@ -143,7 +162,9 @@ This document specifies a production-ready blueprint for building a MediaFast-st
 ---
 
 ### 2.10 Worker Fleet (Execution Workers)
+
 **Responsibilities**
+
 - Publish scheduled posts/comments
 - Fetch metrics
 - Ingest subreddits
@@ -154,7 +175,9 @@ This document specifies a production-ready blueprint for building a MediaFast-st
 ---
 
 ### 2.11 Analytics Service
+
 **Responsibilities**
+
 - Aggregates per project/subreddit/time-window
 - Stores time series and rollups
 - Powers dashboards
@@ -163,7 +186,9 @@ This document specifies a production-ready blueprint for building a MediaFast-st
 ---
 
 ### 2.12 Risk & Account Health Service
+
 **Responsibilities**
+
 - Account health score
 - Removal/automod pattern inference
 - Shadowban-like inference via visibility checks
@@ -172,7 +197,9 @@ This document specifies a production-ready blueprint for building a MediaFast-st
 ---
 
 ### 2.13 Notifications (Optional)
+
 **Responsibilities**
+
 - Email + in-app notification feed
 - Job failure alerts, publish confirmation, reminders
 - Realtime updates (SSE/WebSocket)
@@ -180,7 +207,9 @@ This document specifies a production-ready blueprint for building a MediaFast-st
 ---
 
 ### 2.14 Community/Chat (Optional)
+
 **Responsibilities**
+
 - Community channels + moderation
 - MVP alternative: embed Discord/Slack
 
@@ -484,8 +513,10 @@ CREATE INDEX idx_opps_sub_score ON comment_opportunities(subreddit_id, opportuni
 ### 4.1 Queues
 
 #### Queue: `reddit.publish`
+
 **Purpose:** Publish scheduled post/comment.  
 **Payload**
+
 ```json
 {
   "job_id": "uuid",
@@ -496,30 +527,38 @@ CREATE INDEX idx_opps_sub_score ON comment_opportunities(subreddit_id, opportuni
   "run_at": "ISO"
 }
 ```
+
 **Retry**
+
 - max_attempts: 5
 - backoff: 1m, 5m, 15m, 1h, 6h
-**Failure classification**
+  **Failure classification**
 - transient: 429, 5xx, network → retry
 - permanent: invalid scope, subreddit banned/private, insufficient karma, rule violation response → fail + notify
 
 ---
 
 #### Queue: `reddit.metrics_fetch`
+
 **Purpose:** Pull metrics for recent posts.  
 **Payload**
+
 ```json
 { "reddit_post_id": "uuid", "reddit_account_id": "uuid" }
 ```
+
 **Schedule**
+
 - every 30–60 minutes for first 48 hours
 - then daily for up to 7 days (optional)
 
 ---
 
 #### Queue: `subreddit.ingest`
+
 **Purpose:** Fetch metadata + rules + recent posts for a subreddit.  
 **Payload**
+
 ```json
 { "subreddit_name": "startups", "priority": "low|normal|high" }
 ```
@@ -527,8 +566,10 @@ CREATE INDEX idx_opps_sub_score ON comment_opportunities(subreddit_id, opportuni
 ---
 
 #### Queue: `subreddit.compute_time_windows`
+
 **Purpose:** Recompute time-window heatmaps/models.  
 **Payload**
+
 ```json
 { "subreddit_id": 123, "model_version": "v1" }
 ```
@@ -536,8 +577,10 @@ CREATE INDEX idx_opps_sub_score ON comment_opportunities(subreddit_id, opportuni
 ---
 
 #### Queue: `recommendations.generate`
+
 **Purpose:** Compute best subreddit recommendations for a project.  
 **Payload**
+
 ```json
 { "project_id": "uuid" }
 ```
@@ -545,8 +588,10 @@ CREATE INDEX idx_opps_sub_score ON comment_opportunities(subreddit_id, opportuni
 ---
 
 #### Queue: `roadmap.generate`
+
 **Purpose:** Generate roadmap + tasks for a project.  
 **Payload**
+
 ```json
 { "project_id": "uuid", "start_date": "YYYY-MM-DD", "days": 14 }
 ```
@@ -554,8 +599,10 @@ CREATE INDEX idx_opps_sub_score ON comment_opportunities(subreddit_id, opportuni
 ---
 
 #### Queue: `content.generate`
+
 **Purpose:** Generate post/comment variants using AI.  
 **Payload**
+
 ```json
 { "task_id": "uuid", "mode": "post|comment", "variants": 3 }
 ```
@@ -563,8 +610,10 @@ CREATE INDEX idx_opps_sub_score ON comment_opportunities(subreddit_id, opportuni
 ---
 
 #### Queue: `risk.account_health`
+
 **Purpose:** Compute account health snapshot.  
 **Payload**
+
 ```json
 { "reddit_account_id": "uuid" }
 ```
@@ -572,8 +621,10 @@ CREATE INDEX idx_opps_sub_score ON comment_opportunities(subreddit_id, opportuni
 ---
 
 #### Queue: `risk.visibility_check`
+
 **Purpose:** Shadowban/visibility inference check (manual + limited automation).  
 **Payload**
+
 ```json
 { "reddit_account_id": "uuid", "permalink": "..." }
 ```
@@ -581,6 +632,7 @@ CREATE INDEX idx_opps_sub_score ON comment_opportunities(subreddit_id, opportuni
 ---
 
 ### 4.2 Cron triggers (Scheduler Service)
+
 - `0 2 * * *` → enqueue `subreddit.ingest` for tracked subreddits
 - `0 3 * * *` → enqueue `subreddit.compute_time_windows`
 - `*/30 * * * *` → enqueue `reddit.metrics_fetch` for recent posts
@@ -591,6 +643,7 @@ CREATE INDEX idx_opps_sub_score ON comment_opportunities(subreddit_id, opportuni
 ## 5) Sequence Diagrams (Each Feature)
 
 ### 5.1 Reddit OAuth Connect
+
 ```mermaid
 sequenceDiagram
   participant U as User
@@ -612,6 +665,7 @@ sequenceDiagram
 ```
 
 ### 5.2 Generate Subreddit Recommendations (Best 5)
+
 ```mermaid
 sequenceDiagram
   participant U as User
@@ -634,6 +688,7 @@ sequenceDiagram
 ```
 
 ### 5.3 Generate Roadmap (Tasks)
+
 ```mermaid
 sequenceDiagram
   participant U as User
@@ -658,6 +713,7 @@ sequenceDiagram
 ```
 
 ### 5.4 Generate Content (AI)
+
 ```mermaid
 sequenceDiagram
   participant U as User
@@ -680,6 +736,7 @@ sequenceDiagram
 ```
 
 ### 5.5 Schedule + Publish
+
 ```mermaid
 sequenceDiagram
   participant U as User
@@ -706,6 +763,7 @@ sequenceDiagram
 ```
 
 ### 5.6 Metrics + Analytics
+
 ```mermaid
 sequenceDiagram
   participant Cron as Cron
@@ -728,6 +786,7 @@ sequenceDiagram
 ```
 
 ### 5.7 Subreddit Analyzer (Free Tool)
+
 ```mermaid
 sequenceDiagram
   participant U as User
@@ -749,6 +808,7 @@ sequenceDiagram
 ```
 
 ### 5.8 Shadowban Detector (Free Tool)
+
 ```mermaid
 sequenceDiagram
   participant U as User
@@ -772,7 +832,9 @@ sequenceDiagram
 ## 6) Infra Sizing Assumptions (MVP vs Scale)
 
 ### 6.1 MVP
+
 **Target:** 1k–5k users, 100–500 paying, ~10k scheduled actions/month
+
 - Web: Vercel (or 1–2 web nodes)
 - Core API: 2 instances (2 vCPU / 4GB)
 - Workers: 2–4 instances (2 vCPU / 4GB)
@@ -786,7 +848,9 @@ sequenceDiagram
 ---
 
 ### 6.2 Scale
+
 **Target:** 100k users, 10k paying, ~1M scheduled actions/month
+
 - Web: CDN + edge caching
 - Core API: 10–30 instances autoscaled
 - Worker pools: 50–200 instances (publish/metrics/ingest separated)
@@ -802,13 +866,16 @@ sequenceDiagram
 ## 7) “Clone Checklist” — Every Screen + API Required
 
 ### 7.1 Public marketing + SEO
+
 **Screens**
+
 - Home
 - Pricing
 - Login/Signup
 - SEO hubs: city, industry, alternatives, guides
 
 **APIs**
+
 - `GET /public/pricing`
 - `POST /billing/checkout`
 - `POST /auth/signup`
@@ -819,12 +886,15 @@ sequenceDiagram
 ---
 
 ### 7.2 Free tools
+
 **Screens**
+
 - Reddit Post Generator
 - Subreddit Analyzer
 - Shadowban Detector
 
 **APIs**
+
 - `POST /tools/post-generate` (rate-limited)
 - `GET /tools/subreddit-analyzer?name=...`
 - `POST /tools/shadowban-check`
@@ -834,11 +904,14 @@ sequenceDiagram
 ### 7.3 Logged-in app core
 
 #### Onboarding
+
 **Screens**
+
 - Create Project
 - Connect Reddit
 
 **APIs**
+
 - `POST /projects`
 - `GET /projects`
 - `POST /reddit/connect`
@@ -846,32 +919,41 @@ sequenceDiagram
 - `GET /reddit/accounts`
 
 #### Projects
+
 **Screens**
+
 - Projects list
 - Project settings
 
 **APIs**
+
 - `GET /projects`
 - `GET /projects/:id`
 - `PATCH /projects/:id`
 - `DELETE /projects/:id`
 
 #### Recommendations
+
 **Screens**
+
 - Recommendations list + choose subreddits
 - Best time windows per subreddit
 
 **APIs**
+
 - `POST /projects/:id/recommend-subreddits`
 - `GET /projects/:id/recommendations`
 - `POST /projects/:id/recommendations/select`
 
 #### Roadmap
+
 **Screens**
+
 - Roadmap list/calendar
 - Task details
 
 **APIs**
+
 - `POST /projects/:id/generate-roadmap`
 - `GET /projects/:id/roadmaps`
 - `GET /roadmaps/:id`
@@ -880,66 +962,84 @@ sequenceDiagram
 - `POST /tasks/:id/skip`
 
 #### AI content generation + editor
+
 **Screens**
+
 - Variants + editor (title/body) + final save
 
 **APIs**
+
 - `POST /tasks/:id/generate-content`
 - `GET /tasks/:id/content`
 - `PATCH /tasks/:id/content`
 
 #### Scheduling + publishing
+
 **Screens**
+
 - Schedule modal
 - Jobs/queue view
 - Publish now
 
 **APIs**
+
 - `POST /tasks/:id/schedule`
 - `POST /tasks/:id/publish-now`
 - `GET /jobs?project_id=...`
 - `GET /jobs/:id`
 
 #### Analytics
+
 **Screens**
+
 - Overview
 - Per subreddit
 - Per time window
 - Posts table
 
 **APIs**
+
 - `GET /analytics/project/:id`
 - `GET /analytics/project/:id/posts`
 - `GET /analytics/project/:id/subreddits`
 
 #### Smart post finder
+
 **Screens**
+
 - Opportunity feed
 - Create comment task from opportunity
 
 **APIs**
+
 - `GET /projects/:id/opportunities`
 - `POST /tasks/from-opportunity`
 
 #### Account health
+
 **Screens**
+
 - Health score + signals + warnings
 - Manual visibility check
 
 **APIs**
+
 - `GET /reddit/accounts/:id/health`
 - `POST /reddit/accounts/:id/visibility-check`
 
 ---
 
 ### 7.4 Admin/ops (internal but essential)
+
 **Screens**
+
 - Ingestion status dashboard
 - Job/queue monitor
 - Abuse monitor for free tools
 - Prompt template manager (AI)
 
 **APIs**
+
 - `GET /admin/ingestion/status`
 - `GET /admin/jobs`
 - `GET /admin/abuse`
@@ -952,7 +1052,7 @@ sequenceDiagram
 - **Idempotency:** every publish uses `idempotency_key = task_id + action`.
 - **Rate limits:** token bucket in Redis per reddit_account and per endpoint class.
 - **Caching:** subreddit stats/windows cached in Redis; DB is source of truth.
-- **Failure UI:** show *why* publish failed (scope, restrictions, automod).
+- **Failure UI:** show _why_ publish failed (scope, restrictions, automod).
 - **Ingestion:** start curated + user-requested; expand later.
 - **Safety:** review-before-post by default; auto-post only if health is OK.
 
@@ -961,6 +1061,7 @@ sequenceDiagram
 ## 9) Deliverables Summary
 
 This report provides:
+
 - Full microservices blueprint
 - Postgres schema SQL
 - Queue/job definitions + cron triggers

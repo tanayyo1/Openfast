@@ -3,18 +3,21 @@ import Link from 'next/link'
 const steps = [
   {
     title: 'Create your first project',
-    description: 'Define your product, goals, and target subreddits.',
+    description: 'Define your product, goals, and initial constraints.',
+    href: '/onboarding/create-project',
     action: 'Create project',
   },
   {
     title: 'Connect Reddit account',
     description: 'Secure OAuth connection with rate limits and token encryption.',
+    href: '/onboarding/connect-reddit',
     action: 'Connect account',
   },
   {
     title: 'Generate your roadmap',
-    description: 'Get a compliance-safe schedule with suggested time windows.',
-    action: 'Generate roadmap',
+    description: 'This will be available once projects and Reddit are connected.',
+    href: '/roadmaps',
+    action: 'View roadmaps',
   },
 ]
 
@@ -47,12 +50,12 @@ export default function OnboardingPage() {
                   {step.description}
                 </p>
               </div>
-              <button
-                type="button"
-                className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
+              <Link
+                href={step.href}
+                className="rounded-full border border-border px-4 py-2 text-sm font-semibold transition hover:border-foreground/40"
               >
                 {step.action}
-              </button>
+              </Link>
             </div>
           </div>
         ))}

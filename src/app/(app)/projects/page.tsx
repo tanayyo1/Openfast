@@ -34,12 +34,32 @@ export default function ProjectsPage() {
             Track progress, update brand voice, and manage approvals.
           </p>
         </div>
-        <button
-          type="button"
-          className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
-        >
-          New project
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
+          >
+            New project
+          </button>
+          <Link
+            href="/projects/empty"
+            className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
+          >
+            Empty state
+          </Link>
+          <Link
+            href="/projects/loading"
+            className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
+          >
+            Loading state
+          </Link>
+          <Link
+            href="/projects/error"
+            className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
+          >
+            Error state
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4">

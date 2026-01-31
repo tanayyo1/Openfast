@@ -53,7 +53,7 @@ export function DraftEditor({ variants }: DraftEditorProps) {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Variant {index + 1}
               </p>
-              <p className="mt-2 text-sm font-semibold line-clamp-1">
+              <p className="mt-2 text-sm font-semibold">
                 {variant.title}
               </p>
               <p className="mt-2 text-xs text-muted-foreground">

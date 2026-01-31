@@ -1,11 +1,33 @@
+'use client'
+
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
+import { useMemo } from 'react'
+import { useDemoStore } from '@/stores/demoStore'
 
-type ProjectSettingsProps = {
-  params: { id: string }
-}
+export default function ProjectSettingsPage() {
+  const params = useParams<{ id: string }>()
+  const projectId = params?.id ? decodeURIComponent(params.id) : ''
 
-export default function ProjectSettingsPage({ params }: ProjectSettingsProps) {
-  const projectName = decodeURIComponent(params.id)
+  const project = useDemoStore((state) =>
+    state.projects.find((p) => p.id === projectId)
+  )
+
+  const goalsText = useMemo(() => {
+    if (!project) return 'Not set'
+    return project.goals.length > 0 ? project.goals.join(', ') : 'Not set'
+  }, [project])
+
+  if (!project) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold">Project not found</h1>
+        <Link href="/projects" className="text-sm underline">
+          Back to projects
+        </Link>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8">
@@ -13,76 +35,52 @@ export default function ProjectSettingsPage({ params }: ProjectSettingsProps) {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Project settings
         </p>
-        <h1 className="mt-3 text-3xl font-semibold">{projectName}</h1>
+        <h1 className="mt-3 text-3xl font-semibold">{project.name}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Update brand voice, goals, and compliance preferences.
+          Demo-only settings. Backend updates will replace this.
         </p>
       </div>
 
       <div className="rounded-[24px] border border-border bg-card/80 p-6">
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="text-sm font-semibold" htmlFor="name">
-              Project name
-            </label>
-            <input
-              id="name"
-              type="text"
-              defaultValue={projectName}
-              className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm"
-            />
+            <p className="text-sm font-semibold">Project name</p>
+            <p className="mt-2 text-sm text-muted-foreground">{project.name}</p>
           </div>
           <div>
-            <label className="text-sm font-semibold" htmlFor="niche">
-              Niche
-            </label>
-            <input
-              id="niche"
-              type="text"
-              placeholder="B2B SaaS"
-              className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm"
-            />
+            <p className="text-sm font-semibold">Product URL</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {project.url ?? 'Not provided'}
+            </p>
           </div>
         </div>
         <div className="mt-4">
-          <label className="text-sm font-semibold" htmlFor="voice">
-            Brand voice
-          </label>
-          <textarea
-            id="voice"
-            rows={4}
-            placeholder="Helpful, data-driven, and concise"
-            className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm"
-          />
+          <p className="text-sm font-semibold">Description</p>
+          <p className="mt-2 text-sm text-muted-foreground">{project.description}</p>
         </div>
         <div className="mt-4">
-          <label className="text-sm font-semibold" htmlFor="goals">
-            Goals
-          </label>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {['Traffic', 'Feedback', 'Leads', 'Community'].map((goal) => (
-              <label
-                key={goal}
-                className="flex items-center gap-2 rounded-full border border-border px-3 py-2 text-xs"
-              >
-                <input type="checkbox" className="h-3 w-3" />
-                {goal}
-              </label>
-            ))}
-          </div>
+          <p className="text-sm font-semibold">Brand voice</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {project.brandVoice || 'Not set'}
+          </p>
         </div>
+        <div className="mt-4">
+          <p className="text-sm font-semibold">Goals</p>
+          <p className="mt-2 text-sm text-muted-foreground">{goalsText}</p>
+        </div>
+
         <div className="mt-6 flex flex-wrap gap-3">
-          <button
-            type="button"
-            className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
-          >
-            Save changes
-          </button>
           <Link
-            href={`/projects/${encodeURIComponent(projectName)}`}
+            href={`/projects/${encodeURIComponent(project.id)}`}
             className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
           >
-            Back to overview
+            Back
+          </Link>
+          <Link
+            href="/roadmaps/generate"
+            className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+          >
+            Generate roadmap
           </Link>
         </div>
       </div>

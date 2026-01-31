@@ -1,7 +1,16 @@
+'use client'
+
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { MaxWidth } from '@/components/public/MaxWidth'
 
+function setDemoAuthCookie() {
+  document.cookie = `rf_demo_auth=1; Path=/; Max-Age=${60 * 60 * 24 * 30}`
+}
+
 export default function SignupPage() {
+  const router = useRouter()
+
   return (
     <div className="py-16">
       <MaxWidth>
@@ -49,6 +58,10 @@ export default function SignupPage() {
             </div>
             <button
               type="button"
+              onClick={() => {
+                setDemoAuthCookie()
+                router.push('/onboarding')
+              }}
               className="w-full rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
             >
               Create account

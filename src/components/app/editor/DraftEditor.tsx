@@ -11,15 +11,31 @@ type Variant = {
 
 type DraftEditorProps = {
   variants: Variant[]
+  initialSelectedIndex?: number
+  initialTitle?: string
+  initialBody?: string
+  onSelectVariant?: (index: number) => void
+  onSave?: (input: { title: string; body: string }) => void
+  onRequestApproval?: () => void
+  onApprove?: () => void
 }
 
-export function DraftEditor({ variants }: DraftEditorProps) {
+export function DraftEditor({
+  variants,
+  initialSelectedIndex = 0,
+  initialTitle,
+  initialBody,
+  onSelectVariant,
+  onSave,
+  onRequestApproval,
+  onApprove,
+}: DraftEditorProps) {
   const initial = variants[0]
-  const [selectedIndex, setSelectedIndex] = useState(0)
+  const [selectedIndex, setSelectedIndex] = useState(initialSelectedIndex)
   const selected = variants[selectedIndex] ?? initial
 
-  const [title, setTitle] = useState(selected.title)
-  const [body, setBody] = useState(selected.body)
+  const [title, setTitle] = useState(initialTitle ?? selected.title)
+  const [body, setBody] = useState(initialBody ?? selected.body)
 
   const riskTone = useMemo(() => {
     if (selected.riskScore <= 30) return 'Low'
@@ -43,6 +59,7 @@ export function DraftEditor({ variants }: DraftEditorProps) {
                 setSelectedIndex(index)
                 setTitle(variant.title)
                 setBody(variant.body)
+                onSelectVariant?.(index)
               }}
               className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
                 index === selectedIndex
@@ -114,16 +131,27 @@ export function DraftEditor({ variants }: DraftEditorProps) {
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
+              onClick={() => onSave?.({ title, body })}
               className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
             >
               Save draft
             </button>
             <button
               type="button"
+              onClick={() => onRequestApproval?.()}
               className="rounded-full border border-border px-5 py-2 text-sm font-semibold"
             >
               Request approval
             </button>
+            {onApprove ? (
+              <button
+                type="button"
+                onClick={() => onApprove()}
+                className="rounded-full border border-border px-5 py-2 text-sm font-semibold"
+              >
+                Approve
+              </button>
+            ) : null}
             <button
               type="button"
               className="rounded-full border border-border px-5 py-2 text-sm font-semibold"

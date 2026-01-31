@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { Manrope, Space_Grotesk } from 'next/font/google'
 import './globals.css'
+import { Providers } from './providers'
 
 const displayFont = Space_Grotesk({
   subsets: ['latin'],
@@ -24,7 +25,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${displayFont.variable} ${bodyFont.variable}`}>
       <body className="min-h-screen bg-background text-foreground antialiased">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   )

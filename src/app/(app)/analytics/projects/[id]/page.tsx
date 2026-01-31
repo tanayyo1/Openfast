@@ -1,6 +1,11 @@
+'use client'
+
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
+import { useMemo } from 'react'
 import { BarMeter } from '@/components/app/charts/BarMeter'
 import { SimpleTable } from '@/components/app/tables/SimpleTable'
+import { useDemoStore } from '@/stores/demoStore'
 
 type Row = {
   post: string
@@ -10,35 +15,42 @@ type Row = {
   status: string
 }
 
-const rows: Row[] = [
-  {
-    post: 'Churn interview template and lessons',
-    subreddit: 'r/startups',
-    score: '42',
-    comments: '18',
-    status: 'Live',
-  },
-  {
-    post: 'Onboarding metrics benchmark question',
-    subreddit: 'r/SaaS',
-    score: '21',
-    comments: '9',
-    status: 'Live',
-  },
-  {
-    post: 'Automated weekly reporting prompt',
-    subreddit: 'r/Entrepreneur',
-    score: '8',
-    comments: '3',
-    status: 'Removed',
-  },
-]
-
-type AnalyticsProjectProps = {
-  params: { id: string }
+function scoreForStatus(status: string) {
+  if (status === 'Published') return { score: '42', comments: '18', status: 'Live' }
+  if (status === 'Scheduled') return { score: '-', comments: '-', status: 'Scheduled' }
+  if (status === 'Failed') return { score: '0', comments: '0', status: 'Removed' }
+  return { score: '-', comments: '-', status: status }
 }
 
-export default function AnalyticsProjectPage({ params }: AnalyticsProjectProps) {
+export default function AnalyticsProjectPage() {
+  const params = useParams<{ id: string }>()
+  const projectId = params?.id ? decodeURIComponent(params.id) : ''
+
+  const project = useDemoStore((state) => state.projects.find((p) => p.id === projectId))
+  const tasks = useDemoStore((state) => state.tasks.filter((t) => t.projectId === projectId))
+  const drafts = useDemoStore((state) => state.drafts)
+
+  const rows: Row[] = useMemo(() => {
+    return tasks
+      .filter((task) => task.draftId)
+      .map((task) => {
+        const draft = drafts.find((d) => d.taskId === task.id)
+        const meta = scoreForStatus(task.status)
+        return {
+          post: draft?.editedTitle ?? `${task.type} draft`,
+          subreddit: task.subreddit,
+          score: meta.score,
+          comments: meta.comments,
+          status: meta.status,
+        }
+      })
+  }, [drafts, tasks])
+
+  const approvedCount = tasks.filter((t) => t.status === 'Approved' || t.status === 'Scheduled' || t.status === 'Published').length
+  const publishedCount = tasks.filter((t) => t.status === 'Published').length
+  const approvalRate = tasks.length === 0 ? 0 : Math.round((approvedCount / tasks.length) * 100)
+  const publishSuccess = tasks.length === 0 ? 0 : Math.round((publishedCount / tasks.length) * 100)
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -46,9 +58,9 @@ export default function AnalyticsProjectPage({ params }: AnalyticsProjectProps) 
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Analytics
           </p>
-          <h1 className="mt-3 text-3xl font-semibold">Project {params.id}</h1>
+          <h1 className="mt-3 text-3xl font-semibold">{project?.name ?? 'Project'}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Compare subreddits, time windows, and post outcomes.
+            Demo metrics derived from scheduled and published tasks.
           </p>
         </div>
         <Link
@@ -63,15 +75,15 @@ export default function AnalyticsProjectPage({ params }: AnalyticsProjectProps) 
         <div className="rounded-[24px] border border-border bg-card/80 p-6">
           <p className="text-sm font-semibold">This week</p>
           <div className="mt-4 space-y-4">
-            <BarMeter label="Approval rate" value={78} />
-            <BarMeter label="Publish success" value={92} />
-            <BarMeter label="First hour engagement" value={64} />
+            <BarMeter label="Approval rate" value={approvalRate} />
+            <BarMeter label="Publish success" value={publishSuccess} />
+            <BarMeter label="First hour engagement" value={Math.min(100, publishedCount * 20)} />
           </div>
         </div>
         <div className="rounded-[24px] border border-border bg-background/70 p-6 lg:col-span-2">
           <p className="text-sm font-semibold">Posts</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            This table becomes filterable by subreddit and time window.
+            Filter by subreddit and time window in the next phase.
           </p>
           <div className="mt-4">
             <SimpleTable<Row>

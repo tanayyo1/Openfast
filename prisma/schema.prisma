@@ -6,9 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
 }
 
 // ==================== USER & WORKSPACE ====================
@@ -22,68 +21,73 @@ model User {
   emailVerified DateTime? @map("email_verified")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
-  
+
   // Relations
-  ownedWorkspaces Workspace[] @relation("WorkspaceOwner")
+  ownedWorkspaces Workspace[]       @relation("WorkspaceOwner")
   memberships     WorkspaceMember[]
   sessions        Session[]
   accounts        Account[]
   auditLogs       AuditLog[]
-  
+
   @@map("users")
 }
 
 model Workspace {
-  id          String   @id @default(cuid())
-  name        String
-  ownerId     String   @map("owner_id")
-  plan        Plan     @default(FREE)
-  status      WorkspaceStatus @default(ACTIVE)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  
+  id        String          @id @default(cuid())
+  name      String
+  ownerId   String          @map("owner_id")
+  plan      Plan            @default(FREE)
+  status    WorkspaceStatus @default(ACTIVE)
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
   // Relations
-  owner       User     @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members     WorkspaceMember[]
-  subscription Subscription?
-  projects    Project[]
+  owner          User                  @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members        WorkspaceMember[]
+  subscription   Subscription?
+  projects       Project[]
   redditAccounts RedditAccount[]
-  entitlements WorkspaceEntitlement?
-  
+  entitlements   WorkspaceEntitlement?
+  Roadmap        Roadmap[]
+  RoadmapTask    RoadmapTask[]
+  Draft          Draft[]
+  ScheduledPost  ScheduledPost[]
+  PublishedItem  PublishedItem[]
+
   @@map("workspaces")
 }
 
 model WorkspaceMember {
-  id          String   @id @default(cuid())
-  workspaceId String   @map("workspace_id")
-  userId      String   @map("user_id")
+  id          String        @id @default(cuid())
+  workspaceId String        @map("workspace_id")
+  userId      String        @map("user_id")
   role        WorkspaceRole @default(MEMBER)
-  createdAt   DateTime @default(now()) @map("created_at")
-  
+  createdAt   DateTime      @default(now()) @map("created_at")
+
   // Relations
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([workspaceId, userId])
   @@map("workspace_members")
 }
 
 model WorkspaceEntitlement {
-  id                    String   @id @default(cuid())
-  workspaceId           String   @unique @map("workspace_id")
-  maxProjects           Int      @default(1) @map("max_projects")
-  maxRedditAccounts     Int      @default(1) @map("max_reddit_accounts")
-  maxScheduledPosts     Int      @default(10) @map("max_scheduled_posts")
-  maxDraftsPerMonth     Int      @default(10) @map("max_drafts_per_month")
-  roadmapDays           Int      @default(7) @map("roadmap_days")
-  hasAdvancedAnalytics  Boolean  @default(false) @map("has_advanced_analytics")
-  hasSmartFinder        Boolean  @default(false) @map("has_smart_finder")
-  hasTeamFeatures       Boolean  @default(false) @map("has_team_features")
-  updatedAt             DateTime @updatedAt @map("updated_at")
-  
+  id                   String   @id @default(cuid())
+  workspaceId          String   @unique @map("workspace_id")
+  maxProjects          Int      @default(1) @map("max_projects")
+  maxRedditAccounts    Int      @default(1) @map("max_reddit_accounts")
+  maxScheduledPosts    Int      @default(10) @map("max_scheduled_posts")
+  maxDraftsPerMonth    Int      @default(10) @map("max_drafts_per_month")
+  roadmapDays          Int      @default(7) @map("roadmap_days")
+  hasAdvancedAnalytics Boolean  @default(false) @map("has_advanced_analytics")
+  hasSmartFinder       Boolean  @default(false) @map("has_smart_finder")
+  hasTeamFeatures      Boolean  @default(false) @map("has_team_features")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
   // Relations
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  
+
   @@map("workspace_entitlements")
 }
 
@@ -102,9 +106,9 @@ model Account {
   scope             String?
   id_token          String? @db.Text
   session_state     String?
-  
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@unique([provider, providerAccountId])
   @@map("accounts")
 }
@@ -114,9 +118,9 @@ model Session {
   sessionToken String   @unique @map("session_token")
   userId       String   @map("user_id")
   expires      DateTime
-  
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@map("sessions")
 }
 
@@ -124,7 +128,7 @@ model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
-  
+
   @@unique([identifier, token])
   @@map("verification_tokens")
 }
@@ -132,114 +136,117 @@ model VerificationToken {
 // ==================== BILLING ====================
 
 model Subscription {
-  id                   String            @id @default(cuid())
-  workspaceId          String            @unique @map("workspace_id")
-  stripeCustomerId     String            @map("stripe_customer_id")
-  stripeSubscriptionId String?           @map("stripe_subscription_id")
-  stripePriceId        String?           @map("stripe_price_id")
+  id                   String             @id @default(cuid())
+  workspaceId          String             @unique @map("workspace_id")
+  stripeCustomerId     String             @map("stripe_customer_id")
+  stripeSubscriptionId String?            @map("stripe_subscription_id")
+  stripePriceId        String?            @map("stripe_price_id")
   status               SubscriptionStatus
-  currentPeriodStart   DateTime          @map("current_period_start")
-  currentPeriodEnd     DateTime          @map("current_period_end")
-  cancelAtPeriodEnd    Boolean           @default(false) @map("cancel_at_period_end")
-  createdAt            DateTime          @default(now()) @map("created_at")
-  updatedAt            DateTime          @updatedAt @map("updated_at")
-  
+  currentPeriodStart   DateTime           @map("current_period_start")
+  currentPeriodEnd     DateTime           @map("current_period_end")
+  cancelAtPeriodEnd    Boolean            @default(false) @map("cancel_at_period_end")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
   // Relations
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  
+
   @@map("subscriptions")
 }
 
 // ==================== PROJECTS ====================
 
 model Project {
-  id          String   @id @default(cuid())
-  workspaceId String   @map("workspace_id")
+  id          String        @id @default(cuid())
+  workspaceId String        @map("workspace_id")
   name        String
-  description String   @db.Text
+  description String        @db.Text
   url         String?
   niche       String
-  goals       Json     // { primary: "traffic", targets: [...], kpis: [...] }
-  brandVoice  Json     @map("brand_voice") // { tone: "professional", do: [...], dont: [...] }
-  constraints Json?    // { avoid_subreddits: [...], max_posts_per_day: 3 }
+  goals       Json // { primary: "traffic", targets: [...], kpis: [...] }
+  brandVoice  Json          @map("brand_voice") // { tone: "professional", do: [...], dont: [...] }
+  constraints Json? // { avoid_subreddits: [...], max_posts_per_day: 3 }
   status      ProjectStatus @default(ACTIVE)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
   // Relations
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   roadmaps    Roadmap[]
   clickLinks  ClickLink[]
   conversions Conversion[]
-  
+  Draft       Draft[]
+
+  @@index([workspaceId])
   @@map("projects")
 }
 
 // ==================== REDDIT INTEGRATION ====================
 
 model RedditAccount {
-  id            String     @id @default(cuid())
-  workspaceId   String     @map("workspace_id")
-  redditUsername String    @unique @map("reddit_username")
-  redditUserId  String?    @map("reddit_user_id")
-  accessToken   String     @map("access_token") // Encrypted
-  refreshToken  String     @map("refresh_token") // Encrypted
-  tokenExpiry   DateTime   @map("token_expiry")
-  scopes        String[]   // ["read", "submit", "identity"]
-  
+  id             String   @id @default(cuid())
+  workspaceId    String   @map("workspace_id")
+  redditUsername String   @unique @map("reddit_username")
+  redditUserId   String?  @map("reddit_user_id")
+  accessToken    String   @map("access_token") // Encrypted
+  refreshToken   String   @map("refresh_token") // Encrypted
+  tokenExpiry    DateTime @map("token_expiry")
+  scopes         String[] // ["read", "submit", "identity"]
+
   // Account health
-  linkKarma     Int        @default(0) @map("link_karma")
-  commentKarma  Int        @default(0) @map("comment_karma")
-  accountAge    Int        @map("account_age") // days
-  safetyTier    SafetyTier @default(NEW) @map("safety_tier")
-  lastSyncAt    DateTime   @map("last_sync_at")
-  isActive      Boolean    @default(true) @map("is_active")
-  
-  createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime   @updatedAt @map("updated_at")
-  
+  linkKarma    Int        @default(0) @map("link_karma")
+  commentKarma Int        @default(0) @map("comment_karma")
+  accountAge   Int        @map("account_age") // days
+  safetyTier   SafetyTier @default(NEW) @map("safety_tier")
+  lastSyncAt   DateTime   @map("last_sync_at")
+  isActive     Boolean    @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   // Relations
-  workspace     Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   scheduledPosts ScheduledPost[]
   publishedItems PublishedItem[]
-  
+
+  @@index([workspaceId])
   @@map("reddit_accounts")
 }
 
 // ==================== SUBREDDIT INTELLIGENCE ====================
 
 model SubredditCatalog {
-  id            String   @id @default(cuid())
-  name          String   @unique // e.g., "startups"
-  title         String   // e.g., "Startups"
-  description   String?  @db.Text
-  subscribers   Int      @default(0)
-  activeUsers   Int      @default(0) @map("active_users")
-  nsfw          Boolean  @default(false)
-  lang          String   @default("en")
-  isRestricted  Boolean  @default(false) @map("is_restricted")
-  isQuarantined Boolean  @default(false) @map("is_quarantined")
-  
+  id            String  @id @default(cuid())
+  name          String  @unique // e.g., "startups"
+  title         String // e.g., "Startups"
+  description   String? @db.Text
+  subscribers   Int     @default(0)
+  activeUsers   Int     @default(0) @map("active_users")
+  nsfw          Boolean @default(false)
+  lang          String  @default("en")
+  isRestricted  Boolean @default(false) @map("is_restricted")
+  isQuarantined Boolean @default(false) @map("is_quarantined")
+
   // Metrics
-  avgPostsPerDay  Float? @map("avg_posts_per_day")
+  avgPostsPerDay     Float? @map("avg_posts_per_day")
   avgCommentsPerPost Float? @map("avg_comments_per_post")
-  
+
   // Embedding for similarity search
-  embedding     Unsupported("vector(1536)")?
-  
+  embedding Unsupported("vector(1536)")?
+
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
   lastFetchedAt DateTime @map("last_fetched_at")
-  
+
   // Relations
-  rules         SubredditRule[]
-  policy        SubredditPolicy?
-  timeSlots     SubredditTimeSlot[]
-  tasks         RoadmapTask[]
-  scheduledPosts ScheduledPost[]
-  publishedItems PublishedItem[]
+  rules            SubredditRule[]
+  policy           SubredditPolicy?
+  timeSlots        SubredditTimeSlot[]
+  tasks            RoadmapTask[]
+  scheduledPosts   ScheduledPost[]
+  publishedItems   PublishedItem[]
   threadCandidates ThreadCandidate[]
-  
+
   @@index([embedding], name: "subreddit_embedding_idx")
   @@map("subreddit_catalog")
 }
@@ -248,59 +255,59 @@ model SubredditRule {
   id            String   @id @default(cuid())
   subredditId   String   @map("subreddit_id")
   rulesJson     Json     @map("rules_json") // Parsed rules structure
-  rawRules      String   @db.Text @map("raw_rules") // Original rules text
+  rawRules      String   @map("raw_rules") @db.Text // Original rules text
   fetchedAt     DateTime @map("fetched_at")
   parserVersion Int      @default(1) @map("parser_version")
-  
+
   // Relations
-  subreddit     SubredditCatalog @relation(fields: [subredditId], references: [id], onDelete: Cascade)
-  
+  subreddit SubredditCatalog @relation(fields: [subredditId], references: [id], onDelete: Cascade)
+
   @@map("subreddit_rules")
 }
 
 model SubredditPolicy {
-  id                String   @id @default(cuid())
-  subredditId       String   @unique @map("subreddit_id")
-  
+  id          String @id @default(cuid())
+  subredditId String @unique @map("subreddit_id")
+
   // Promotion policies
-  promoAllowed      PromoPolicy @default(UNKNOWN) @map("promo_allowed")
-  linkPolicy        LinkPolicy  @default(UNKNOWN) @map("link_policy")
-  selfPromoAllowed  Boolean     @default(false) @map("self_promo_allowed")
-  affiliateAllowed  Boolean     @default(false) @map("affiliate_allowed")
-  
+  promoAllowed     PromoPolicy @default(UNKNOWN) @map("promo_allowed")
+  linkPolicy       LinkPolicy  @default(UNKNOWN) @map("link_policy")
+  selfPromoAllowed Boolean     @default(false) @map("self_promo_allowed")
+  affiliateAllowed Boolean     @default(false) @map("affiliate_allowed")
+
   // Requirements
-  flairRequired     Boolean     @default(false) @map("flair_required")
-  minAccountAge     Int?        @map("min_account_age") // days
-  minKarma          Int?        @map("min_karma")
-  
+  flairRequired Boolean @default(false) @map("flair_required")
+  minAccountAge Int?    @map("min_account_age") // days
+  minKarma      Int?    @map("min_karma")
+
   // Content restrictions
-  textOnly          Boolean     @default(false) @map("text_only")
-  noLinksInPosts    Boolean     @default(false) @map("no_links_in_posts")
-  noLinksInComments Boolean     @default(false) @map("no_links_in_comments")
-  
+  textOnly          Boolean @default(false) @map("text_only")
+  noLinksInPosts    Boolean @default(false) @map("no_links_in_posts")
+  noLinksInComments Boolean @default(false) @map("no_links_in_comments")
+
   // Classification confidence
-  confidence        Float       @default(0.5)
-  notes             String?     @db.Text
-  updatedAt         DateTime    @updatedAt @map("updated_at")
-  
+  confidence Float    @default(0.5)
+  notes      String?  @db.Text
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
   // Relations
-  subreddit         SubredditCatalog @relation(fields: [subredditId], references: [id], onDelete: Cascade)
-  
+  subreddit SubredditCatalog @relation(fields: [subredditId], references: [id], onDelete: Cascade)
+
   @@map("subreddit_policy")
 }
 
 model SubredditTimeSlot {
-  id            String   @id @default(cuid())
-  subredditId   String   @map("subreddit_id")
-  dayOfWeek     Int      @map("day_of_week") // 0-6 (Sunday-Saturday)
-  hourUtc       Int      @map("hour_utc") // 0-23
-  score         Float    // Engagement score
-  sampleSize    Int      @map("sample_size")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-  
+  id          String   @id @default(cuid())
+  subredditId String   @map("subreddit_id")
+  dayOfWeek   Int      @map("day_of_week") // 0-6 (Sunday-Saturday)
+  hourUtc     Int      @map("hour_utc") // 0-23
+  score       Float // Engagement score
+  sampleSize  Int      @map("sample_size")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
   // Relations
-  subreddit     SubredditCatalog @relation(fields: [subredditId], references: [id], onDelete: Cascade)
-  
+  subreddit SubredditCatalog @relation(fields: [subredditId], references: [id], onDelete: Cascade)
+
   @@unique([subredditId, dayOfWeek, hourUtc])
   @@map("subreddit_time_slots")
 }
@@ -308,206 +315,226 @@ model SubredditTimeSlot {
 // ==================== ROADMAPS & TASKS ====================
 
 model Roadmap {
-  id          String   @id @default(cuid())
-  projectId   String   @map("project_id")
-  version     Int      @default(1)
-  startDate   DateTime @map("start_date")
-  horizonDays Int      @default(30) @map("horizon_days")
+  id          String        @id @default(cuid())
+  workspaceId String        @map("workspace_id")
+  projectId   String        @map("project_id")
+  version     Int           @default(1)
+  startDate   DateTime      @map("start_date")
+  horizonDays Int           @default(30) @map("horizon_days")
   status      RoadmapStatus @default(ACTIVE)
-  strategy    Json?    // { approach: "karma_first", phases: [...] }
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  
+  strategy    Json? // { approach: "karma_first", phases: [...] }
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
   // Relations
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  tasks       RoadmapTask[]
-  
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks     RoadmapTask[]
+
+  @@index([workspaceId])
+  @@index([projectId])
   @@map("roadmaps")
 }
 
 model RoadmapTask {
-  id            String    @id @default(cuid())
-  roadmapId     String    @map("roadmap_id")
-  dayIndex      Int       @map("day_index") // Day 1-30
+  id            String     @id @default(cuid())
+  workspaceId   String     @map("workspace_id")
+  roadmapId     String     @map("roadmap_id")
+  dayIndex      Int        @map("day_index") // Day 1-30
   type          TaskType
-  subredditId   String?   @map("subreddit_id")
-  title         String?   // Task display title
-  instructions  String    @db.Text
-  estimatedTime Int?      @map("estimated_time") // minutes
-  priority      Int       @default(1) // 1-5
+  subredditId   String?    @map("subreddit_id")
+  title         String? // Task display title
+  instructions  String     @db.Text
+  estimatedTime Int?       @map("estimated_time") // minutes
+  priority      Int        @default(1) // 1-5
   status        TaskStatus @default(PENDING)
-  completedAt   DateTime? @map("completed_at")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  
+  completedAt   DateTime?  @map("completed_at")
+  createdAt     DateTime   @default(now()) @map("created_at")
+
   // Relations
-  roadmap       Roadmap   @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
-  subreddit     SubredditCatalog? @relation(fields: [subredditId], references: [id])
-  drafts        Draft[]
-  
+  workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  roadmap   Roadmap           @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  subreddit SubredditCatalog? @relation(fields: [subredditId], references: [id])
+  drafts    Draft[]
+
+  @@index([workspaceId])
+  @@index([roadmapId])
   @@map("roadmap_tasks")
 }
 
 // ==================== CONTENT (DRAFTS) ====================
 
 model Draft {
-  id            String   @id @default(cuid())
-  projectId     String   @map("project_id")
-  taskId        String?  @map("task_id")
-  subredditId   String?  @map("subreddit_id")
-  type          DraftType
-  
+  id          String    @id @default(cuid())
+  workspaceId String    @map("workspace_id")
+  projectId   String    @map("project_id")
+  taskId      String?   @map("task_id")
+  subredditId String?   @map("subreddit_id")
+  type        DraftType
+
   // Content
-  title         String?
-  body          String   @db.Text
-  mediaUrls     String[] @map("media_urls")
-  
+  title     String?
+  body      String   @db.Text
+  mediaUrls String[] @map("media_urls")
+
   // AI metadata
-  variants      Json?    // [{ title, body, score }]
+  variants         Json? // [{ title, body, score }]
   generationParams Json? @map("generation_params") // { tone, length, angle }
-  
+
   // Compliance
-  riskScore     Int      @default(0) @map("risk_score") // 0-100
-  riskReasons   String[] @map("risk_reasons")
-  suggestedFixes Json?   @map("suggested_fixes")
-  
+  riskScore      Int      @default(0) @map("risk_score") // 0-100
+  riskReasons    String[] @map("risk_reasons")
+  suggestedFixes Json?    @map("suggested_fixes")
+
   // Status
-  status        DraftStatus @default(DRAFT)
-  approvedAt    DateTime? @map("approved_at")
-  approvedBy    String?   @map("approved_by")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-  
+  status     DraftStatus @default(DRAFT)
+  approvedAt DateTime?   @map("approved_at")
+  approvedBy String?     @map("approved_by")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
   // Relations
-  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  task          RoadmapTask? @relation(fields: [taskId], references: [id])
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task          RoadmapTask?   @relation(fields: [taskId], references: [id])
   scheduledPost ScheduledPost?
-  
+
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([taskId])
   @@map("drafts")
 }
 
 // ==================== SCHEDULING & PUBLISHING ====================
 
 model ScheduledPost {
-  id            String   @id @default(cuid())
+  id              String @id @default(cuid())
+  workspaceId     String @map("workspace_id")
   redditAccountId String @map("reddit_account_id")
-  subredditId   String   @map("subreddit_id")
-  draftId       String   @unique @map("draft_id")
-  
+  subredditId     String @map("subreddit_id")
+  draftId         String @unique @map("draft_id")
+
   // Scheduling
-  scheduledAt   DateTime @map("scheduled_at")
-  timezone      String   @default("UTC")
-  
+  scheduledAt DateTime @map("scheduled_at")
+  timezone    String   @default("UTC")
+
   // Status tracking
-  status        ScheduledStatus @default(SCHEDULED)
-  attempts      Int      @default(0)
-  lastError     String?  @map("last_error")
-  idempotencyKey String  @unique @map("idempotency_key")
-  
+  status         ScheduledStatus @default(SCHEDULED)
+  attempts       Int             @default(0)
+  lastError      String?         @map("last_error")
+  idempotencyKey String          @unique @map("idempotency_key")
+
   // Publishing result
-  publishedAt   DateTime? @map("published_at")
-  publishedItemId String? @map("published_item_id")
-  
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-  
+  publishedAt     DateTime? @map("published_at")
+  publishedItemId String?   @map("published_item_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   // Relations
-  redditAccount RedditAccount @relation(fields: [redditAccountId], references: [id], onDelete: Cascade)
+  workspace     Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  redditAccount RedditAccount    @relation(fields: [redditAccountId], references: [id], onDelete: Cascade)
   subreddit     SubredditCatalog @relation(fields: [subredditId], references: [id])
-  draft         Draft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  draft         Draft            @relation(fields: [draftId], references: [id], onDelete: Cascade)
   publishedItem PublishedItem?
-  
+
+  @@index([workspaceId, scheduledAt])
+  @@index([redditAccountId, scheduledAt])
   @@map("scheduled_posts")
 }
 
 model PublishedItem {
-  id            String   @id @default(cuid())
-  redditAccountId String @map("reddit_account_id")
-  subredditId   String   @map("subreddit_id")
+  id              String  @id @default(cuid())
+  workspaceId     String  @map("workspace_id")
+  redditAccountId String  @map("reddit_account_id")
+  subredditId     String  @map("subreddit_id")
   scheduledPostId String? @unique @map("scheduled_post_id")
-  
+
   // Reddit data
-  type          PublishedType
-  redditFullname String   @map("reddit_fullname") // t3_xxx or t1_xxx
-  redditId      String   @map("reddit_id")
-  permalink     String
-  url           String?
-  
+  type           PublishedType
+  redditFullname String        @map("reddit_fullname") // t3_xxx or t1_xxx
+  redditId       String        @map("reddit_id")
+  permalink      String
+  url            String?
+
   // Content snapshot
-  titleSnapshot String?  @map("title_snapshot")
-  bodySnapshot  String?  @db.Text @map("body_snapshot")
-  
-  createdAt     DateTime @default(now()) @map("created_at")
-  
+  titleSnapshot String? @map("title_snapshot")
+  bodySnapshot  String? @map("body_snapshot") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+
   // Relations
-  redditAccount RedditAccount @relation(fields: [redditAccountId], references: [id], onDelete: Cascade)
-  subreddit     SubredditCatalog @relation(fields: [subredditId], references: [id])
-  scheduledPost ScheduledPost? @relation(fields: [scheduledPostId], references: [id])
+  workspace     Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  redditAccount RedditAccount         @relation(fields: [redditAccountId], references: [id], onDelete: Cascade)
+  subreddit     SubredditCatalog      @relation(fields: [subredditId], references: [id])
+  scheduledPost ScheduledPost?        @relation(fields: [scheduledPostId], references: [id])
   snapshots     PerformanceSnapshot[]
-  
+
+  @@index([workspaceId, createdAt])
   @@map("published_items")
 }
 
 // ==================== ANALYTICS ====================
 
 model PerformanceSnapshot {
-  id            String   @id @default(cuid())
+  id              String @id @default(cuid())
   publishedItemId String @map("published_item_id")
-  
+
   // Metrics
-  score         Int      // Upvotes - Downvotes
-  upvotes       Int      @default(0)
-  downvotes     Int      @default(0)
-  upvoteRatio   Float?   @map("upvote_ratio")
-  numComments   Int      @default(0) @map("num_comments")
-  
+  score       Int // Upvotes - Downvotes
+  upvotes     Int    @default(0)
+  downvotes   Int    @default(0)
+  upvoteRatio Float? @map("upvote_ratio")
+  numComments Int    @default(0) @map("num_comments")
+
   // Status
-  isRemoved     Boolean  @default(false) @map("is_removed")
-  removalReason String?  @map("removal_reason")
-  isLocked      Boolean  @default(false) @map("is_locked")
-  isStickied    Boolean  @default(false) @map("is_stickied")
-  
+  isRemoved     Boolean @default(false) @map("is_removed")
+  removalReason String? @map("removal_reason")
+  isLocked      Boolean @default(false) @map("is_locked")
+  isStickied    Boolean @default(false) @map("is_stickied")
+
   // Raw data
-  rawData       Json?    @map("raw_data")
-  
-  capturedAt    DateTime @map("captured_at")
-  
+  rawData Json? @map("raw_data")
+
+  capturedAt DateTime @map("captured_at")
+
   // Relations
   publishedItem PublishedItem @relation(fields: [publishedItemId], references: [id], onDelete: Cascade)
-  
+
   @@index([publishedItemId, capturedAt])
   @@map("performance_snapshots")
 }
 
 model ThreadCandidate {
-  id            String   @id @default(cuid())
-  subredditId   String   @map("subreddit_id")
-  
+  id          String @id @default(cuid())
+  subredditId String @map("subreddit_id")
+
   // Reddit data
-  redditFullname String  @map("reddit_fullname")
-  redditId      String   @map("reddit_id")
-  title         String
-  permalink     String
-  author        String
-  
+  redditFullname String @map("reddit_fullname")
+  redditId       String @map("reddit_id")
+  title          String
+  permalink      String
+  author         String
+
   // Scoring
-  score         Float    // Opportunity score
-  relevanceScore Float   @map("relevance_score")
-  velocityScore  Float   @map("velocity_score")
-  riskScore      Float   @map("risk_score")
-  reasons       Json     // Why this is a good opportunity
-  
+  score          Float // Opportunity score
+  relevanceScore Float @map("relevance_score")
+  velocityScore  Float @map("velocity_score")
+  riskScore      Float @map("risk_score")
+  reasons        Json // Why this is a good opportunity
+
   // Status
-  status        CandidateStatus @default(ACTIVE)
-  expiresAt     DateTime @map("expires_at")
-  
+  status    CandidateStatus @default(ACTIVE)
+  expiresAt DateTime        @map("expires_at")
+
   // Timestamps
-  createdAt     DateTime @default(now()) @map("created_at")
-  ingestedAt    DateTime @map("ingested_at")
-  scoredAt      DateTime @map("scored_at")
-  
+  createdAt  DateTime @default(now()) @map("created_at")
+  ingestedAt DateTime @map("ingested_at")
+  scoredAt   DateTime @map("scored_at")
+
   // Relations
-  subreddit     SubredditCatalog @relation(fields: [subredditId], references: [id], onDelete: Cascade)
-  
+  subreddit SubredditCatalog @relation(fields: [subredditId], references: [id], onDelete: Cascade)
+
   @@index([subredditId, score])
   @@index([expiresAt])
   @@map("thread_candidates")
@@ -516,63 +543,63 @@ model ThreadCandidate {
 // ==================== ATTRIBUTION ====================
 
 model ClickLink {
-  id            String   @id @default(cuid())
-  projectId     String   @map("project_id")
-  slug          String   @unique // Short code for URL
-  destinationUrl String   @map("destination_url")
-  utmParams     Json?    @map("utm_params")
-  
-  createdAt     DateTime @default(now()) @map("created_at")
-  
+  id             String @id @default(cuid())
+  projectId      String @map("project_id")
+  slug           String @unique // Short code for URL
+  destinationUrl String @map("destination_url")
+  utmParams      Json?  @map("utm_params")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
   // Relations
-  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  events        ClickEvent[]
-  
+  project Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  events  ClickEvent[]
+
   @@map("click_links")
 }
 
 model ClickEvent {
-  id            String   @id @default(cuid())
-  clickLinkId   String   @map("click_link_id")
-  
+  id          String @id @default(cuid())
+  clickLinkId String @map("click_link_id")
+
   // Request data (hashed for privacy)
   referrer      String?
-  userAgentHash String?  @map("user_agent_hash")
-  ipHash        String?  @map("ip_hash")
-  
+  userAgentHash String? @map("user_agent_hash")
+  ipHash        String? @map("ip_hash")
+
   // UTM data
-  utmSource     String?  @map("utm_source")
-  utmMedium     String?  @map("utm_medium")
-  utmCampaign   String?  @map("utm_campaign")
-  
-  ts            DateTime
-  
+  utmSource   String? @map("utm_source")
+  utmMedium   String? @map("utm_medium")
+  utmCampaign String? @map("utm_campaign")
+
+  ts DateTime
+
   // Relations
-  clickLink     ClickLink @relation(fields: [clickLinkId], references: [id], onDelete: Cascade)
-  
+  clickLink ClickLink @relation(fields: [clickLinkId], references: [id], onDelete: Cascade)
+
   @@index([clickLinkId, ts])
   @@map("click_events")
 }
 
 model Conversion {
-  id            String   @id @default(cuid())
-  projectId     String   @map("project_id")
-  
-  type          ConversionType
-  value         Float?   // Revenue value if applicable
-  
+  id        String @id @default(cuid())
+  projectId String @map("project_id")
+
+  type  ConversionType
+  value Float? // Revenue value if applicable
+
   // Attribution
-  clickLinkId   String?  @map("click_link_id")
-  utmData       Json?    @map("utm_data")
-  
+  clickLinkId String? @map("click_link_id")
+  utmData     Json?   @map("utm_data")
+
   // Metadata
-  metadata      Json?    // { plan: "pro", source: "reddit", ... }
-  
-  ts            DateTime
-  
+  metadata Json? // { plan: "pro", source: "reddit", ... }
+
+  ts DateTime
+
   // Relations
-  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
   @@index([projectId, ts])
   @@map("conversions")
 }
@@ -580,23 +607,23 @@ model Conversion {
 // ==================== AUDIT & LOGS ====================
 
 model AuditLog {
-  id          String   @id @default(cuid())
-  workspaceId String   @map("workspace_id")
-  actorUserId String   @map("actor_user_id")
-  
-  action      String   // e.g., "post.scheduled", "draft.approved"
-  targetType  String   @map("target_type") // "scheduled_post", "draft", etc.
-  targetId    String   @map("target_id")
-  
-  metadata    Json?    // Additional context
-  ipAddress   String?  @map("ip_address") // Hashed
-  userAgent   String?  @map("user_agent") // Hashed
-  
-  createdAt   DateTime @default(now()) @map("created_at")
-  
+  id          String @id @default(cuid())
+  workspaceId String @map("workspace_id")
+  actorUserId String @map("actor_user_id")
+
+  action     String // e.g., "post.scheduled", "draft.approved"
+  targetType String @map("target_type") // "scheduled_post", "draft", etc.
+  targetId   String @map("target_id")
+
+  metadata  Json? // Additional context
+  ipAddress String? @map("ip_address") // Hashed
+  userAgent String? @map("user_agent") // Hashed
+
+  createdAt DateTime @default(now()) @map("created_at")
+
   // Relations
-  actor       User     @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
-  
+  actor User @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+
   @@index([workspaceId, createdAt])
   @@index([targetType, targetId])
   @@map("audit_logs")
@@ -642,10 +669,10 @@ enum ProjectStatus {
 }
 
 enum SafetyTier {
-  NEW         // <100 karma
+  NEW // <100 karma
   ESTABLISHED // 100-1000 karma
-  TRUSTED     // 1000+ karma
-  RESTRICTED  // Recent removals/warnings
+  TRUSTED // 1000+ karma
+  RESTRICTED // Recent removals/warnings
 }
 
 enum PromoPolicy {

@@ -1,6 +1,6 @@
 # AGENTS.md - Project Context for AI Agents
 
-> **Last Updated**: 2026-01-30  
+> **Last Updated**: 2026-01-31  
 > **Project**: ReditFast - Reddit Marketing Automation Platform  
 > **Repository**: https://github.com/tanayyo1/ReditFast
 
@@ -73,6 +73,61 @@
 - **Workspace isolation**: Every query scoped by workspace_id
 - **Idempotency**: All publish jobs use idempotency keys
 - **Pacing tiers**: New accounts = conservative, established = moderate
+
+---
+
+## MediaFast Clone System Design Addendum (2026-01-31)
+
+**Source of truth:** `mediafast_clone_system_design_report.md` (feature parity scope, queues, flows, infra sizing).
+
+### Expanded service map (aligns to report)
+1. **API Gateway / Core Backend** - Auth/session, CRUD, orchestration, billing entitlements
+2. **Billing Service** - Stripe plans, quotas, lifetime logic
+3. **Subreddit Intelligence Service** - rules ingestion, stats, time windows, risk flags
+4. **Risk & Account Health Service** - removal inference, visibility checks, health scoring
+5. **Worker Fleet** - publish, metrics fetch, ingest, time-window compute
+6. **Free Tools + SEO Engine** - public tools, SEO hubs, rate-limited endpoints
+
+### Data model highlights (MVP+)
+- Core: `users`, `sessions`, `plans`, `subscriptions`, `reddit_accounts`, `projects`
+- Intel: `subreddits`, `subreddit_rules`, `subreddit_stats_daily`, `subreddit_time_windows`, `subreddit_embeddings`
+- Roadmap: `project_subreddit_recos`, `roadmaps`, `tasks`, `task_content`
+- Scheduling: `scheduled_jobs`, `reddit_posts`, `reddit_post_metrics`
+- Risk/health: `account_health_snapshots`, `visibility_checks`
+- Ops: `comment_opportunities`, `notifications`
+
+### Queue + cron map (BullMQ MVP)
+- Queues: `reddit.publish`, `reddit.metrics_fetch`, `subreddit.ingest`, `subreddit.compute_time_windows`, `recommendations.generate`, `roadmap.generate`, `content.generate`, `risk.account_health`, `risk.visibility_check`
+- Cron defaults: daily ingest, daily time-window compute, 30-min metrics fetch, daily reminders
+
+### Key user flows (must match report sequence diagrams)
+- Reddit OAuth connect
+- Best 5 subreddit recommendations
+- Roadmap generation
+- AI content generation + variant editor
+- Schedule → publish → metrics pipeline
+- Free tools: Subreddit Analyzer + Shadowban Detector
+
+### Public tools + SEO surface
+- Public screens: home, pricing, login/signup, SEO hubs (city/industry/alternatives/guides)
+- Tools: post generator, subreddit analyzer, shadowban detector (rate-limited)
+
+### Infra sizing assumptions
+- **MVP**: 1k–5k users, ~10k scheduled actions/month; 2 API + 2–4 worker nodes; single Postgres + Redis
+- **Scale**: 100k users, ~1M scheduled actions/month; multi-instance API, worker pools, queue separation, time-series store
+
+### Implementation approach (doc + delivery order)
+1. **Doc alignment**: keep `mediafast_clone_system_design_report.md` current; update AGENTS.md when scope changes.
+2. **Foundation**: auth, projects, Reddit OAuth, workspace isolation, rate limits.
+3. **Intel + Reco**: subreddit ingest, rules parsing, best-time windows, recommendations.
+4. **Roadmap + Content**: task generation, AI variants, compliance scoring.
+5. **Scheduling + Analytics**: scheduled jobs, publish worker, metrics pipeline, dashboards.
+6. **Risk + Health**: visibility checks, health scoring, guardrails.
+7. **Free tools + SEO**: public tools endpoints + SEO pages.
+
+**Non-negotiable:** human approval remains mandatory for posting even if the report mentions auto-posting.
+
+---
 
 ---
 

@@ -36,7 +36,7 @@ This document specifies a production-ready blueprint for building a MediaFast-st
 - **Core API**: auth, projects, tasks, orchestration.
 - **Reddit Service**: OAuth, posting, commenting, reading.
 - **Subreddit Intel**: ingestion + best-time windows + stats.
-- **Roadmap/Reco**: best 5 subreddits + daily tasks.
+- **Roadmap & Recommendation Service**: best 5 subreddits + daily tasks.
 - **AI Content**: post/comment generation + rewriting + filters.
 - **Scheduler + Workers**: run-at-time jobs, retries, idempotency.
 - **Analytics**: time series + rollups + dashboards.

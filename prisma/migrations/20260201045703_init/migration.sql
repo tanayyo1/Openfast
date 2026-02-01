@@ -1,3 +1,6 @@
+-- Extensions
+CREATE EXTENSION IF NOT EXISTS vector;
+
 -- CreateEnum
 CREATE TYPE "Plan" AS ENUM ('FREE', 'PRO', 'LIFETIME', 'ENTERPRISE');
 
@@ -491,7 +494,7 @@ CREATE UNIQUE INDEX "subscriptions_workspace_id_key" ON "subscriptions"("workspa
 CREATE INDEX "projects_workspace_id_idx" ON "projects"("workspace_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "reddit_accounts_reddit_username_key" ON "reddit_accounts"("reddit_username");
+CREATE UNIQUE INDEX "reddit_accounts_workspace_id_reddit_username_key" ON "reddit_accounts"("workspace_id", "reddit_username");
 
 -- CreateIndex
 CREATE INDEX "reddit_accounts_workspace_id_idx" ON "reddit_accounts"("workspace_id");
@@ -500,7 +503,6 @@ CREATE INDEX "reddit_accounts_workspace_id_idx" ON "reddit_accounts"("workspace_
 CREATE UNIQUE INDEX "subreddit_catalog_name_key" ON "subreddit_catalog"("name");
 
 -- CreateIndex
-CREATE INDEX "subreddit_embedding_idx" ON "subreddit_catalog"("embedding");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "subreddit_policy_subreddit_id_key" ON "subreddit_policy"("subreddit_id");
@@ -672,4 +674,3 @@ ALTER TABLE "conversions" ADD CONSTRAINT "conversions_project_id_fkey" FOREIGN K
 
 -- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_actor_user_id_fkey" FOREIGN KEY ("actor_user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-

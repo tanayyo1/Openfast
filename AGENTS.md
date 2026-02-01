@@ -1,6 +1,6 @@
 # AGENTS.md - Project Context for AI Agents
 
-> **Last Updated**: 2026-01-31  
+> **Last Updated**: 2026-02-01  
 > **Project**: ReditFast - Reddit Marketing Automation Platform  
 > **Repository**: https://github.com/tanayyo1/ReditFast
 
@@ -142,6 +142,21 @@
 **Non-negotiable:** human approval remains mandatory for posting even if the report mentions auto-posting.
 
 ---
+
+## Current Progress (2026-02-01)
+
+- Core workspace-scoped Prisma models + pgvector migration (extension enabled, no invalid vector index)
+- NextAuth + workspace guards (`requireWorkspaceSession`) wired for API routes
+- Projects, roadmaps/tasks, and drafts APIs implemented with workspace scoping and structured errors
+- Token encryption utility + unit tests (`src/lib/security/tokenCrypto.ts`)
+- Reddit OAuth start/callback endpoints with encrypted token storage (no token leakage)
+- Reddit API client wrapper + Redis-backed per-account rate limit scaffold + unit tests
+- CI stabilized for Prisma generate and integration tests (Postgres image supports pgvector; `DATABASE_URL` set in jobs)
+
+Open PR stack (as of 2026-02-01):
+
+- RED-21..RED-27: PR10-PR16
+- RED-28: PR17
 
 ## Directory Structure
 
@@ -292,13 +307,13 @@ ReditFast/
 
 ---
 
-## ⚠️ MANDATORY RULES - ZERO EXCEPTIONS
+## MANDATORY RULES - ZERO EXCEPTIONS
 
 ### 1. Git Workflow (ABSOLUTE - NO EXCEPTIONS)
 
-**❌ NEVER commit to `main` or `develop` directly**
+**NEVER** commit to `main` or `develop` directly
 
-**✅ ALWAYS create feature branch:**
+**ALWAYS** create feature branch:
 
 ```bash
 git checkout -b feature/LIN-123-short-description
@@ -334,7 +349,7 @@ git checkout -b feature/LIN-123-short-description
 
 ### 2. Before Starting ANY Work (MANDATORY CHECKLIST)
 
-**⛔ DO NOT TOUCH CODE UNTIL YOU VERIFY:**
+**STOP: DO NOT TOUCH CODE UNTIL YOU VERIFY:**
 
 - [ ] Read AGENTS.md (this file) completely
 - [ ] Read docs/DECISIONS.md for architectural context
@@ -356,7 +371,7 @@ git checkout -b feature/LIN-XXX-description
 
 ### 3. Code Quality Gates (MUST PASS BEFORE PR)
 
-**🚫 PR WILL BE REJECTED IF THESE FAIL:**
+**PR WILL BE REJECTED IF THESE FAIL:**
 
 ```bash
 # Run these commands - ALL MUST PASS
@@ -426,7 +441,7 @@ Closes: LIN-789
 
 ### 5. Security Rules (NON-NEGOTIABLE - ZERO TOLERANCE)
 
-**❌ ABSOLUTELY FORBIDDEN:**
+**ABSOLUTELY FORBIDDEN:**
 
 - **NEVER** commit `.env` or `.env.local` files
 - **NEVER** log tokens, passwords, PII, or secrets
@@ -437,7 +452,7 @@ Closes: LIN-789
 - **NEVER** skip encryption for sensitive data
 - **NEVER** test against real Reddit in development
 
-**✅ ALWAYS:**
+**ALWAYS:**
 
 - Encrypt Reddit tokens at rest (AES-256)
 - Hash IP addresses in logs
@@ -453,7 +468,7 @@ Closes: LIN-789
 
 ### 6. AI Agent Conduct Rules
 
-**⛔ ASK FIRST, CODE SECOND:**
+**ASK FIRST, CODE SECOND:**
 
 - **ASK** before overriding existing patterns
 - **ASK** before introducing new dependencies
@@ -461,7 +476,7 @@ Closes: LIN-789
 - **ASK** before modifying CI/CD workflows
 - **ASK** before changing environment requirements
 
-**✅ DOCUMENT EVERYTHING:**
+**DOCUMENT EVERYTHING:**
 
 - Explain architectural decisions in PR description
 - Add JSDoc comments to public APIs
@@ -469,14 +484,14 @@ Closes: LIN-789
 - Update docs/API.md if endpoints change
 - Update docs/DECISIONS.md for major choices
 
-**✅ TEST YOUR WORK:**
+**TEST YOUR WORK:**
 
 - Verify changes work before claiming complete
 - Run full test suite locally
 - Test edge cases
 - Verify no regressions
 
-**❌ NEVER:**
+**NEVER:**
 
 - Assume something works without testing
 - Ignore failing tests
@@ -600,7 +615,7 @@ tests/
 
 ### 10. Forbidden Patterns (ZERO TOLERANCE)
 
-**❌ These Will Result in Immediate Rejection:**
+**These Will Result in Immediate Rejection:**
 
 - Auto-posting to Reddit without approval
 - Storing plaintext tokens anywhere

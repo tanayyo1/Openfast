@@ -24,14 +24,14 @@ run_check() {
     local name=$1
     local command=$2
     
-    echo -e "${YELLOW}▶ Running: ${name}${NC}"
+    echo -e "${YELLOW}Running: ${name}${NC}"
     
     if eval "$command"; then
-        echo -e "${GREEN}✅ ${name} passed${NC}"
+        echo -e "${GREEN}[OK] ${name} passed${NC}"
         echo ""
         return 0
     else
-        echo -e "${RED}❌ ${name} failed${NC}"
+        echo -e "${RED}[FAIL] ${name} failed${NC}"
         echo ""
         return 1
     fi
@@ -60,11 +60,11 @@ fi
 # Summary
 echo -e "${BLUE}========================================${NC}"
 if [ $FAILED -eq 0 ]; then
-    echo -e "${GREEN}✅ All quality gates passed!${NC}"
+    echo -e "${GREEN}[OK] All quality gates passed${NC}"
     echo -e "${GREEN}You can now commit your changes.${NC}"
     exit 0
 else
-    echo -e "${RED}❌ Some quality gates failed${NC}"
+    echo -e "${RED}[FAIL] Some quality gates failed${NC}"
     echo -e "${RED}Please fix the issues before committing.${NC}"
     echo ""
     echo -e "${YELLOW}Quick fixes:${NC}"

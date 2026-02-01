@@ -14,7 +14,7 @@ function setDemoAuthCookie() {
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { supabase, isConfigured } = useSupabase();
+  const { supabase } = useSupabase();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -46,10 +46,15 @@ export default function LoginPage() {
               setLoading(true);
 
               if (!supabase) {
+                // Allow local UI testing without Supabase configured.
+                if (process.env.NODE_ENV !== "production") {
+                  setDemoAuthCookie();
+                  router.push(next);
+                  return;
+                }
+
                 setLoading(false);
-                setError(
-                  "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local, or use Demo sign in.",
-                );
+                setError("Sign in is unavailable right now.");
                 return;
               }
 
@@ -105,12 +110,6 @@ export default function LoginPage() {
             >
               {loading ? "Signing in..." : "Sign in"}
             </button>
-            {!isConfigured ? (
-              <p className="text-xs text-muted-foreground">
-                Supabase env vars are missing. Demo sign in is available in
-                development.
-              </p>
-            ) : null}
             {process.env.NODE_ENV !== "production" ? (
               <button
                 type="button"

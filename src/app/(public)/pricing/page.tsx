@@ -1,51 +1,51 @@
-import Link from 'next/link'
-import { MaxWidth } from '@/components/public/MaxWidth'
+import Link from "next/link";
+import { MaxWidth } from "@/components/public/MaxWidth";
 
 const plans = [
   {
-    name: 'Free',
-    price: '$0',
-    cadence: 'per month',
-    description: 'Start with essentials and safety-first guidance.',
+    name: "Free",
+    price: "$0",
+    cadence: "per month",
+    description: "Start with essentials and safety-first guidance.",
     features: [
-      '1 project',
-      '1 Reddit account',
-      'Basic roadmap (7 days)',
-      '10 drafts per month',
-      'Manual posting only',
+      "1 project",
+      "1 Reddit account",
+      "Basic roadmap (7 days)",
+      "10 drafts per month",
+      "Manual posting only",
     ],
-    cta: 'Get started',
+    cta: "Get started",
   },
   {
-    name: 'Pro',
-    price: '$39',
-    cadence: 'per month',
-    description: 'Full planning and scheduling for growing teams.',
+    name: "Pro",
+    price: "$39",
+    cadence: "per month",
+    description: "Full planning and scheduling for growing teams.",
     features: [
-      '5 projects',
-      '3 Reddit accounts',
-      'Full roadmap (30 days)',
-      'Unlimited drafts',
-      'Scheduling + analytics',
+      "5 projects",
+      "3 Reddit accounts",
+      "Full roadmap (30 days)",
+      "Unlimited drafts",
+      "Scheduling + analytics",
     ],
-    cta: 'Start Pro',
+    cta: "Start Pro",
     highlight: true,
   },
   {
-    name: 'Lifetime',
-    price: '$129',
-    cadence: 'one time',
-    description: 'Pay once and keep every Pro feature.',
+    name: "Lifetime",
+    price: "$129",
+    cadence: "one time",
+    description: "Pay once and keep every Pro feature.",
     features: [
-      'Unlimited projects',
-      'Unlimited accounts',
-      'All Pro features',
-      'Priority support',
-      'Early access to new tools',
+      "Unlimited projects",
+      "Unlimited accounts",
+      "All Pro features",
+      "Priority support",
+      "Early access to new tools",
     ],
-    cta: 'Claim lifetime',
+    cta: "Claim lifetime",
   },
-]
+];
 
 export default function PricingPage() {
   return (
@@ -59,8 +59,8 @@ export default function PricingPage() {
             Plans built for steady Reddit growth.
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-sm text-muted-foreground">
-            Choose the pace that matches your team. All plans include compliance checks
-            and human approval.
+            Choose the pace that matches your team. All plans include compliance
+            checks and human approval.
           </p>
         </div>
         <div className="mt-12 grid gap-6 lg:grid-cols-3">
@@ -69,8 +69,8 @@ export default function PricingPage() {
               key={plan.name}
               className={`rounded-[28px] border p-6 text-left shadow-sm ${
                 plan.highlight
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border bg-card/80'
+                  ? "border-primary bg-primary/5"
+                  : "border-border bg-card/80"
               }`}
             >
               <p className="text-sm font-semibold text-muted-foreground">
@@ -93,8 +93,8 @@ export default function PricingPage() {
                 href="/signup"
                 className={`mt-6 inline-flex w-full items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition ${
                   plan.highlight
-                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    : 'border border-border text-foreground hover:border-foreground/40'
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "border border-border text-foreground hover:border-foreground/40"
                 }`}
               >
                 {plan.cta}
@@ -116,5 +116,5 @@ export default function PricingPage() {
         </div>
       </MaxWidth>
     </div>
-  )
+  );
 }

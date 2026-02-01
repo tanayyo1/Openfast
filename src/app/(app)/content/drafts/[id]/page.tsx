@@ -1,23 +1,25 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { useParams } from 'next/navigation'
-import { DraftEditor } from '@/components/app/editor/DraftEditor'
-import { useDemoStore } from '@/stores/demoStore'
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { DraftEditor } from "@/components/app/editor/DraftEditor";
+import { useDemoStore } from "@/stores/demoStore";
 
 export default function DraftPage() {
-  const params = useParams<{ id: string }>()
-  const draftId = params?.id ? decodeURIComponent(params.id) : ''
+  const params = useParams<{ id: string }>();
+  const draftId = params?.id ? decodeURIComponent(params.id) : "";
 
-  const draft = useDemoStore((state) => state.drafts.find((d) => d.id === draftId))
+  const draft = useDemoStore((state) =>
+    state.drafts.find((d) => d.id === draftId),
+  );
   const task = useDemoStore((state) =>
-    draft ? state.tasks.find((t) => t.id === draft.taskId) : undefined
-  )
+    draft ? state.tasks.find((t) => t.id === draft.taskId) : undefined,
+  );
 
-  const selectDraftVariant = useDemoStore((state) => state.selectDraftVariant)
-  const saveDraftEdits = useDemoStore((state) => state.saveDraftEdits)
-  const requestApproval = useDemoStore((state) => state.requestApproval)
-  const approveDraft = useDemoStore((state) => state.approveDraft)
+  const selectDraftVariant = useDemoStore((state) => state.selectDraftVariant);
+  const saveDraftEdits = useDemoStore((state) => state.saveDraftEdits);
+  const requestApproval = useDemoStore((state) => state.requestApproval);
+  const approveDraft = useDemoStore((state) => state.approveDraft);
 
   if (!draft || !task) {
     return (
@@ -27,7 +29,7 @@ export default function DraftPage() {
           Back to drafts
         </Link>
       </div>
-    )
+    );
   }
 
   return (
@@ -37,7 +39,9 @@ export default function DraftPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Draft
           </p>
-          <h1 className="mt-3 text-3xl font-semibold">{task.type} for {task.subreddit}</h1>
+          <h1 className="mt-3 text-3xl font-semibold">
+            {task.type} for {task.subreddit}
+          </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Status: {draft.status}
             <span className="mx-2 text-muted-foreground/40">|</span>
@@ -71,11 +75,19 @@ export default function DraftPage() {
         initialSelectedIndex={draft.selectedIndex}
         initialTitle={draft.editedTitle}
         initialBody={draft.editedBody}
-        onSelectVariant={(index) => selectDraftVariant({ draftId: draft.id, index })}
-        onSave={({ title, body }) => saveDraftEdits({ draftId: draft.id, title, body })}
+        onSelectVariant={(index) =>
+          selectDraftVariant({ draftId: draft.id, index })
+        }
+        onSave={({ title, body }) =>
+          saveDraftEdits({ draftId: draft.id, title, body })
+        }
         onRequestApproval={() => requestApproval({ taskId: task.id })}
-        onApprove={draft.status === 'Needs approval' ? () => approveDraft({ taskId: task.id }) : undefined}
+        onApprove={
+          draft.status === "Needs approval"
+            ? () => approveDraft({ taskId: task.id })
+            : undefined
+        }
       />
     </div>
-  )
+  );
 }

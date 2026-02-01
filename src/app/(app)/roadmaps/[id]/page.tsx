@@ -1,19 +1,19 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { useParams } from 'next/navigation'
-import { useDemoStore } from '@/stores/demoStore'
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useDemoStore } from "@/stores/demoStore";
 
 export default function RoadmapDetailPage() {
-  const params = useParams<{ id: string }>()
-  const roadmapId = params?.id ? decodeURIComponent(params.id) : ''
+  const params = useParams<{ id: string }>();
+  const roadmapId = params?.id ? decodeURIComponent(params.id) : "";
 
   const roadmap = useDemoStore((state) =>
-    state.roadmaps.find((item) => item.id === roadmapId)
-  )
+    state.roadmaps.find((item) => item.id === roadmapId),
+  );
   const tasks = useDemoStore((state) =>
-    state.tasks.filter((task) => task.roadmapId === roadmapId)
-  )
+    state.tasks.filter((task) => task.roadmapId === roadmapId),
+  );
 
   if (!roadmap) {
     return (
@@ -32,12 +32,14 @@ export default function RoadmapDetailPage() {
           Generate roadmap
         </Link>
       </div>
-    )
+    );
   }
 
-  const pendingApprovals = tasks.filter((task) => task.status === 'Needs approval').length
-  const scheduled = tasks.filter((task) => task.status === 'Scheduled').length
-  const flags = tasks.filter((task) => task.status === 'Failed').length
+  const pendingApprovals = tasks.filter(
+    (task) => task.status === "Needs approval",
+  ).length;
+  const scheduled = tasks.filter((task) => task.status === "Scheduled").length;
+  const flags = tasks.filter((task) => task.status === "Failed").length;
 
   return (
     <div className="space-y-8">
@@ -47,9 +49,7 @@ export default function RoadmapDetailPage() {
             Roadmap
           </p>
           <h1 className="mt-3 text-3xl font-semibold">{roadmap.title}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {roadmap.window}
-          </p>
+          <p className="mt-2 text-sm text-muted-foreground">{roadmap.window}</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Link
@@ -98,9 +98,9 @@ export default function RoadmapDetailPage() {
 
       <div className="grid gap-4 md:grid-cols-3">
         {[
-          { label: 'Drafts pending approval', value: String(pendingApprovals) },
-          { label: 'Scheduled items', value: String(scheduled) },
-          { label: 'Failures', value: String(flags) },
+          { label: "Drafts pending approval", value: String(pendingApprovals) },
+          { label: "Scheduled items", value: String(scheduled) },
+          { label: "Failures", value: String(flags) },
         ].map((item) => (
           <div
             key={item.label}
@@ -114,5 +114,5 @@ export default function RoadmapDetailPage() {
         ))}
       </div>
     </div>
-  )
+  );
 }

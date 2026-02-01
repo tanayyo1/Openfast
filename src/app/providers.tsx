@@ -1,9 +1,9 @@
-'use client'
+"use client";
 
-import type { ReactNode } from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
-import { SessionProvider } from 'next-auth/react'
+import type { ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { SessionProvider } from "next-auth/react";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -12,7 +12,7 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
     },
   },
-})
+});
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
@@ -22,5 +22,5 @@ export function Providers({ children }: { children: ReactNode }) {
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
     </SessionProvider>
-  )
+  );
 }

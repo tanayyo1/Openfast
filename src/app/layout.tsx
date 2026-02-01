@@ -1,25 +1,25 @@
-import type { Metadata } from 'next'
-import type { ReactNode } from 'react'
-import { Manrope, Space_Grotesk } from 'next/font/google'
-import './globals.css'
-import { Providers } from './providers'
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
+import { Manrope, Space_Grotesk } from "next/font/google";
+import "./globals.css";
+import { Providers } from "./providers";
 
 const displayFont = Space_Grotesk({
-  subsets: ['latin'],
-  variable: '--font-display',
-  display: 'swap',
-})
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+});
 
 const bodyFont = Manrope({
-  subsets: ['latin'],
-  variable: '--font-body',
-  display: 'swap',
-})
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: 'ReditFast',
-  description: 'Compliance-first Reddit marketing automation for founders.',
-}
+  title: "ReditFast",
+  description: "Compliance-first Reddit marketing automation for founders.",
+};
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -28,5 +28,5 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <Providers>{children}</Providers>
       </body>
     </html>
-  )
+  );
 }

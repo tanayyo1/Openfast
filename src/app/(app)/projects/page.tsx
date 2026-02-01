@@ -1,10 +1,10 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { useDemoStore } from '@/stores/demoStore'
+import Link from "next/link";
+import { useDemoStore } from "@/stores/demoStore";
 
 export default function ProjectsPage() {
-  const projects = useDemoStore((state) => state.projects)
+  const projects = useDemoStore((state) => state.projects);
 
   return (
     <div className="space-y-8">
@@ -50,7 +50,8 @@ export default function ProjectsPage() {
         <div className="rounded-[24px] border border-border bg-card/80 p-8">
           <p className="text-sm font-semibold">No projects yet</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Create your first project to generate subreddit recommendations and roadmaps.
+            Create your first project to generate subreddit recommendations and
+            roadmaps.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -79,7 +80,9 @@ export default function ProjectsPage() {
                 <div>
                   <p className="text-lg font-semibold">{project.name}</p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    {project.goals.length > 0 ? project.goals.join(', ') : 'No goals set'}
+                    {project.goals.length > 0
+                      ? project.goals.join(", ")
+                      : "No goals set"}
                   </p>
                 </div>
                 <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
@@ -91,5 +94,5 @@ export default function ProjectsPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

@@ -96,7 +96,7 @@ export async function redditFetch<T>(opts: {
     headers: {
       Authorization: `Bearer ${opts.accessToken}`,
       "User-Agent": userAgent,
-      ...(opts.body ? { "Content-Type": "application/json" } : null),
+      ...(opts.body ? { "Content-Type": "application/json" } : {}),
     },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });

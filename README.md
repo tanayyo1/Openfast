@@ -6,10 +6,19 @@
 [![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-5.0-2D3748?style=flat-square&logo=prisma)](https://www.prisma.io/)
-[![Redis](https://img.shields.io/badge/Redis-Upstash-DC382D?style=flat-square&logo=redis)](https://upstash.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-Auth-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com/)
 [![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4-412991?style=flat-square&logo=openai)](https://openai.com/)
 
-[Demo](https://reditfast.com) • [Documentation](./docs) • [API Reference](./docs/API.md)
+[🚀 Live Demo](https://reditfast.com) • [📖 Docs](./docs) • [⚡ Quick Start](./QUICKSTART.md) • [🎯 Tasks](./TASK_ASSIGNMENTS.md)
+
+---
+
+## 👋 New Here?
+
+**🆕 New Developer?** → Start with [QUICKSTART.md](./QUICKSTART.md)  
+**⚙️ Setting up locally?** → Follow [SETUP.md](./SETUP.md)  
+**🎯 Looking for tasks?** → Check [TASK_ASSIGNMENTS.md](./TASK_ASSIGNMENTS.md)  
+**🤖 AI Agent / Contributor?** → Read [AGENTS.md](./AGENTS.md)
 
 ---
 

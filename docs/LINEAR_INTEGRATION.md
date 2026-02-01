@@ -6,11 +6,11 @@ This guide walks you through integrating Linear with GitHub for seamless issue t
 
 ## Why Linear + GitHub Integration?
 
-✅ **Automatic issue linking** - PRs linked to Linear issues
-✅ **Status updates** - Linear status changes as PR moves
-✅ **Branch naming** - Enforced via CI checks
-✅ **Visibility** - See code changes in Linear
-✅ **Traceability** - Every commit traces back to issue
+- **Automatic issue linking** - PRs linked to Linear issues
+- **Status updates** - Linear status changes as PR moves
+- **Branch naming** - Enforced via CI checks
+- **Visibility** - See code changes in Linear
+- **Traceability** - Every commit traces back to issue
 
 ---
 
@@ -32,11 +32,11 @@ This guide walks you through integrating Linear with GitHub for seamless issue t
 
 **In Linear → Settings → Integrations → GitHub:**
 
-#### ☑️ Link Pull Requests to Issues
+#### Link Pull Requests to Issues
 
 Enable automatic linking when PR title contains issue ID.
 
-#### ☑️ Update Issue Status on PR Events
+#### Update Issue Status on PR Events
 
 Configure status mapping:
 
@@ -47,11 +47,11 @@ PR Merged → "Done"
 PR Closed (not merged) → "Cancelled"
 ```
 
-#### ☑️ Show PR Status in Linear
+#### Show PR Status in Linear
 
 See PR checks and merge status directly in Linear.
 
-#### ☑️ Create Branches from Linear
+#### Create Branches from Linear
 
 Enable "Create branch" button in Linear issues.
 
@@ -279,21 +279,21 @@ Setup:
 
 **Good Linear Issue:**
 
-- ✅ Clear, specific title
-- ✅ Detailed description
-- ✅ Acceptance criteria
-- ✅ Assigned to person
-- ✅ Due date set
-- ✅ Labels applied
-- ✅ Linked to project/roadmap
+- Clear, specific title
+- Detailed description
+- Acceptance criteria
+- Assigned to person
+- Due date set
+- Labels applied
+- Linked to project/roadmap
 
 **Bad Linear Issue:**
 
-- ❌ Vague title ("Fix stuff")
-- ❌ No description
-- ❌ No acceptance criteria
-- ❌ Unassigned
-- ❌ No due date
+- Vague title ("Fix stuff")
+- No description
+- No acceptance criteria
+- Unassigned
+- No due date
 
 ### Branch Management
 
@@ -301,17 +301,17 @@ Setup:
 
 Don't:
 
-- ❌ Put multiple issues in one PR
-- ❌ Create branch without Linear issue
-- ❌ Leave branches open for weeks
-- ❌ Merge without Linear reference
+- Put multiple issues in one PR
+- Create branch without Linear issue
+- Leave branches open for weeks
+- Merge without Linear reference
 
 Do:
 
-- ✅ Create branch from Linear
-- ✅ Small, focused changes
-- ✅ Merge quickly (within days)
-- ✅ Delete branch after merge
+- Create branch from Linear
+- Small, focused changes
+- Merge quickly (within days)
+- Delete branch after merge
 
 ### Commit Hygiene
 

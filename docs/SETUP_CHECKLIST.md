@@ -122,7 +122,7 @@ Complete checklist for setting up the ReditFast development environment and work
   ```bash
   npm run test:unit
   ```
-- [ ] All checks should pass ✅
+- [ ] All checks should pass
 
 ### 2.3 Test Git Hooks
 
@@ -263,7 +263,7 @@ Complete checklist for setting up the ReditFast development environment and work
   ```
 - [ ] Push and create PR
 - [ ] Get review and merge
-- [ ] Celebrate first contribution! 🎉
+- [ ] Celebrate first contribution
 
 ---
 
@@ -558,7 +558,7 @@ npm run test:unit -- --verbose
 
 ---
 
-**Setup Status:** ⬜ Not Started | 🟡 In Progress | ✅ Complete
+**Setup Status:** Not Started | In Progress | Complete
 
 **Last Updated:** 2026-01-30
 

@@ -40,8 +40,10 @@ export async function requireWorkspaceSession() {
   const session = await requireSession();
 
   // Get workspace through membership (supports owners AND members)
+  // Ordered by createdAt to ensure deterministic selection
   const membership = await prisma.workspaceMember.findFirst({
     where: { userId: session.user.id },
+    orderBy: { createdAt: "asc" },
     include: { workspace: true },
   });
 

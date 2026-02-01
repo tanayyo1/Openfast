@@ -22,11 +22,74 @@ function isAppPath(pathname: string) {
   );
 }
 
+// Allowed origins for CORS
+function getAllowedOrigins() {
+  return [
+    process.env.APP_URL,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+  ].filter(Boolean) as string[];
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
+  // Handle CORS preflight
+  if (request.method === "OPTIONS") {
+    const origin = request.headers.get("origin");
+    const allowedOrigins = getAllowedOrigins();
+
+    // Check if origin is allowed
+    const isAllowed =
+      origin &&
+      allowedOrigins.some(
+        (allowed) =>
+          origin === allowed ||
+          origin.includes(
+            allowed.replace("https://", "").replace("http://", ""),
+          ),
+      );
+
+    if (isAllowed) {
+      return new NextResponse(null, {
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Credentials": "true",
+          "Access-Control-Allow-Origin": origin,
+          "Access-Control-Allow-Methods": "GET,DELETE,PATCH,POST,PUT,OPTIONS",
+          "Access-Control-Allow-Headers":
+            "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization",
+          Vary: "Origin",
+        },
+      });
+    }
+  }
+
   // Update Supabase session and get response
   const response = await updateSession(request);
+
+  // Add CORS headers to API routes
+  if (pathname.startsWith("/api/")) {
+    const origin = request.headers.get("origin");
+    const allowedOrigins = getAllowedOrigins();
+
+    const isAllowed =
+      origin &&
+      allowedOrigins.some(
+        (allowed) =>
+          origin === allowed ||
+          origin.includes(
+            allowed.replace("https://", "").replace("http://", ""),
+          ),
+      );
+
+    if (isAllowed && origin) {
+      response.headers.set("Access-Control-Allow-Credentials", "true");
+      response.headers.set("Access-Control-Allow-Origin", origin);
+      response.headers.set("Vary", "Origin");
+    }
+  }
 
   if (!isAppPath(pathname)) {
     return response;
@@ -42,20 +105,34 @@ export async function middleware(request: NextRequest) {
   // Cookie formats: sb-[project-ref]-auth-token OR sb-access-token
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 
-  // Extract project ref from various URL formats:
+  // Extract project ref from various URL formats including custom domains
   // - https://xxx.supabase.co (production)
   // - http://localhost:54321 (local)
   // - https://xxx.supabase.red (preview)
-  const projectRefMatch = supabaseUrl.match(
-    /(?:https?:\/\/)?([^.]+)(?:\.supabase\.(?:co|red)|:\d+)/,
-  );
-  const projectRef = projectRefMatch?.[1];
+  // - https://custom-domain.com (custom domain)
+  let projectRef: string | undefined;
+
+  if (
+    supabaseUrl.includes("supabase.co") ||
+    supabaseUrl.includes("supabase.red")
+  ) {
+    const match = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\./);
+    projectRef = match?.[1];
+  } else if (supabaseUrl.includes(":54321")) {
+    // Local Supabase
+    projectRef = "local";
+  }
 
   // Try project-specific cookie first, then fallback to generic
-  const authCookie = projectRef
-    ? request.cookies.get(`sb-${projectRef}-auth-token`) ||
-      request.cookies.get("sb-access-token")
-    : request.cookies.get("sb-access-token");
+  let authCookie = null;
+  if (projectRef) {
+    authCookie = request.cookies.get(`sb-${projectRef}-auth-token`);
+  }
+  if (!authCookie) {
+    authCookie =
+      request.cookies.get("sb-access-token") ||
+      request.cookies.get("sb-refresh-token");
+  }
 
   if (!authCookie) {
     const loginUrl = new URL("/login", request.url);

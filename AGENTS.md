@@ -153,7 +153,7 @@
 - Reddit API client wrapper + Redis-backed per-account rate limit scaffold + unit tests
 - CI stabilized for Prisma generate and integration tests (Postgres image supports pgvector; `DATABASE_URL` set in jobs)
 
-**📋 See [TODO.md](./TODO.md) for remaining tasks, known issues, and next steps**
+See `TODO.md` for remaining tasks, known issues, and next steps.
 
 Open PR stack (as of 2026-02-01):
 

@@ -5,7 +5,7 @@
 
 ---
 
-## ✅ Completed
+## Completed
 
 ### Authentication (Supabase)
 
@@ -28,7 +28,7 @@
 
 ---
 
-## 🚧 In Progress / Partial
+## In Progress / Partial
 
 ### Database Connection (IPv6 Issue)
 
@@ -52,7 +52,7 @@
 
 ---
 
-## 📝 TODO - High Priority
+## TODO - High Priority
 
 ### Auth & User Management
 
@@ -147,7 +147,7 @@
 
 ---
 
-## 🔮 Future Improvements (Nice to Have)
+## Future Improvements (Nice to Have)
 
 ### Features
 
@@ -177,7 +177,7 @@
 
 ---
 
-## 🐛 Known Issues
+## Known Issues
 
 ### Critical
 
@@ -197,7 +197,7 @@
 
 ---
 
-## 🔧 Quick Commands Reference
+## Quick Commands Reference
 
 ```bash
 # Start development
@@ -224,7 +224,7 @@ npm run format
 
 ---
 
-## 📚 Documentation Links
+## Documentation Links
 
 - [Supabase Auth Docs](https://supabase.com/docs/guides/auth)
 - [Prisma with Supabase](https://supabase.com/partners/integrations/prisma)
@@ -233,7 +233,7 @@ npm run format
 
 ---
 
-## 🎯 Current Sprint Goal
+## Current Sprint Goal
 
 **Complete authentication system with Supabase + verify all flows work correctly**
 
@@ -248,7 +248,7 @@ npm run format
 
 ---
 
-## 📞 Notes
+## Notes
 
 - **Supabase Project**: https://jurqrtflthffrirxpiyf.supabase.co
 - **Local Dev URL**: http://localhost:3000

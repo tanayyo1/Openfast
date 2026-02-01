@@ -181,9 +181,10 @@
 
 ### Critical
 
-- **IPv6 Connection Issue**: Can't connect to Supabase Postgres directly from local environment
-  - **Workaround**: Using local PostgreSQL for dev
-  - **Fix**: Enable IPv4 in Supabase Dashboard or deploy to IPv6-capable platform
+- **IPv6 Connection Issue**: RESOLVED ✅
+  - **Solution**: Using hybrid database architecture
+  - **Development**: Local PostgreSQL (fast, offline-capable)
+  - **Production**: Supabase Postgres (via Session Pooler on port 5432)
 
 ### Minor
 
@@ -194,6 +195,65 @@
 - **Next.js Config Warning**: `experimental.serverActions` is deprecated
   - Impact: None (just a warning)
   - Fix: Remove from `next.config.js`
+
+---
+
+## 🗄️ Database Architecture (Hybrid Setup)
+
+We use a **hybrid database approach** for optimal development and production performance:
+
+### **Development (Local)**
+
+- **Location**: Local PostgreSQL via Docker
+- **Connection**: `localhost:5432`
+- **Config**: `.env.local` and `.env`
+- **Benefits**:
+  - Fast queries (no network latency)
+  - Works offline
+  - Easy to reset/clean
+  - Full control over data
+
+**Start local database:**
+
+```bash
+docker start postgres-reditfast
+```
+
+### **Production (Supabase)**
+
+- **Location**: Supabase Cloud (AWS us-east-2)
+- **Connection**: `aws-1-us-east-2.pooler.supabase.com:5432`
+- **Config**: `.env.production`
+- **Benefits**:
+  - Auto-scaling
+  - Automated backups
+  - Managed security
+  - Team collaboration
+  - pgvector for AI embeddings
+
+### **Switching Between Environments**
+
+**For development (default):**
+Already configured in `.env.local`
+
+**For production deployment:**
+
+```bash
+# Copy production config
+cp .env.production .env
+
+# Push schema to Supabase
+npx prisma db push
+
+# Deploy your app
+```
+
+### **Database Sync Strategy**
+
+- Schema migrations: Run in both environments
+- Local data: For development/testing only
+- Production data: Never sync down (privacy/security)
+- Backups: Supabase handles production backups automatically
 
 ---
 

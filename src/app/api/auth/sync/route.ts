@@ -73,6 +73,13 @@ export async function POST(request: Request) {
             hasTeamFeatures: false,
           },
         },
+        // Create workspace membership for owner
+        members: {
+          create: {
+            userId: newUser.id,
+            role: "OWNER",
+          },
+        },
       },
     });
 

@@ -1,16 +1,22 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { useParams } from 'next/navigation'
-import { useDemoStore } from '@/stores/demoStore'
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useDemoStore } from "@/stores/demoStore";
 
 export default function ProjectDetailPage() {
-  const params = useParams<{ id: string }>()
-  const projectId = params?.id ? decodeURIComponent(params.id) : ''
+  const params = useParams<{ id: string }>();
+  const projectId = params?.id ? decodeURIComponent(params.id) : "";
 
-  const project = useDemoStore((state) => state.projects.find((p) => p.id === projectId))
-  const roadmaps = useDemoStore((state) => state.roadmaps.filter((r) => r.projectId === projectId))
-  const tasks = useDemoStore((state) => state.tasks.filter((t) => t.projectId === projectId))
+  const project = useDemoStore((state) =>
+    state.projects.find((p) => p.id === projectId),
+  );
+  const roadmaps = useDemoStore((state) =>
+    state.roadmaps.filter((r) => r.projectId === projectId),
+  );
+  const tasks = useDemoStore((state) =>
+    state.tasks.filter((t) => t.projectId === projectId),
+  );
 
   if (!project) {
     return (
@@ -20,11 +26,11 @@ export default function ProjectDetailPage() {
           Back to projects
         </Link>
       </div>
-    )
+    );
   }
 
-  const pending = tasks.filter((t) => t.status === 'Needs approval').length
-  const scheduled = tasks.filter((t) => t.status === 'Scheduled').length
+  const pending = tasks.filter((t) => t.status === "Needs approval").length;
+  const scheduled = tasks.filter((t) => t.status === "Scheduled").length;
 
   return (
     <div className="space-y-8">
@@ -35,7 +41,8 @@ export default function ProjectDetailPage() {
           </p>
           <h1 className="mt-3 text-3xl font-semibold">{project.name}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Goals: {project.goals.length > 0 ? project.goals.join(', ') : 'Not set'}
+            Goals:{" "}
+            {project.goals.length > 0 ? project.goals.join(", ") : "Not set"}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -56,9 +63,9 @@ export default function ProjectDetailPage() {
 
       <div className="grid gap-4 md:grid-cols-3">
         {[
-          { label: 'Roadmaps', value: String(roadmaps.length) },
-          { label: 'Pending approvals', value: String(pending) },
-          { label: 'Scheduled', value: String(scheduled) },
+          { label: "Roadmaps", value: String(roadmaps.length) },
+          { label: "Pending approvals", value: String(pending) },
+          { label: "Scheduled", value: String(scheduled) },
         ].map((item) => (
           <div
             key={item.label}
@@ -119,5 +126,5 @@ export default function ProjectDetailPage() {
         </div>
       ) : null}
     </div>
-  )
+  );
 }

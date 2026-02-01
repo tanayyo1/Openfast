@@ -13,5 +13,5 @@ export default function ProjectDetailLoading() {
       </div>
       <div className="h-64 rounded-[24px] border border-border bg-card/50 animate-pulse" />
     </div>
-  )
+  );
 }

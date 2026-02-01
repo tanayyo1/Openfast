@@ -109,6 +109,9 @@
       "prettier --write"
     ]
   },
+  "prisma": {
+    "seed": "tsx scripts/seed.ts"
+  },
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0"

@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function ProjectsEmptyPreviewPage() {
   return (
@@ -9,7 +9,8 @@ export default function ProjectsEmptyPreviewPage() {
         </p>
         <h1 className="mt-3 text-3xl font-semibold">No projects yet</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Create your first project to generate subreddit recommendations and roadmaps.
+          Create your first project to generate subreddit recommendations and
+          roadmaps.
         </p>
       </div>
 
@@ -34,5 +35,5 @@ export default function ProjectsEmptyPreviewPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

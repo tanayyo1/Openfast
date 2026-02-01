@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
 import { useMemo, useState } from "react";
 import { MaxWidth } from "@/components/public/MaxWidth";
+import { useSupabase } from "@/components/providers/SupabaseProvider";
 
 function setDemoAuthCookie() {
   // Demo-only auth gate for the MVP frontend. Backend auth will replace this.
@@ -14,6 +14,7 @@ function setDemoAuthCookie() {
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { supabase } = useSupabase();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -44,20 +45,18 @@ export default function LoginPage() {
               setError(null);
               setLoading(true);
 
-              const res = await signIn("credentials", {
-                redirect: false,
+              const { error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
-                callbackUrl: next,
               });
 
               setLoading(false);
-              if (!res || res.error) {
-                setError("Invalid email or password");
+              if (error) {
+                setError(error.message);
                 return;
               }
 
-              router.push(res.url ?? next);
+              router.push(next);
             }}
           >
             <div>
@@ -112,8 +111,10 @@ export default function LoginPage() {
             ) : null}
           </form>
           <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-            <span>Forgot password?</span>
-            <Link href="/signup" className="text-foreground">
+            <Link href="/forgot-password" className="hover:text-foreground">
+              Forgot password?
+            </Link>
+            <Link href="/signup" className="text-foreground hover:underline">
               Create account
             </Link>
           </div>

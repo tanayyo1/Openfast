@@ -34,7 +34,7 @@
 - **Database**: PostgreSQL (via Prisma ORM)
 - **Cache**: Redis (Upstash)
 - **Queue**: BullMQ (Redis-based)
-- **Auth**: NextAuth.js + Reddit OAuth2
+- **Auth**: Supabase Auth + Reddit OAuth2
 
 ### AI/ML
 
@@ -146,12 +146,14 @@
 ## Current Progress (2026-02-01)
 
 - Core workspace-scoped Prisma models + pgvector migration (extension enabled, no invalid vector index)
-- NextAuth + workspace guards (`requireWorkspaceSession`) wired for API routes
+- **Supabase Auth migration complete**: Migrated from NextAuth.js to Supabase Auth
 - Projects, roadmaps/tasks, and drafts APIs implemented with workspace scoping and structured errors
 - Token encryption utility + unit tests (`src/lib/security/tokenCrypto.ts`)
 - Reddit OAuth start/callback endpoints with encrypted token storage (no token leakage)
 - Reddit API client wrapper + Redis-backed per-account rate limit scaffold + unit tests
 - CI stabilized for Prisma generate and integration tests (Postgres image supports pgvector; `DATABASE_URL` set in jobs)
+
+**📋 See [TODO.md](./TODO.md) for remaining tasks, known issues, and next steps**
 
 Open PR stack (as of 2026-02-01):
 

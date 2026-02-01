@@ -40,16 +40,8 @@ export async function middleware(request: NextRequest) {
     const origin = request.headers.get("origin");
     const allowedOrigins = getAllowedOrigins();
 
-    // Check if origin is allowed
-    const isAllowed =
-      origin &&
-      allowedOrigins.some(
-        (allowed) =>
-          origin === allowed ||
-          origin.includes(
-            allowed.replace("https://", "").replace("http://", ""),
-          ),
-      );
+    // Check if origin is an exact match (no substring/regex to prevent bypass)
+    const isAllowed = origin && allowedOrigins.includes(origin);
 
     if (isAllowed) {
       return new NextResponse(null, {
@@ -74,15 +66,8 @@ export async function middleware(request: NextRequest) {
     const origin = request.headers.get("origin");
     const allowedOrigins = getAllowedOrigins();
 
-    const isAllowed =
-      origin &&
-      allowedOrigins.some(
-        (allowed) =>
-          origin === allowed ||
-          origin.includes(
-            allowed.replace("https://", "").replace("http://", ""),
-          ),
-      );
+    // Exact match only — substring matching is vulnerable to origin spoofing
+    const isAllowed = origin && allowedOrigins.includes(origin);
 
     if (isAllowed && origin) {
       response.headers.set("Access-Control-Allow-Credentials", "true");
@@ -105,11 +90,11 @@ export async function middleware(request: NextRequest) {
   // Cookie formats: sb-[project-ref]-auth-token OR sb-access-token
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 
-  // Extract project ref from various URL formats including custom domains
+  // Extract project ref from standard Supabase URL formats.
+  // Custom domains are NOT supported — use *.supabase.co or *.supabase.red.
   // - https://xxx.supabase.co (production)
   // - http://localhost:54321 (local)
   // - https://xxx.supabase.red (preview)
-  // - https://custom-domain.com (custom domain)
   let projectRef: string | undefined;
 
   if (

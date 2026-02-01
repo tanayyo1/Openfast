@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { MaxWidth } from "@/components/public/MaxWidth";
+import { useSupabase } from "@/components/providers/SupabaseProvider";
 
 function setDemoAuthCookie() {
   document.cookie = `rf_demo_auth=1; Path=/; Max-Age=${60 * 60 * 24 * 30}`;
@@ -12,11 +12,13 @@ function setDemoAuthCookie() {
 
 export default function SignupPage() {
   const router = useRouter();
+  const { supabase } = useSupabase();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   return (
     <div className="py-16">
@@ -36,38 +38,57 @@ export default function SignupPage() {
             onSubmit={async (e) => {
               e.preventDefault();
               setError(null);
+              setMessage(null);
               setLoading(true);
 
-              const res = await fetch("/api/auth/register", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, email, password }),
-              });
-
-              if (!res.ok) {
-                const data = (await res.json().catch(() => null)) as {
-                  error?: string;
-                } | null;
-                setLoading(false);
-                setError(data?.error ?? "Failed to create account");
-                return;
-              }
-
-              const signInRes = await signIn("credentials", {
-                redirect: false,
+              const { data, error } = await supabase.auth.signUp({
                 email,
                 password,
-                callbackUrl: "/onboarding",
+                options: {
+                  data: {
+                    name,
+                  },
+                },
               });
 
               setLoading(false);
-              if (!signInRes || signInRes.error) {
-                setError("Account created, but sign in failed. Please log in.");
-                router.push("/login");
+
+              if (error) {
+                setError(error.message);
                 return;
               }
 
-              router.push(signInRes.url ?? "/onboarding");
+              if (
+                data.user &&
+                data.user.identities &&
+                data.user.identities.length === 0
+              ) {
+                setError(
+                  "This email is already registered. Please sign in instead.",
+                );
+                return;
+              }
+
+              // Check if email confirmation is required
+              if (data.session) {
+                // Auto-confirmed (email confirmation disabled)
+                // Sync user to our database
+                const syncRes = await fetch("/api/auth/sync", {
+                  method: "POST",
+                });
+
+                if (!syncRes.ok) {
+                  console.error("Failed to sync user to database");
+                  // Still redirect - auth worked, sync can happen later
+                }
+
+                router.push("/onboarding");
+              } else {
+                // Email confirmation required
+                setMessage(
+                  "Check your email for a confirmation link to complete your registration.",
+                );
+              }
             }}
           >
             <div>
@@ -103,7 +124,7 @@ export default function SignupPage() {
               <input
                 id="password"
                 type="password"
-                placeholder="Create a password"
+                placeholder="Create a password (min 6 characters)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm focus:border-foreground/40 focus:outline-none"
@@ -112,6 +133,11 @@ export default function SignupPage() {
             {error ? (
               <p className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {error}
+              </p>
+            ) : null}
+            {message ? (
+              <p className="rounded-2xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-600">
+                {message}
               </p>
             ) : null}
             <button
@@ -140,7 +166,7 @@ export default function SignupPage() {
           </p>
           <div className="mt-4 text-xs text-muted-foreground">
             Already have an account?{" "}
-            <Link href="/login" className="text-foreground">
+            <Link href="/login" className="text-foreground hover:underline">
               Sign in
             </Link>
           </div>

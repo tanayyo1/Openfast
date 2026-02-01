@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { NextResponse, type NextRequest } from "next/server";
+import { updateSession } from "@/lib/supabase/middleware";
 
 const APP_PREFIXES = [
   "/dashboard",
@@ -23,35 +22,37 @@ function isAppPath(pathname: string) {
   );
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
+  // Update Supabase session and get response
+  const response = await updateSession(request);
+
   if (!isAppPath(pathname)) {
-    return NextResponse.next();
+    return response;
   }
 
+  // Demo auth bypass for development
   const demoAuth = request.cookies.get("rf_demo_auth")?.value;
   if (process.env.NODE_ENV !== "production" && demoAuth === "1") {
-    return NextResponse.next();
+    return response;
   }
 
-  // NextAuth session check (JWT strategy).
-  // If NEXTAUTH_SECRET is missing, getToken will always return null.
-  return getToken({ req: request })
-    .then((token) => {
-      if (token) return NextResponse.next();
+  // Check for Supabase auth session
+  const authCookie = request.cookies.get("sb-access-token");
+  const refreshCookie = request.cookies.get("sb-refresh-token");
 
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("next", `${pathname}${search}`);
-      return NextResponse.redirect(loginUrl);
-    })
-    .catch(() => {
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("next", `${pathname}${search}`);
-      return NextResponse.redirect(loginUrl);
-    });
+  if (!authCookie && !refreshCookie) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("next", `${pathname}${search}`);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  return response;
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

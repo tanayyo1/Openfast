@@ -61,36 +61,58 @@
 
 ## Quick Start
 
-### Prerequisites
+**New developer?** See [SETUP.md](./SETUP.md) for detailed setup instructions.
 
-- Node.js 18+
-- PostgreSQL 14+
-- Redis 6+
-- Reddit OAuth App credentials
-- OpenAI API key
-- Stripe account (for payments)
-
-### Installation
+### One-Command Setup
 
 ```bash
-# Clone the repository
 git clone https://github.com/tanayyo1/ReditFast.git
 cd ReditFast
+./scripts/setup-local.sh  # Automatically sets up everything!
+```
 
-# Install dependencies
+### Manual Setup
+
+**Prerequisites:**
+
+- Node.js 18+
+- PostgreSQL 14+ (with pgvector extension)
+- Redis 6+
+- Docker (recommended for local database)
+
+**Installation:**
+
+```bash
+# Clone and install
+git clone https://github.com/tanayyo1/ReditFast.git
+cd ReditFast
 npm install
 
-# Set up environment variables
+# Set up environment
 cp .env.example .env.local
-# Edit .env.local with your credentials
+# Edit .env.local with your credentials (see SETUP.md)
 
-# Set up database
+# Start local database
+docker-compose up -d
+
+# Set up database schema
+npx prisma db push
+
+# Start development
+npm run dev
+```
+
+**📖 Full setup guide:** [SETUP.md](./SETUP.md)  
+**📋 Team tasks:** [TASK_ASSIGNMENTS.md](./TASK_ASSIGNMENTS.md)  
+**✅ Project status:** [TODO.md](./TODO.md)
 npx prisma migrate dev
 npx prisma db seed
 
 # Run development server
+
 npm run dev
-```
+
+````
 
 Visit [http://localhost:3000](http://localhost:3000) to see the app.
 
@@ -123,7 +145,7 @@ NEXTAUTH_URL="http://localhost:3000"
 
 # Email
 RESEND_API_KEY="re_..."
-```
+````
 
 ---
 

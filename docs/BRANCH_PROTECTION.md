@@ -8,11 +8,11 @@ This guide walks you through setting up branch protection rules to enforce our s
 
 Branch protection ensures:
 
-- ✅ No direct commits to main/develop
-- ✅ All changes go through PR review
-- ✅ Quality gates must pass before merge
-- ✅ Linear issues are linked
-- ✅ Security and compliance standards met
+- No direct commits to main/develop
+- All changes go through PR review
+- Quality gates must pass before merge
+- Linear issues are linked
+- Security and compliance standards met
 
 ---
 
@@ -31,21 +31,21 @@ Branch protection ensures:
 
 **Branch name pattern:** `main`
 
-#### ☑️ Protect matching branches
+#### Protect matching branches
 
 Enable this checkbox.
 
-#### ☑️ Require a pull request before merging
+#### Require a pull request before merging
 
 **Required.** This prevents direct commits.
 
 **Additional settings:**
 
-- ☑️ **Require approvals:** Set to `1` (minimum 1 reviewer)
-- ☑️ **Dismiss stale PR approvals when new commits are pushed**
-- ☑️ **Require review from CODEOWNERS** (optional, if you have CODEOWNERS file)
+- **Require approvals:** Set to `1` (minimum 1 reviewer)
+- **Dismiss stale PR approvals when new commits are pushed**
+- **Require review from CODEOWNERS** (optional, if you have CODEOWNERS file)
 
-#### ☑️ Require status checks to pass before merging
+#### Require status checks to pass before merging
 
 **Required.** This enforces our CI pipeline.
 
@@ -62,32 +62,32 @@ pr-validation
 
 **Settings:**
 
-- ☑️ **Require branches to be up to date before merging**
-- ☑️ **Status checks:** Select all 6 checks listed above
+- **Require branches to be up to date before merging**
+- **Status checks:** Select all 6 checks listed above
 
-#### ☑️ Require conversation resolution before merging
+#### Require conversation resolution before merging
 
 Ensures all review comments are addressed.
 
-#### ☑️ Require signed commits (optional but recommended)
+#### Require signed commits (optional but recommended)
 
 Requires GPG signing for extra security.
 
-#### ☑️ Include administrators
+#### Include administrators
 
 **Required.** Rules apply to admins too (no exceptions).
 
-#### ☑️ Restrict who can push to matching branches
+#### Restrict who can push to matching branches
 
 **Set to:** `Restrict pushes that create files larger than 100 MB`
 
-#### ☑️ Allow force pushes
+#### Allow force pushes
 
-**Set to:** ❌ Unchecked (Block force pushes)
+**Set to:** Unchecked (Block force pushes)
 
-#### ☑️ Allow deletions
+#### Allow deletions
 
-**Set to:** ❌ Unchecked (Block deletions)
+**Set to:** Unchecked (Block deletions)
 
 ---
 
@@ -166,7 +166,7 @@ Then enable "Require review from CODEOWNERS" in branch protection.
    git push origin main
    ```
 
-   **Expected:** ❌ Push rejected
+   **Expected:** Push rejected
 
 2. **Try push without PR:**
 
@@ -177,7 +177,7 @@ Then enable "Require review from CODEOWNERS" in branch protection.
    # Try to merge without PR
    ```
 
-   **Expected:** ❌ Cannot merge without PR
+   **Expected:** Cannot merge without PR
 
 3. **Create proper PR:**
    ```bash
@@ -186,7 +186,7 @@ Then enable "Require review from CODEOWNERS" in branch protection.
    git push origin feature/LIN-999-test
    # Create PR on GitHub
    ```
-   **Expected:** ✅ PR created, checks run, can merge after review
+   **Expected:** PR created, checks run, can merge after review
 
 ---
 
@@ -245,15 +245,15 @@ git push origin feature/LIN-XXX-description
 Send message to team (Slack/Discord/Email):
 
 ```
-🚨 IMPORTANT: New Branch Protection Rules Active
+IMPORTANT: New Branch Protection Rules Active
 
 Starting now, the following rules are enforced:
 
-1. ❌ NO direct commits to main or develop
-2. ✅ ALL changes must go through PR
-3. ✅ ALL PRs need at least 1 review
-4. ✅ ALL quality checks must pass
-5. ✅ ALL PRs must link to Linear issue
+1. NO direct commits to main or develop
+2. ALL changes must go through PR
+3. ALL PRs need at least 1 review
+4. ALL quality checks must pass
+5. ALL PRs must link to Linear issue
 
 Workflow:
 1. Create branch: feature/LIN-XXX-description
@@ -313,10 +313,10 @@ To modify rules:
 
 **Keep admin access minimal:**
 
-- ✅ Project owner (you)
-- ✅ 1-2 senior developers
-- ❌ Not all developers
-- ❌ Not external contractors (unless necessary)
+- Allowed: Project owner (you)
+- Allowed: 1-2 senior developers
+- Not allowed: Not all developers
+- Not allowed: Not external contractors (unless necessary)
 
 **Admin responsibilities:**
 
@@ -400,13 +400,13 @@ Dismiss stale: Yes
 **Protection Summary:**
 
 ```
-✅ Require PR
-✅ Require 1 review
-✅ Require status checks
-✅ Up-to-date branches
-✅ Include admins
-❌ No force pushes
-❌ No deletions
+- Require PR
+- Require 1 review
+- Require status checks
+- Up-to-date branches
+- Include admins
+- No force pushes
+- No deletions
 ```
 
 ---

@@ -1,0 +1,213 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import type { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+
+const listQuerySchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  projectId: z.string().optional(),
+});
+
+type Cursor = {
+  createdAt: string;
+  id: string;
+};
+
+function encodeCursor(cursor: Cursor) {
+  return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
+}
+
+function decodeCursor(raw: string): Cursor | null {
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(raw, "base64url").toString("utf8"),
+    ) as unknown;
+    const schema = z.object({ createdAt: z.string(), id: z.string() });
+    const res = schema.safeParse(parsed);
+    return res.success ? res.data : null;
+  } catch {
+    return null;
+  }
+}
+
+const createRoadmapSchema = z.object({
+  projectId: z.string().min(1),
+  startDate: z.string().datetime().optional(),
+  horizonDays: z.number().int().min(1).max(60).default(30),
+});
+
+export async function GET(req: Request) {
+  let session;
+  try {
+    session = await requireWorkspaceSession();
+  } catch (err) {
+    const code = err instanceof Error ? err.message : "UNAUTHORIZED";
+    const status = code === "WORKSPACE_REQUIRED" ? 400 : 401;
+    return NextResponse.json({ error: "Unauthorized", code }, { status });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const parsedQuery = listQuerySchema.safeParse({
+    cursor: searchParams.get("cursor") ?? undefined,
+    limit: searchParams.get("limit") ?? undefined,
+    projectId: searchParams.get("projectId") ?? undefined,
+  });
+
+  if (!parsedQuery.success) {
+    return NextResponse.json(
+      {
+        error: "Invalid query params",
+        code: "VALIDATION_ERROR",
+        details: parsedQuery.error.flatten(),
+      },
+      { status: 400 },
+    );
+  }
+
+  const { cursor, limit, projectId } = parsedQuery.data;
+  const decoded = cursor ? decodeCursor(cursor) : null;
+  if (cursor && !decoded) {
+    return NextResponse.json(
+      { error: "Invalid cursor", code: "INVALID_CURSOR" },
+      { status: 400 },
+    );
+  }
+
+  const items = await prisma.roadmap.findMany({
+    where: {
+      workspaceId: session.workspaceId,
+      ...(projectId ? { projectId } : {}),
+      ...(decoded
+        ? {
+            OR: [
+              { createdAt: { lt: new Date(decoded.createdAt) } },
+              {
+                createdAt: new Date(decoded.createdAt),
+                id: { lt: decoded.id },
+              },
+            ],
+          }
+        : {}),
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+    select: {
+      id: true,
+      projectId: true,
+      version: true,
+      startDate: true,
+      horizonDays: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  const hasMore = items.length > limit;
+  const page = hasMore ? items.slice(0, limit) : items;
+  const nextCursor = hasMore
+    ? encodeCursor({
+        createdAt: page[page.length - 1].createdAt.toISOString(),
+        id: page[page.length - 1].id,
+      })
+    : null;
+
+  return NextResponse.json({ items: page, nextCursor });
+}
+
+export async function POST(req: Request) {
+  let session;
+  try {
+    session = await requireWorkspaceSession();
+  } catch (err) {
+    const code = err instanceof Error ? err.message : "UNAUTHORIZED";
+    const status = code === "WORKSPACE_REQUIRED" ? 400 : 401;
+    return NextResponse.json({ error: "Unauthorized", code }, { status });
+  }
+
+  let json: unknown;
+  try {
+    json = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body", code: "BAD_JSON" },
+      { status: 400 },
+    );
+  }
+
+  const parsed = createRoadmapSchema.safeParse(json);
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: "Invalid input",
+        code: "VALIDATION_ERROR",
+        details: parsed.error.flatten(),
+      },
+      { status: 400 },
+    );
+  }
+
+  const { projectId, startDate, horizonDays } = parsed.data;
+
+  const project = await prisma.project.findFirst({
+    where: {
+      id: projectId,
+      workspaceId: session.workspaceId,
+      status: { not: "ARCHIVED" },
+    },
+    select: { id: true },
+  });
+  if (!project) {
+    return NextResponse.json(
+      { error: "Project not found", code: "PROJECT_NOT_FOUND" },
+      { status: 404 },
+    );
+  }
+
+  const created = await prisma.$transaction(
+    async (tx: Prisma.TransactionClient) => {
+      const roadmap = await tx.roadmap.create({
+        data: {
+          workspaceId: session.workspaceId,
+          projectId,
+          startDate: startDate ? new Date(startDate) : new Date(),
+          horizonDays,
+          version: 1,
+          status: "ACTIVE",
+          strategy: { approach: "mvp_stub" },
+        },
+        select: {
+          id: true,
+          projectId: true,
+          startDate: true,
+          horizonDays: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      const tasks = await tx.roadmapTask.createMany({
+        data: Array.from({ length: horizonDays }).map((_, idx) => ({
+          workspaceId: session.workspaceId,
+          roadmapId: roadmap.id,
+          dayIndex: idx + 1,
+          type: idx % 3 === 0 ? "RESEARCH" : idx % 3 === 1 ? "COMMENT" : "POST",
+          title: `Day ${idx + 1}`,
+          instructions: "MVP task stub. Replace with AI-generated plan later.",
+          priority: 3,
+          status: "PENDING",
+        })),
+      });
+
+      return { roadmap, tasksCreated: tasks.count };
+    },
+  );
+
+  return NextResponse.json(
+    { roadmap: created.roadmap, tasksCreated: created.tasksCreated },
+    { status: 201 },
+  );
+}

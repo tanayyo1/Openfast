@@ -75,7 +75,7 @@ git pull origin main || { echo -e "${RED}Error: Failed to pull from origin${NC}"
 echo -e "${YELLOW}Creating branch ${BRANCH_NAME}...${NC}"
 git checkout -b "$BRANCH_NAME" || { echo -e "${RED}Error: Failed to create branch${NC}"; exit 1; }
 
-echo -e "${GREEN}✅ Successfully created branch: ${BRANCH_NAME}${NC}"
+echo -e "${GREEN}[OK] Successfully created branch: ${BRANCH_NAME}${NC}"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo "1. Make your changes"

@@ -4,11 +4,11 @@ Thank you for your interest in contributing to ReditFast! This document contains
 
 ---
 
-## ⚠️ MANDATORY WORKFLOW (ZERO EXCEPTIONS)
+## MANDATORY WORKFLOW (ZERO EXCEPTIONS)
 
 ### 1. The Golden Rules
 
-**❌ NEVER:**
+**NEVER:**
 
 - Commit directly to `main` or `develop` branches
 - Push code without a Linear issue
@@ -16,7 +16,7 @@ Thank you for your interest in contributing to ReditFast! This document contains
 - Merge your own PR without review
 - Commit secrets, tokens, or passwords
 
-**✅ ALWAYS:**
+**ALWAYS:**
 
 - Create feature branches with Linear issue IDs
 - Run quality checks before committing
@@ -36,9 +36,9 @@ git checkout -b feature/LIN-XXX-description
 Make Changes + Write Tests
         ↓
 Run Quality Gates (all must pass):
-  npm run lint          ✅
-  npm run typecheck     ✅
-  npm run test:unit     ✅
+  npm run lint
+  npm run typecheck
+  npm run test:unit
         ↓
 git commit -m "LIN-XXX: Description"
         ↓
@@ -50,7 +50,7 @@ Request Review
         ↓
 Address Feedback
         ↓
-All Checks Pass + Approved ✅
+All Checks Pass + Approved
         ↓
 Merge to main
         ↓
@@ -147,7 +147,7 @@ LIN-123:Add scheduler service
 The commit-msg hook will reject invalid formats. If you need to bypass (emergency only):
 
 ```bash
-git commit -m "LIN-XXX: Message" --no-verify  # ⚠️ Only in emergencies
+git commit -m "LIN-XXX: Message" --no-verify  # WARNING: Only in emergencies
 ```
 
 ---
@@ -210,11 +210,11 @@ git push origin feature/LIN-XXX-description
 **Step 5: Merge**
 
 - Only after:
-  - ✅ All CI checks pass
-  - ✅ At least 1 approval
-  - ✅ No conflicts with main
-  - ✅ Linear issue linked
-  - ✅ PR template complete
+  - All CI checks pass
+  - At least 1 approval
+  - No conflicts with main
+  - Linear issue linked
+  - PR template complete
 
 **Merge options:**
 
@@ -266,7 +266,7 @@ npm audit --audit-level=moderate
 
 ### 8. Security Requirements
 
-**🚫 FORBIDDEN (will result in immediate rejection):**
+**FORBIDDEN (will result in immediate rejection):**
 
 - Committing `.env` files
 - Hardcoding API keys, tokens, or passwords
@@ -275,7 +275,7 @@ npm audit --audit-level=moderate
 - Skipping encryption for sensitive data
 - Testing against real Reddit in development
 
-**✅ REQUIRED:**
+**REQUIRED:**
 
 - Encrypt Reddit tokens at rest (AES-256)
 - Hash IP addresses in logs
@@ -419,7 +419,7 @@ console.log(error); // Never use console.log
    ```
 3. Test migration locally:
    ```bash
-   npx prisma migrate reset  # ⚠️ Destroys data
+   npx prisma migrate reset  # WARNING: Destroys data
    ```
 4. Include migration file in PR
 5. Document breaking changes
@@ -465,7 +465,7 @@ console.log(error); // Never use console.log
 **If you need to bypass hooks (EMERGENCY ONLY):**
 
 ```bash
-# ⚠️ Only in true emergencies
+# WARNING: Only in true emergencies
 # Must get approval from team lead first
 git commit -m "LIN-XXX: Emergency fix" --no-verify
 ```
@@ -476,35 +476,35 @@ git commit -m "LIN-XXX: Emergency fix" --no-verify
 
 **Branch Management:**
 
-- ❌ Working directly on main
-- ❌ Long-lived feature branches (>1 week)
-- ❌ Not pulling main before creating branch
-- ✅ Short, focused branches
-- ✅ Regular rebasing on main
+- DO NOT: Working directly on main
+- DO NOT: Long-lived feature branches (>1 week)
+- DO NOT: Not pulling main before creating branch
+- DO: Short, focused branches
+- DO: Regular rebasing on main
 
 **Commits:**
 
-- ❌ Committing broken code "to save progress"
-- ❌ Giant commits with 20+ files
-- ❌ Commit messages like "fix" or "update"
-- ✅ Atomic commits (one logical change)
-- ✅ Descriptive commit messages
+- DO NOT: Committing broken code "to save progress"
+- DO NOT: Giant commits with 20+ files
+- DO NOT: Commit messages like "fix" or "update"
+- DO: Atomic commits (one logical change)
+- DO: Descriptive commit messages
 
 **PRs:**
 
-- ❌ PRs with 1000+ lines changed
-- ❌ Mixing unrelated changes
-- ❌ Missing Linear issue link
-- ✅ Single concern per PR
-- ✅ Proper description and context
+- DO NOT: PRs with 1000+ lines changed
+- DO NOT: Mixing unrelated changes
+- DO NOT: Missing Linear issue link
+- DO: Single concern per PR
+- DO: Proper description and context
 
 **Testing:**
 
-- ❌ "I'll add tests later"
-- ❌ Testing only happy path
-- ❌ Not running tests locally
-- ✅ Tests with the feature
-- ✅ Edge case coverage
+- DO NOT: "I'll add tests later"
+- DO NOT: Testing only happy path
+- DO NOT: Not running tests locally
+- DO: Tests with the feature
+- DO: Edge case coverage
 
 ---
 
@@ -564,18 +564,18 @@ npm run dev
 ```bash
 # Try committing to main (should fail)
 git checkout main
-git commit -m "test"  # ❌ Should be blocked
+git commit -m "test"  # Expected: blocked
 
 # Try invalid branch (should fail)
 git checkout -b my-feature
-git commit -m "test"  # ❌ Should be blocked
+git commit -m "test"  # Expected: blocked
 
 # Try invalid commit message (should fail)
 git checkout -b feature/LIN-999-test
-git commit -m "bad message"  # ❌ Should be blocked
+git commit -m "bad message"  # Expected: blocked
 
 # Try valid workflow (should work)
-git commit -m "LIN-999: Add test feature"  # ✅ Should pass
+git commit -m "LIN-999: Add test feature"  # Expected: pass
 ```
 
 ---

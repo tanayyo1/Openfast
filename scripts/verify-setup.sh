@@ -25,10 +25,10 @@ check_command() {
     local name=$2
     
     if command -v "$cmd" &> /dev/null; then
-        echo -e "${GREEN}✅ ${name} is installed${NC}"
+        echo -e "${GREEN}[OK] ${name} is installed${NC}"
         return 0
     else
-        echo -e "${RED}❌ ${name} is not installed${NC}"
+        echo -e "${RED}[FAIL] ${name} is not installed${NC}"
         return 1
     fi
 }
@@ -39,10 +39,10 @@ check_file() {
     local name=$2
     
     if [ -f "$file" ]; then
-        echo -e "${GREEN}✅ ${name} exists${NC}"
+        echo -e "${GREEN}[OK] ${name} exists${NC}"
         return 0
     else
-        echo -e "${RED}❌ ${name} is missing${NC}"
+        echo -e "${RED}[FAIL] ${name} is missing${NC}"
         return 1
     fi
 }
@@ -53,10 +53,10 @@ check_dir() {
     local name=$2
     
     if [ -d "$dir" ]; then
-        echo -e "${GREEN}✅ ${name} exists${NC}"
+        echo -e "${GREEN}[OK] ${name} exists${NC}"
         return 0
     else
-        echo -e "${RED}❌ ${name} is missing${NC}"
+        echo -e "${RED}[FAIL] ${name} is missing${NC}"
         return 1
     fi
 }
@@ -66,18 +66,18 @@ echo -e "${YELLOW}Checking system requirements...${NC}"
 # Check Node.js
 if command -v node &> /dev/null; then
     NODE_VERSION=$(node --version)
-    echo -e "${GREEN}✅ Node.js ${NODE_VERSION} is installed${NC}"
+    echo -e "${GREEN}[OK] Node.js ${NODE_VERSION} is installed${NC}"
     
     # Check version is >= 18
     NODE_MAJOR=$(echo $NODE_VERSION | cut -d'v' -f2 | cut -d'.' -f1)
     if [ "$NODE_MAJOR" -ge 18 ]; then
-        echo -e "${GREEN}✅ Node.js version is >= 18${NC}"
+        echo -e "${GREEN}[OK] Node.js version is >= 18${NC}"
     else
-        echo -e "${RED}❌ Node.js version must be >= 18${NC}"
+        echo -e "${RED}[FAIL] Node.js version must be >= 18${NC}"
         ERRORS=$((ERRORS+1))
     fi
 else
-    echo -e "${RED}❌ Node.js is not installed${NC}"
+    echo -e "${RED}[FAIL] Node.js is not installed${NC}"
     ERRORS=$((ERRORS+1))
 fi
 
@@ -110,9 +110,9 @@ echo ""
 echo -e "${YELLOW}Checking dependencies...${NC}"
 
 if [ -d "node_modules" ]; then
-    echo -e "${GREEN}✅ node_modules exists${NC}"
+    echo -e "${GREEN}[OK] node_modules exists${NC}"
 else
-    echo -e "${RED}❌ node_modules missing - run: npm install${NC}"
+    echo -e "${RED}[FAIL] node_modules missing - run: npm install${NC}"
     ERRORS=$((ERRORS+1))
 fi
 
@@ -120,23 +120,23 @@ echo ""
 echo -e "${YELLOW}Checking git hooks...${NC}"
 
 if [ -f ".husky/pre-commit" ]; then
-    echo -e "${GREEN}✅ pre-commit hook is configured${NC}"
+    echo -e "${GREEN}[OK] pre-commit hook is configured${NC}"
 else
-    echo -e "${RED}❌ pre-commit hook missing - run: npm run prepare${NC}"
+    echo -e "${RED}[FAIL] pre-commit hook missing - run: npm run prepare${NC}"
     ERRORS=$((ERRORS+1))
 fi
 
 if [ -f ".husky/commit-msg" ]; then
-    echo -e "${GREEN}✅ commit-msg hook is configured${NC}"
+    echo -e "${GREEN}[OK] commit-msg hook is configured${NC}"
 else
-    echo -e "${RED}❌ commit-msg hook missing${NC}"
+    echo -e "${RED}[FAIL] commit-msg hook missing${NC}"
     ERRORS=$((ERRORS+1))
 fi
 
 if [ -f ".husky/pre-push" ]; then
-    echo -e "${GREEN}✅ pre-push hook is configured${NC}"
+    echo -e "${GREEN}[OK] pre-push hook is configured${NC}"
 else
-    echo -e "${RED}❌ pre-push hook missing${NC}"
+    echo -e "${RED}[FAIL] pre-push hook missing${NC}"
     ERRORS=$((ERRORS+1))
 fi
 
@@ -144,23 +144,23 @@ echo ""
 echo -e "${YELLOW}Checking environment...${NC}"
 
 if [ -f ".env.local" ]; then
-    echo -e "${GREEN}✅ .env.local exists${NC}"
+    echo -e "${GREEN}[OK] .env.local exists${NC}"
     
     # Check for required variables
     if grep -q "DATABASE_URL" .env.local; then
-        echo -e "${GREEN}✅ DATABASE_URL is set${NC}"
+        echo -e "${GREEN}[OK] DATABASE_URL is set${NC}"
     else
-        echo -e "${RED}❌ DATABASE_URL is missing in .env.local${NC}"
+        echo -e "${RED}[FAIL] DATABASE_URL is missing in .env.local${NC}"
         ERRORS=$((ERRORS+1))
     fi
     
     if grep -q "REDDIT_CLIENT_ID" .env.local; then
-        echo -e "${GREEN}✅ Reddit OAuth credentials are set${NC}"
+        echo -e "${GREEN}[OK] Reddit OAuth credentials are set${NC}"
     else
-        echo -e "${YELLOW}⚠️ Reddit OAuth credentials not set (needed for Reddit integration)${NC}"
+        echo -e "${YELLOW}[WARN] Reddit OAuth credentials not set (needed for Reddit integration)${NC}"
     fi
 else
-    echo -e "${RED}❌ .env.local is missing - copy from .env.example${NC}"
+    echo -e "${RED}[FAIL] .env.local is missing - copy from .env.example${NC}"
     ERRORS=$((ERRORS+1))
 fi
 
@@ -174,10 +174,10 @@ git checkout -b "$TEST_BRANCH" 2>/dev/null || true
 # Try to make an invalid commit (should fail)
 echo "Testing commit message validation..."
 if git commit -m "invalid commit" --allow-empty --no-verify 2>/dev/null; then
-    echo -e "${RED}❌ Commit-msg hook not working (commit should have been rejected)${NC}"
+    echo -e "${RED}[FAIL] Commit-msg hook not working (commit should have been rejected)${NC}"
     ERRORS=$((ERRORS+1))
 else
-    echo -e "${GREEN}✅ Commit-msg hook is working${NC}"
+    echo -e "${GREEN}[OK] Commit-msg hook is working${NC}"
 fi
 
 # Clean up test branch
@@ -187,7 +187,7 @@ git branch -D "$TEST_BRANCH" 2>/dev/null || true
 echo ""
 echo -e "${BLUE}========================================${NC}"
 if [ $ERRORS -eq 0 ]; then
-    echo -e "${GREEN}✅ Setup verification complete!${NC}"
+    echo -e "${GREEN}[OK] Setup verification complete${NC}"
     echo -e "${GREEN}Your development environment is ready.${NC}"
     echo ""
     echo -e "${YELLOW}Next steps:${NC}"
@@ -196,7 +196,7 @@ if [ $ERRORS -eq 0 ]; then
     echo "3. Start development: npm run dev"
     exit 0
 else
-    echo -e "${RED}❌ Setup verification found ${ERRORS} issue(s)${NC}"
+    echo -e "${RED}[FAIL] Setup verification found ${ERRORS} issue(s)${NC}"
     echo -e "${RED}Please fix the issues above.${NC}"
     echo ""
     echo -e "${YELLOW}Common fixes:${NC}"

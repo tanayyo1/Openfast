@@ -13,44 +13,44 @@
 
 ---
 
-## ✨ Features
+## Features
 
-### 🎯 Smart Roadmap Generation
+### Smart Roadmap Generation
 
 - AI analyzes your product and finds the best subreddits
 - Personalized 30-day posting strategy
 - Daily task recommendations with optimal timing
 - Karma-building progression for new accounts
 
-### 📝 AI Content Creation
+### AI Content Creation
 
 - Generate post drafts tailored to each subreddit
 - Comment suggestions for high-engagement threads
 - Multiple variants to choose from
 - Compliance scoring to prevent removals
 
-### ⏰ Scheduling & Automation
+### Scheduling & Automation
 
 - Queue posts for optimal times
 - Human-in-the-loop approval (never auto-post)
 - Automatic publishing at scheduled time
 - Retry logic with exponential backoff
 
-### 🔍 Smart Thread Discovery
+### Smart Thread Discovery
 
 - Find trending discussions in your niche
 - Comment opportunity scoring
 - Real-time alerts for high-value threads
 - Competitor mention tracking
 
-### 📊 Analytics & Insights
+### Analytics & Insights
 
 - Track karma growth and post performance
 - Removal detection and account health
 - Click attribution with UTM tracking
 - Conversion funnel analysis
 
-### 🛡️ Ban Prevention
+### Ban Prevention
 
 - Subreddit rule checking before every post
 - Pacing controls based on account tier
@@ -59,7 +59,7 @@
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -127,7 +127,7 @@ RESEND_API_KEY="re_..."
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ### High-Level Overview
 
@@ -168,7 +168,7 @@ See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for detailed design.
 
 ---
 
-## 📖 Documentation
+## Documentation
 
 - [Architecture](./docs/ARCHITECTURE.md) - System design and patterns
 - [API Reference](./docs/API.md) - REST API documentation
@@ -178,7 +178,7 @@ See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for detailed design.
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Run unit tests
@@ -196,7 +196,7 @@ npm run test
 
 ---
 
-## 📦 Deployment
+## Deployment
 
 ### Vercel (Recommended for Frontend)
 
@@ -219,7 +219,7 @@ See [DEPLOYMENT.md](./docs/DEPLOYMENT.md) for detailed instructions.
 
 ---
 
-## 🎯 Roadmap
+## Roadmap
 
 ### MVP (Current)
 
@@ -242,7 +242,7 @@ See [DEPLOYMENT.md](./docs/DEPLOYMENT.md) for detailed instructions.
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
@@ -254,13 +254,13 @@ We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for gu
 
 ---
 
-## 📝 License
+## License
 
 This project is licensed under the MIT License - see [LICENSE](./LICENSE) for details.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Inspired by [MediaFast](https://www.mediafa.st/) and the need for safe Reddit marketing
 - Built with modern open-source tools
@@ -268,7 +268,7 @@ This project is licensed under the MIT License - see [LICENSE](./LICENSE) for de
 
 ---
 
-## 📧 Support
+## Support
 
 - **Issues**: [GitHub Issues](https://github.com/tanayyo1/ReditFast/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/tanayyo1/ReditFast/discussions)
@@ -277,5 +277,5 @@ This project is licensed under the MIT License - see [LICENSE](./LICENSE) for de
 ---
 
 <p align="center">
-  Built with ❤️ for the indie founder community
+  Built with care for the indie founder community
 </p>

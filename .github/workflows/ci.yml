@@ -93,7 +93,7 @@ jobs:
     needs: lint-and-typecheck
     services:
       postgres:
-        image: ankane/pgvector:pg14
+        image: pgvector/pgvector:pg14
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test

@@ -186,7 +186,7 @@ model Project {
 model RedditAccount {
   id             String   @id @default(cuid())
   workspaceId    String   @map("workspace_id")
-  redditUsername String   @unique @map("reddit_username")
+  redditUsername String   @map("reddit_username")
   redditUserId   String?  @map("reddit_user_id")
   accessToken    String   @map("access_token") // Encrypted
   refreshToken   String   @map("refresh_token") // Encrypted
@@ -210,6 +210,7 @@ model RedditAccount {
   publishedItems PublishedItem[]
 
   @@index([workspaceId])
+  @@unique([workspaceId, redditUsername])
   @@map("reddit_accounts")
 }
 
@@ -247,7 +248,6 @@ model SubredditCatalog {
   publishedItems   PublishedItem[]
   threadCandidates ThreadCandidate[]
 
-  @@index([embedding], name: "subreddit_embedding_idx")
   @@map("subreddit_catalog")
 }
 

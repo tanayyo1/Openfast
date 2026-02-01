@@ -9,6 +9,7 @@ Thank you for your interest in contributing to ReditFast! This document contains
 ### 1. The Golden Rules
 
 **❌ NEVER:**
+
 - Commit directly to `main` or `develop` branches
 - Push code without a Linear issue
 - Skip the quality gates (lint, typecheck, test)
@@ -16,6 +17,7 @@ Thank you for your interest in contributing to ReditFast! This document contains
 - Commit secrets, tokens, or passwords
 
 **✅ ALWAYS:**
+
 - Create feature branches with Linear issue IDs
 - Run quality checks before committing
 - Get at least 1 human review before merging
@@ -64,6 +66,7 @@ Deploy to Production
 **Format:** `type/LIN-XXX-short-description`
 
 **Types:**
+
 - `feature/` - New features
 - `bugfix/` - Bug fixes
 - `hotfix/` - Critical production fixes
@@ -72,6 +75,7 @@ Deploy to Production
 - `test/` - Test additions/updates
 
 **Examples:**
+
 ```bash
 # Good
 feature/LIN-123-add-scheduler
@@ -86,6 +90,7 @@ feature/lin-123-add-scheduler  # lowercase 'lin'
 ```
 
 **Command:**
+
 ```bash
 git checkout -b feature/LIN-XXX-your-description
 ```
@@ -95,6 +100,7 @@ git checkout -b feature/LIN-XXX-your-description
 ### 4. Commit Message Format (ENFORCED)
 
 **Format:**
+
 ```
 LIN-XXX: Brief imperative description (50 chars max)
 
@@ -106,6 +112,7 @@ Refs: LIN-XXX
 ```
 
 **Good Examples:**
+
 ```bash
 # Simple commit
 LIN-123: Add scheduler service for delayed posts
@@ -121,6 +128,7 @@ Refs: LIN-456
 ```
 
 **Bad Examples:**
+
 ```bash
 # Missing Linear ID
 Added scheduler service
@@ -137,6 +145,7 @@ LIN-123:Add scheduler service
 
 **Git Hook Enforcement:**
 The commit-msg hook will reject invalid formats. If you need to bypass (emergency only):
+
 ```bash
 git commit -m "LIN-XXX: Message" --no-verify  # ⚠️ Only in emergencies
 ```
@@ -173,28 +182,33 @@ npm run format:check  # Prettier formatting
 ### 6. Creating a Pull Request
 
 **Step 1: Push your branch**
+
 ```bash
 git push origin feature/LIN-XXX-description
 ```
 
 **Step 2: Create PR on GitHub**
+
 - Use the PR template (automatically populated)
 - Title format: `[LIN-XXX] Brief description`
 - Fill out all sections
 - Link Linear issue: `Closes LIN-XXX` or `Relates to LIN-XXX`
 
 **Step 3: Request review**
+
 - Assign at least 1 reviewer
 - Tag relevant team members
 - Add appropriate labels
 
 **Step 4: Address feedback**
+
 - Make requested changes
 - Commit with same format: `LIN-XXX: Address review feedback`
 - Push updates
 - Re-request review
 
 **Step 5: Merge**
+
 - Only after:
   - ✅ All CI checks pass
   - ✅ At least 1 approval
@@ -203,6 +217,7 @@ git push origin feature/LIN-XXX-description
   - ✅ PR template complete
 
 **Merge options:**
+
 - Use "Squash and merge" for clean history
 - Use "Merge commit" for feature branches with multiple logical commits
 - NEVER use "Rebase and merge" (it breaks Linear linking)
@@ -241,6 +256,7 @@ npm audit --audit-level=moderate
 ```
 
 **If checks fail:**
+
 1. Fix the issues
 2. Commit fixes
 3. Push updates
@@ -270,6 +286,7 @@ npm audit --audit-level=moderate
 - Never expose stack traces in production
 
 **Security Checklist for every PR:**
+
 - [ ] No secrets in code
 - [ ] No sensitive data in logs
 - [ ] Workspace isolation maintained
@@ -282,13 +299,13 @@ npm audit --audit-level=moderate
 
 **Test Coverage Minimums:**
 
-| Component | Minimum Coverage | Test Types |
-|-----------|------------------|------------|
-| Services | 80% | Unit tests |
-| Utilities | 90% | Unit tests |
-| API Routes | 70% | Integration tests |
-| UI Components | 50% | Unit + E2E |
-| Critical Flows | 100% | E2E tests |
+| Component      | Minimum Coverage | Test Types        |
+| -------------- | ---------------- | ----------------- |
+| Services       | 80%              | Unit tests        |
+| Utilities      | 90%              | Unit tests        |
+| API Routes     | 70%              | Integration tests |
+| UI Components  | 50%              | Unit + E2E        |
+| Critical Flows | 100%             | E2E tests         |
 
 **Running Tests:**
 
@@ -310,6 +327,7 @@ npm run test
 ```
 
 **Test File Locations:**
+
 ```
 tests/
 ├── unit/
@@ -324,6 +342,7 @@ tests/
 ```
 
 **NEVER test against real Reddit:**
+
 - Use mocks for Reddit API
 - Use test database for integration tests
 - Never use production credentials in tests
@@ -333,12 +352,14 @@ tests/
 ### 10. Code Standards
 
 **TypeScript:**
+
 - Strict mode enabled
 - No `any` types (unless absolutely necessary with justification)
 - Proper typing for all function parameters and returns
 - Interfaces for object shapes
 
 **Naming:**
+
 - Files: `kebab-case.ts` (e.g., `roadmap-service.ts`)
 - Components: `PascalCase.tsx` (e.g., `Dashboard.tsx`)
 - Functions: `camelCase` (e.g., `generateRoadmap()`)
@@ -346,22 +367,24 @@ tests/
 - Types/Interfaces: `PascalCase` with descriptive names
 
 **Documentation:**
+
 - JSDoc for all public functions
 - Comments for complex business logic
 - README updates for user-facing changes
 - API documentation for new endpoints
 
 **Error Handling:**
+
 ```typescript
 // Good
-throw new AppError('Failed to generate roadmap', 'ROADMAP_GENERATION_FAILED', {
+throw new AppError("Failed to generate roadmap", "ROADMAP_GENERATION_FAILED", {
   projectId,
-  error: error.message
+  error: error.message,
 });
 
 // Bad
 throw error;
-console.log(error);  // Never use console.log
+console.log(error); // Never use console.log
 ```
 
 ---
@@ -377,6 +400,7 @@ console.log(error);  // Never use console.log
 - [ ] CHANGELOG.md - For releases
 
 **Documentation Checklist:**
+
 - [ ] New features documented
 - [ ] API changes documented with examples
 - [ ] Environment variables added to .env.example
@@ -402,6 +426,7 @@ console.log(error);  // Never use console.log
 6. Provide rollback plan
 
 **Naming migrations:**
+
 - Good: `add_scheduled_posts_table`, `add_risk_score_to_drafts`
 - Bad: `migration1`, `update`, `fix`
 
@@ -450,6 +475,7 @@ git commit -m "LIN-XXX: Emergency fix" --no-verify
 ### 14. Common Mistakes to Avoid
 
 **Branch Management:**
+
 - ❌ Working directly on main
 - ❌ Long-lived feature branches (>1 week)
 - ❌ Not pulling main before creating branch
@@ -457,6 +483,7 @@ git commit -m "LIN-XXX: Emergency fix" --no-verify
 - ✅ Regular rebasing on main
 
 **Commits:**
+
 - ❌ Committing broken code "to save progress"
 - ❌ Giant commits with 20+ files
 - ❌ Commit messages like "fix" or "update"
@@ -464,6 +491,7 @@ git commit -m "LIN-XXX: Emergency fix" --no-verify
 - ✅ Descriptive commit messages
 
 **PRs:**
+
 - ❌ PRs with 1000+ lines changed
 - ❌ Mixing unrelated changes
 - ❌ Missing Linear issue link
@@ -471,6 +499,7 @@ git commit -m "LIN-XXX: Emergency fix" --no-verify
 - ✅ Proper description and context
 
 **Testing:**
+
 - ❌ "I'll add tests later"
 - ❌ Testing only happy path
 - ❌ Not running tests locally
@@ -490,6 +519,7 @@ git commit -m "LIN-XXX: Emergency fix" --no-verify
 5. Schedule pair programming session
 
 **Before asking:**
+
 - [ ] Read relevant documentation
 - [ ] Search existing code for examples
 - [ ] Try to solve it yourself first
@@ -553,6 +583,7 @@ git commit -m "LIN-999: Add test feature"  # ✅ Should pass
 ### 17. Tools & Resources
 
 **Development Tools:**
+
 - **Cursor IDE** - Reads `.cursorrules` automatically
 - **ESLint** - Code linting
 - **Prettier** - Code formatting
@@ -562,12 +593,14 @@ git commit -m "LIN-999: Add test feature"  # ✅ Should pass
 - **Playwright** - E2E testing
 
 **Documentation:**
+
 - AGENTS.md - Project context for AI
 - docs/ARCHITECTURE.md - System design
 - docs/API.md - API reference
 - docs/DECISIONS.md - ADRs
 
 **External Services:**
+
 - Linear - Issue tracking
 - GitHub - Code hosting
 - Vercel - Frontend hosting
@@ -580,12 +613,14 @@ git commit -m "LIN-999: Add test feature"  # ✅ Should pass
 ### 18. Recognition
 
 Contributors will be:
+
 - Listed in README.md contributors section
 - Mentioned in release notes
 - Invited to team Discord/Slack
 - Given shoutouts in community updates
 
 **First-time contributors:**
+
 - Welcome message in PR
 - Extra review guidance
 - Help with any questions
@@ -601,27 +636,32 @@ By contributing, you agree that your contributions will be licensed under the MI
 ## Quick Reference Card
 
 **Create Branch:**
+
 ```bash
 git checkout -b feature/LIN-XXX-description
 ```
 
 **Quality Gates:**
+
 ```bash
 npm run lint && npm run typecheck && npm run test:unit
 ```
 
 **Commit:**
+
 ```bash
 git commit -m "LIN-XXX: Description"
 ```
 
 **Push & PR:**
+
 ```bash
 git push origin feature/LIN-XXX-description
 # Create PR on GitHub with template
 ```
 
 **Emergency:**
+
 ```bash
 # Contact team lead immediately
 # Don't try to fix alone

@@ -1,13 +1,13 @@
-'use client'
+"use client";
 
-import type { ReactNode } from 'react'
+import type { ReactNode } from "react";
 
 export default function ErrorBoundary({
   error,
   reset,
 }: {
-  error: Error & { digest?: string }
-  reset: () => void
+  error: Error & { digest?: string };
+  reset: () => void;
 }): ReactNode {
   return (
     <div className="space-y-4">
@@ -21,5 +21,5 @@ export default function ErrorBoundary({
         Retry
       </button>
     </div>
-  )
+  );
 }

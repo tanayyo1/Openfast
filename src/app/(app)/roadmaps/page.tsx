@@ -1,10 +1,10 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { useDemoStore } from '@/stores/demoStore'
+import Link from "next/link";
+import { useDemoStore } from "@/stores/demoStore";
 
 export default function RoadmapsPage() {
-  const roadmaps = useDemoStore((state) => state.roadmaps)
+  const roadmaps = useDemoStore((state) => state.roadmaps);
 
   return (
     <div className="space-y-8">
@@ -76,16 +76,18 @@ export default function RoadmapsPage() {
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           {[
             {
-              title: 'Best-time windows',
-              description: 'Suggested slots per subreddit based on activity signals.',
+              title: "Best-time windows",
+              description:
+                "Suggested slots per subreddit based on activity signals.",
             },
             {
-              title: 'Task mix',
-              description: 'Balance posts and comments based on account tier.',
+              title: "Task mix",
+              description: "Balance posts and comments based on account tier.",
             },
             {
-              title: 'Compliance guardrails',
-              description: 'Rule reminders and duplication prevention built into each task.',
+              title: "Compliance guardrails",
+              description:
+                "Rule reminders and duplication prevention built into each task.",
             },
           ].map((item) => (
             <div
@@ -93,11 +95,13 @@ export default function RoadmapsPage() {
               className="rounded-2xl border border-border bg-card/80 p-5"
             >
               <p className="text-sm font-semibold">{item.title}</p>
-              <p className="mt-2 text-sm text-muted-foreground">{item.description}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {item.description}
+              </p>
             </div>
           ))}
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,6 +1,6 @@
-import Link from 'next/link'
+import Link from "next/link";
 
-const workspaces = ['ReditFast HQ', 'Indie Studio', 'Agency Lab']
+const workspaces = ["ReditFast HQ", "Indie Studio", "Agency Lab"];
 
 export function AppHeader() {
   return (
@@ -44,5 +44,5 @@ export function AppHeader() {
         </div>
       </div>
     </header>
-  )
+  );
 }

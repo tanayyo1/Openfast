@@ -1,28 +1,28 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useMemo, useState } from 'react'
-import { useDemoStore } from '@/stores/demoStore'
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
+import { useDemoStore } from "@/stores/demoStore";
 
 export default function RoadmapGeneratePage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const projectIdFromQuery = searchParams.get('projectId') ?? ''
+  const projectIdFromQuery = searchParams.get("projectId") ?? "";
 
-  const projects = useDemoStore((state) => state.projects)
-  const accounts = useDemoStore((state) => state.redditAccounts)
-  const generateRoadmap = useDemoStore((state) => state.generateRoadmap)
+  const projects = useDemoStore((state) => state.projects);
+  const accounts = useDemoStore((state) => state.redditAccounts);
+  const generateRoadmap = useDemoStore((state) => state.generateRoadmap);
 
   const [selectedProjectId, setSelectedProjectId] = useState(
-    projectIdFromQuery || projects[0]?.id || ''
-  )
-  const [busy, setBusy] = useState(false)
+    projectIdFromQuery || projects[0]?.id || "",
+  );
+  const [busy, setBusy] = useState(false);
 
   const canGenerate = useMemo(() => {
-    return Boolean(selectedProjectId) && accounts.length > 0
-  }, [accounts.length, selectedProjectId])
+    return Boolean(selectedProjectId) && accounts.length > 0;
+  }, [accounts.length, selectedProjectId]);
 
   return (
     <div className="space-y-8">
@@ -32,7 +32,8 @@ export default function RoadmapGeneratePage() {
         </p>
         <h1 className="mt-3 text-3xl font-semibold">Generate roadmap</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Demo-only generation. Backend will compute recommendations and time windows.
+          Demo-only generation. Backend will compute recommendations and time
+          windows.
         </p>
       </div>
 
@@ -97,13 +98,15 @@ export default function RoadmapGeneratePage() {
             type="button"
             disabled={!canGenerate || busy}
             onClick={() => {
-              setBusy(true)
-              const roadmapId = generateRoadmap({ projectId: selectedProjectId })
-              router.push(`/roadmaps/${encodeURIComponent(roadmapId)}`)
+              setBusy(true);
+              const roadmapId = generateRoadmap({
+                projectId: selectedProjectId,
+              });
+              router.push(`/roadmaps/${encodeURIComponent(roadmapId)}`);
             }}
             className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
           >
-            {busy ? 'Generating' : 'Generate'}
+            {busy ? "Generating" : "Generate"}
           </button>
           <Link
             href="/roadmaps"
@@ -114,5 +117,5 @@ export default function RoadmapGeneratePage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

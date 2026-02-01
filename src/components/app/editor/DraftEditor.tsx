@@ -1,24 +1,24 @@
-'use client'
+"use client";
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState } from "react";
 
 type Variant = {
-  title: string
-  body: string
-  riskScore: number
-  notes: string[]
-}
+  title: string;
+  body: string;
+  riskScore: number;
+  notes: string[];
+};
 
 type DraftEditorProps = {
-  variants: Variant[]
-  initialSelectedIndex?: number
-  initialTitle?: string
-  initialBody?: string
-  onSelectVariant?: (index: number) => void
-  onSave?: (input: { title: string; body: string }) => void
-  onRequestApproval?: () => void
-  onApprove?: () => void
-}
+  variants: Variant[];
+  initialSelectedIndex?: number;
+  initialTitle?: string;
+  initialBody?: string;
+  onSelectVariant?: (index: number) => void;
+  onSave?: (input: { title: string; body: string }) => void;
+  onRequestApproval?: () => void;
+  onApprove?: () => void;
+};
 
 export function DraftEditor({
   variants,
@@ -30,18 +30,18 @@ export function DraftEditor({
   onRequestApproval,
   onApprove,
 }: DraftEditorProps) {
-  const initial = variants[0]
-  const [selectedIndex, setSelectedIndex] = useState(initialSelectedIndex)
-  const selected = variants[selectedIndex] ?? initial
+  const initial = variants[0];
+  const [selectedIndex, setSelectedIndex] = useState(initialSelectedIndex);
+  const selected = variants[selectedIndex] ?? initial;
 
-  const [title, setTitle] = useState(initialTitle ?? selected.title)
-  const [body, setBody] = useState(initialBody ?? selected.body)
+  const [title, setTitle] = useState(initialTitle ?? selected.title);
+  const [body, setBody] = useState(initialBody ?? selected.body);
 
   const riskTone = useMemo(() => {
-    if (selected.riskScore <= 30) return 'Low'
-    if (selected.riskScore <= 60) return 'Medium'
-    return 'High'
-  }, [selected.riskScore])
+    if (selected.riskScore <= 30) return "Low";
+    if (selected.riskScore <= 60) return "Medium";
+    return "High";
+  }, [selected.riskScore]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
@@ -56,31 +56,29 @@ export function DraftEditor({
               key={variant.title}
               type="button"
               onClick={() => {
-                setSelectedIndex(index)
-                setTitle(variant.title)
-                setBody(variant.body)
-                onSelectVariant?.(index)
+                setSelectedIndex(index);
+                setTitle(variant.title);
+                setBody(variant.body);
+                onSelectVariant?.(index);
               }}
               className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
                 index === selectedIndex
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border bg-background/70 hover:border-foreground/40'
+                  ? "border-primary bg-primary/5"
+                  : "border-border bg-background/70 hover:border-foreground/40"
               }`}
             >
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Variant {index + 1}
               </p>
-              <p className="mt-2 text-sm font-semibold">
-                {variant.title}
-              </p>
+              <p className="mt-2 text-sm font-semibold">{variant.title}</p>
               <p className="mt-2 text-xs text-muted-foreground">
-                Risk score: {variant.riskScore} ({
-                  variant.riskScore <= 30
-                    ? 'Low'
-                    : variant.riskScore <= 60
-                    ? 'Medium'
-                    : 'High'
-                })
+                Risk score: {variant.riskScore} (
+                {variant.riskScore <= 30
+                  ? "Low"
+                  : variant.riskScore <= 60
+                    ? "Medium"
+                    : "High"}
+                )
               </p>
             </button>
           ))}
@@ -162,5 +160,5 @@ export function DraftEditor({
         </div>
       </div>
     </div>
-  )
+  );
 }

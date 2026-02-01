@@ -1,12 +1,12 @@
 type BarMeterProps = {
-  label: string
-  value: number
-  max?: number
-}
+  label: string;
+  value: number;
+  max?: number;
+};
 
 export function BarMeter({ label, value, max = 100 }: BarMeterProps) {
-  const clamped = Math.max(0, Math.min(value, max))
-  const pct = (clamped / max) * 100
+  const clamped = Math.max(0, Math.min(value, max));
+  const pct = (clamped / max) * 100;
 
   return (
     <div className="space-y-2">
@@ -23,5 +23,5 @@ export function BarMeter({ label, value, max = 100 }: BarMeterProps) {
         />
       </div>
     </div>
-  )
+  );
 }

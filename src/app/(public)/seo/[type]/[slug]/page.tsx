@@ -1,38 +1,38 @@
-import { MaxWidth } from '@/components/public/MaxWidth'
+import { MaxWidth } from "@/components/public/MaxWidth";
 
 const typeLabels: Record<string, string> = {
-  city: 'City guide',
-  industry: 'Industry playbook',
-  alternatives: 'Alternative comparison',
-  guides: 'Guide',
-}
+  city: "City guide",
+  industry: "Industry playbook",
+  alternatives: "Alternative comparison",
+  guides: "Guide",
+};
 
 const typeDescriptions: Record<string, string> = {
-  city: 'Localized Reddit strategy for regional communities and meetups.',
-  industry: 'Tactics tailored to founders and teams in your sector.',
-  alternatives: 'How ReditFast compares and when to choose each option.',
-  guides: 'Step-by-step playbooks to build trusted Reddit presence.',
-}
+  city: "Localized Reddit strategy for regional communities and meetups.",
+  industry: "Tactics tailored to founders and teams in your sector.",
+  alternatives: "How ReditFast compares and when to choose each option.",
+  guides: "Step-by-step playbooks to build trusted Reddit presence.",
+};
 
 type SeoPageProps = {
   params: {
-    type: string
-    slug: string
-  }
-}
+    type: string;
+    slug: string;
+  };
+};
 
 function toTitleCase(value: string) {
   return value
-    .split('-')
+    .split("-")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
+    .join(" ");
 }
 
 export default function SeoPage({ params }: SeoPageProps) {
-  const label = typeLabels[params.type] ?? 'SEO guide'
+  const label = typeLabels[params.type] ?? "SEO guide";
   const description =
     typeDescriptions[params.type] ??
-    'Learn how to build safer, higher-signal Reddit marketing campaigns.'
+    "Learn how to build safer, higher-signal Reddit marketing campaigns.";
 
   return (
     <div className="pb-20 pt-16">
@@ -66,5 +66,5 @@ export default function SeoPage({ params }: SeoPageProps) {
         </div>
       </MaxWidth>
     </div>
-  )
+  );
 }

@@ -7,6 +7,7 @@ Complete checklist for setting up the ReditFast development environment and work
 ## Phase 1: Repository Setup (One-time)
 
 ### 1.1 Clone Repository
+
 - [ ] Fork repository (if contributing)
 - [ ] Clone to local machine:
   ```bash
@@ -19,6 +20,7 @@ Complete checklist for setting up the ReditFast development environment and work
   ```
 
 ### 1.2 Install Dependencies
+
 - [ ] Install Node.js (version 18+):
   ```bash
   node --version  # Should be v18.x.x or higher
@@ -33,6 +35,7 @@ Complete checklist for setting up the ReditFast development environment and work
   ```
 
 ### 1.3 Set Up Environment Variables
+
 - [ ] Copy environment template:
   ```bash
   cp .env.example .env.local
@@ -47,6 +50,7 @@ Complete checklist for setting up the ReditFast development environment and work
   - [ ] Resend API key (for emails)
 
 ### 1.4 Set Up Database
+
 - [ ] Ensure PostgreSQL is running (version 14+)
 - [ ] Create database:
   ```bash
@@ -71,6 +75,7 @@ Complete checklist for setting up the ReditFast development environment and work
   ```
 
 ### 1.5 Set Up Redis
+
 - [ ] Ensure Redis is running (version 6+)
   ```bash
   redis-cli ping  # Should return: PONG
@@ -79,6 +84,7 @@ Complete checklist for setting up the ReditFast development environment and work
 - [ ] Update REDIS_URL in .env.local
 
 ### 1.6 Set Up Git Hooks
+
 - [ ] Install husky hooks:
   ```bash
   npm run prepare
@@ -94,6 +100,7 @@ Complete checklist for setting up the ReditFast development environment and work
 ## Phase 2: Verification (Before First Commit)
 
 ### 2.1 Run Setup Verification Script
+
 - [ ] Run verification:
   ```bash
   ./scripts/verify-setup.sh
@@ -102,6 +109,7 @@ Complete checklist for setting up the ReditFast development environment and work
 - [ ] Re-run until all checks pass
 
 ### 2.2 Test Quality Gates
+
 - [ ] Run linting:
   ```bash
   npm run lint
@@ -117,6 +125,7 @@ Complete checklist for setting up the ReditFast development environment and work
 - [ ] All checks should pass ✅
 
 ### 2.3 Test Git Hooks
+
 - [ ] Test branch naming enforcement:
   ```bash
   git checkout -b test-branch
@@ -140,6 +149,7 @@ Complete checklist for setting up the ReditFast development environment and work
   ```
 
 ### 2.4 Test Application
+
 - [ ] Start development server:
   ```bash
   npm run dev
@@ -153,6 +163,7 @@ Complete checklist for setting up the ReditFast development environment and work
 ## Phase 3: GitHub Configuration (Repository Admin)
 
 ### 3.1 Set Up Branch Protection
+
 - [ ] Go to GitHub → Settings → Branches
 - [ ] Add rule for `main`:
   - [ ] Require PR before merging
@@ -170,6 +181,7 @@ Complete checklist for setting up the ReditFast development environment and work
 - [ ] See docs/BRANCH_PROTECTION.md for detailed steps
 
 ### 3.2 Set Up Linear Integration
+
 - [ ] Go to Linear → Settings → Integrations
 - [ ] Install GitHub integration
 - [ ] Connect to repository
@@ -181,6 +193,7 @@ Complete checklist for setting up the ReditFast development environment and work
 - [ ] See docs/LINEAR_INTEGRATION.md for detailed steps
 
 ### 3.3 Configure Repository Settings
+
 - [ ] Disable wiki (if not using)
 - [ ] Enable issues (for bug reports)
 - [ ] Enable discussions (for Q&A)
@@ -193,6 +206,7 @@ Complete checklist for setting up the ReditFast development environment and work
 ## Phase 4: Team Onboarding (Per Developer)
 
 ### 4.1 Access Setup
+
 - [ ] Added to GitHub repository (with appropriate permissions)
 - [ ] Added to Linear workspace
 - [ ] Added to team Slack/Discord channels:
@@ -203,6 +217,7 @@ Complete checklist for setting up the ReditFast development environment and work
 - [ ] Added to Railway/Render team (for workers)
 
 ### 4.2 Tool Setup
+
 - [ ] IDE configured:
   - [ ] Cursor IDE (recommended) - reads `.cursorrules`
   - [ ] VS Code with extensions:
@@ -222,6 +237,7 @@ Complete checklist for setting up the ReditFast development environment and work
   ```
 
 ### 4.3 Read Documentation
+
 - [ ] Read AGENTS.md (project context)
 - [ ] Read CONTRIBUTING.md (workflow rules)
 - [ ] Read docs/ARCHITECTURE.md (system design)
@@ -230,6 +246,7 @@ Complete checklist for setting up the ReditFast development environment and work
 - [ ] Read README.md (project overview)
 
 ### 4.4 First Contribution
+
 - [ ] Pick a "good first issue" from Linear
 - [ ] Create branch using helper script:
   ```bash
@@ -253,6 +270,7 @@ Complete checklist for setting up the ReditFast development environment and work
 ## Phase 5: CI/CD Setup (DevOps)
 
 ### 5.1 GitHub Actions
+
 - [ ] Verify CI workflow file exists: `.github/workflows/ci.yml`
 - [ ] Check workflow runs on PRs
 - [ ] Ensure all jobs pass
@@ -260,6 +278,7 @@ Complete checklist for setting up the ReditFast development environment and work
   - [ ] GitHub → Settings → Secrets and variables → Actions
 
 ### 5.2 Deployment Configuration
+
 - [ ] Vercel project created and linked
 - [ ] Environment variables set in Vercel:
   - [ ] Production environment
@@ -270,6 +289,7 @@ Complete checklist for setting up the ReditFast development environment and work
   - [ ] Push to main → Deploy to production (manual approval)
 
 ### 5.3 Monitoring Setup
+
 - [ ] Sentry project created
 - [ ] Sentry DSN added to environment
 - [ ] PostHog project created
@@ -281,6 +301,7 @@ Complete checklist for setting up the ReditFast development environment and work
 ## Phase 6: Security & Compliance
 
 ### 6.1 Security Setup
+
 - [ ] Reddit OAuth app created (not sharing with other apps)
 - [ ] API keys stored securely (never in code)
 - [ ] Database credentials rotated
@@ -288,6 +309,7 @@ Complete checklist for setting up the ReditFast development environment and work
 - [ ] HTTPS enforced (Vercel does this automatically)
 
 ### 6.2 Compliance
+
 - [ ] Privacy policy created
 - [ ] Terms of service created
 - [ ] GDPR compliance checklist completed
@@ -295,6 +317,7 @@ Complete checklist for setting up the ReditFast development environment and work
 - [ ] User data deletion process documented
 
 ### 6.3 Audit Logging
+
 - [ ] Audit log table created (prisma/schema.prisma)
 - [ ] Audit logging enabled for sensitive actions
 - [ ] Log retention policy configured
@@ -305,6 +328,7 @@ Complete checklist for setting up the ReditFast development environment and work
 ## Phase 7: Testing & Quality Assurance
 
 ### 7.1 Test Coverage
+
 - [ ] Unit tests passing (80%+ coverage for services)
 - [ ] Integration tests passing (70%+ coverage for APIs)
 - [ ] E2E tests created for critical flows:
@@ -314,6 +338,7 @@ Complete checklist for setting up the ReditFast development environment and work
 - [ ] All tests running in CI
 
 ### 7.2 Code Quality
+
 - [ ] ESLint rules configured
 - [ ] Prettier formatting configured
 - [ ] TypeScript strict mode enabled
@@ -321,6 +346,7 @@ Complete checklist for setting up the ReditFast development environment and work
 - [ ] All quality gates passing in CI
 
 ### 7.3 Security Testing
+
 - [ ] npm audit passes (no high/critical vulnerabilities)
 - [ ] Secrets scanning enabled (TruffleHog)
 - [ ] No hardcoded secrets in codebase
@@ -331,6 +357,7 @@ Complete checklist for setting up the ReditFast development environment and work
 ## Phase 8: Documentation & Communication
 
 ### 8.1 Documentation Complete
+
 - [ ] README.md updated with current info
 - [ ] API documentation complete (docs/API.md)
 - [ ] Architecture documented (docs/ARCHITECTURE.md)
@@ -341,6 +368,7 @@ Complete checklist for setting up the ReditFast development environment and work
 - [ ] Changelog started (CHANGELOG.md)
 
 ### 8.2 Team Communication
+
 - [ ] Slack/Discord channels created
 - [ ] Team roles defined:
   - [ ] Project owner
@@ -353,6 +381,7 @@ Complete checklist for setting up the ReditFast development environment and work
 - [ ] Deployment schedule communicated
 
 ### 8.3 External Communication
+
 - [ ] Social media accounts created (Twitter, LinkedIn)
 - [ ] Landing page deployed
 - [ ] Waitlist/signup form working
@@ -364,6 +393,7 @@ Complete checklist for setting up the ReditFast development environment and work
 ## Phase 9: Launch Preparation
 
 ### 9.1 Pre-Launch Checklist
+
 - [ ] All critical features implemented
 - [ ] No known blocking bugs
 - [ ] Performance tested (load times < 3s)
@@ -373,6 +403,7 @@ Complete checklist for setting up the ReditFast development environment and work
 - [ ] Email delivery tested (Resend)
 
 ### 9.2 Soft Launch
+
 - [ ] Deploy to production
 - [ ] Invite beta users (10-50 people)
 - [ ] Monitor error rates
@@ -380,6 +411,7 @@ Complete checklist for setting up the ReditFast development environment and work
 - [ ] Iterate based on feedback
 
 ### 9.3 Public Launch
+
 - [ ] Product Hunt launch prepared
 - [ ] Twitter/LinkedIn announcement ready
 - [ ] Press kit prepared (if applicable)
@@ -456,36 +488,43 @@ Before creating a Pull Request:
 ## Troubleshooting Common Issues
 
 ### "Permission denied" when running scripts
+
 ```bash
 chmod +x scripts/*.sh
 ```
 
 ### "Cannot find module" errors
+
 ```bash
 npm install
 ```
 
 ### Git hooks not running
+
 ```bash
 npm run prepare
 ```
 
 ### Database connection errors
+
 - Check PostgreSQL is running
 - Verify DATABASE_URL in .env.local
 - Run: `npx prisma migrate dev`
 
 ### Redis connection errors
+
 - Check Redis is running: `redis-cli ping`
 - Verify REDIS_URL in .env.local
 
 ### TypeScript errors
+
 ```bash
 npm run typecheck
 # Fix errors, don't use @ts-ignore without justification
 ```
 
 ### Tests failing
+
 ```bash
 npm run test:unit -- --verbose
 # Check test output for details
@@ -496,6 +535,7 @@ npm run test:unit -- --verbose
 ## Resources & Quick Links
 
 **Documentation:**
+
 - AGENTS.md - Project context for AI
 - CONTRIBUTING.md - Workflow rules
 - docs/ARCHITECTURE.md - System design
@@ -503,6 +543,7 @@ npm run test:unit -- --verbose
 - docs/DECISIONS.md - Architecture decisions
 
 **External Services:**
+
 - Linear: https://linear.app
 - GitHub: https://github.com/tanayyo1/ReditFast
 - Vercel: https://vercel.com
@@ -510,6 +551,7 @@ npm run test:unit -- --verbose
 - Upstash: https://upstash.com
 
 **Help:**
+
 - Team Slack: #dev-questions
 - GitHub Issues: https://github.com/tanayyo1/ReditFast/issues
 - GitHub Discussions: https://github.com/tanayyo1/ReditFast/discussions

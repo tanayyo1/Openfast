@@ -2,14 +2,15 @@
 
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { User, Session, SupabaseClient } from "@supabase/supabase-js";
 
 type SupabaseContext = {
-  supabase: SupabaseClient;
+  supabase: SupabaseClient | null;
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  isConfigured: boolean;
 };
 
 const Context = createContext<SupabaseContext | undefined>(undefined);
@@ -20,12 +21,23 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  );
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const isConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+
+  // Allow the frontend to boot even if Supabase env vars are missing. Pages that
+  // depend on Supabase auth should gracefully handle `supabase === null`.
+  const supabase = useMemo(() => {
+    if (!isConfigured) return null;
+    return createBrowserClient(supabaseUrl!, supabaseAnonKey!);
+  }, [isConfigured, supabaseUrl, supabaseAnonKey]);
 
   useEffect(() => {
+    if (!supabase) {
+      setIsLoading(false);
+      return;
+    }
+
     const getSession = async () => {
       const {
         data: { session },
@@ -57,7 +69,9 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   }, [supabase, router]);
 
   return (
-    <Context.Provider value={{ supabase, user, session, isLoading }}>
+    <Context.Provider
+      value={{ supabase, user, session, isLoading, isConfigured }}
+    >
       {children}
     </Context.Provider>
   );

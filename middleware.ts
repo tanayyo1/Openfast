@@ -38,11 +38,17 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // Check for Supabase auth session
-  const authCookie = request.cookies.get("sb-access-token");
-  const refreshCookie = request.cookies.get("sb-refresh-token");
+  // Check for Supabase auth session (project-specific cookie names)
+  // Cookie format: sb-[project-ref]-auth-token
+  const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.match(
+    /https:\/\/([^.]+)\.supabase\.co/,
+  )?.[1];
+  const authCookie = projectRef
+    ? request.cookies.get(`sb-${projectRef}-auth-token`) ||
+      request.cookies.get("sb-access-token")
+    : request.cookies.get("sb-access-token");
 
-  if (!authCookie && !refreshCookie) {
+  if (!authCookie) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", `${pathname}${search}`);
     return NextResponse.redirect(loginUrl);

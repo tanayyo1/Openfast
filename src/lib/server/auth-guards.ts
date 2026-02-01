@@ -1,12 +1,27 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
 
 export async function requireSession() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const supabase = createClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) {
     throw new Error("UNAUTHORIZED");
   }
-  return session;
+
+  // Get user from our database (linked by authId)
+  const dbUser = await prisma.user.findUnique({
+    where: { authId: user.id },
+  });
+
+  if (!dbUser) {
+    throw new Error("USER_NOT_SYNCED");
+  }
+
+  return { user: dbUser, supabaseUser: user };
 }
 
 export type WorkspaceSession = Awaited<ReturnType<typeof requireSession>> & {
@@ -15,9 +30,15 @@ export type WorkspaceSession = Awaited<ReturnType<typeof requireSession>> & {
 
 export async function requireWorkspaceSession() {
   const session = await requireSession();
-  if (!session.workspaceId) {
+
+  // Get user's default workspace
+  const workspace = await prisma.workspace.findFirst({
+    where: { ownerId: session.user.id },
+  });
+
+  if (!workspace) {
     throw new Error("WORKSPACE_REQUIRED");
   }
-  // Help TS understand that workspaceId is present after the guard.
-  return session as WorkspaceSession;
+
+  return { ...session, workspaceId: workspace.id } as WorkspaceSession;
 }

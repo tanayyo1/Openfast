@@ -69,6 +69,18 @@ export default function LoginPage() {
                 return;
               }
 
+              // Sync user to our database (handles email confirmation case)
+              try {
+                const syncRes = await fetch("/api/auth/sync", {
+                  method: "POST",
+                });
+                if (!syncRes.ok) {
+                  console.error("Failed to sync user on login");
+                }
+              } catch (syncError) {
+                console.error("Sync error:", syncError);
+              }
+
               router.push(next);
             }}
           >

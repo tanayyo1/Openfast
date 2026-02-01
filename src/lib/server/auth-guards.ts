@@ -9,10 +9,15 @@ export async function requireSession() {
   return session;
 }
 
+export type WorkspaceSession = Awaited<ReturnType<typeof requireSession>> & {
+  workspaceId: string;
+};
+
 export async function requireWorkspaceSession() {
   const session = await requireSession();
   if (!session.workspaceId) {
     throw new Error("WORKSPACE_REQUIRED");
   }
-  return session;
+  // Help TS understand that workspaceId is present after the guard.
+  return session as WorkspaceSession;
 }

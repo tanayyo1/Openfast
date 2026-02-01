@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { POST as createDraft } from "@/app/api/drafts/route";
 import {
   GET as getDraft,
@@ -63,7 +63,7 @@ describe("Drafts APIs (variants + approval status)", () => {
         niche: "test",
         goals: { primary: "traffic", targets: [], kpis: [] },
         brandVoice: { tone: "neutral", do: [], dont: [] },
-        constraints: null,
+        constraints: Prisma.DbNull,
       },
       select: { id: true },
     });
@@ -173,7 +173,7 @@ describe("Drafts APIs (variants + approval status)", () => {
         niche: "test",
         goals: { primary: "traffic", targets: [], kpis: [] },
         brandVoice: { tone: "neutral", do: [], dont: [] },
-        constraints: null,
+        constraints: Prisma.DbNull,
       },
       select: { id: true },
     });

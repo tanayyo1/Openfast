@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 
@@ -160,7 +161,7 @@ export async function POST(req: Request) {
       niche: data.niche,
       goals: data.goals ?? { primary: "traffic", targets: [], kpis: [] },
       brandVoice: data.brandVoice ?? { tone: "neutral", do: [], dont: [] },
-      constraints: data.constraints ?? null,
+      constraints: data.constraints ?? Prisma.DbNull,
     },
     select: {
       id: true,

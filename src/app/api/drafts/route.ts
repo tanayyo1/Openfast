@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 
@@ -166,12 +167,12 @@ export async function POST(req: Request) {
       title: data.title ?? null,
       body: data.body,
       mediaUrls: data.mediaUrls,
-      variants: data.variants ?? null,
-      generationParams: data.generationParams ?? null,
+      variants: data.variants ?? Prisma.DbNull,
+      generationParams: data.generationParams ?? Prisma.DbNull,
       status: "DRAFT",
       riskScore: 0,
       riskReasons: [],
-      suggestedFixes: null,
+      suggestedFixes: Prisma.DbNull,
     },
     select: {
       id: true,

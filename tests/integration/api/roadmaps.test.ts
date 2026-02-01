@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import {
   GET as listRoadmaps,
   POST as createRoadmap,
@@ -78,7 +78,7 @@ describe("Roadmaps + tasks APIs (workspace-scoped)", () => {
         niche: "test",
         goals: { primary: "traffic", targets: [], kpis: [] },
         brandVoice: { tone: "neutral", do: [], dont: [] },
-        constraints: null,
+        constraints: Prisma.DbNull,
       },
       select: { id: true },
     });

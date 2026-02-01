@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 
@@ -120,9 +121,29 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     );
   }
 
+  const updateData: Prisma.DraftUpdateInput = {
+    ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
+    ...(parsed.data.body !== undefined ? { body: parsed.data.body } : {}),
+    ...(parsed.data.mediaUrls !== undefined
+      ? { mediaUrls: parsed.data.mediaUrls }
+      : {}),
+    ...(parsed.data.variants !== undefined
+      ? { variants: parsed.data.variants ?? Prisma.DbNull }
+      : {}),
+    ...(parsed.data.riskScore !== undefined
+      ? { riskScore: parsed.data.riskScore }
+      : {}),
+    ...(parsed.data.riskReasons !== undefined
+      ? { riskReasons: parsed.data.riskReasons }
+      : {}),
+    ...(parsed.data.suggestedFixes !== undefined
+      ? { suggestedFixes: parsed.data.suggestedFixes ?? Prisma.DbNull }
+      : {}),
+  };
+
   const updated = await prisma.draft.update({
     where: { id },
-    data: parsed.data,
+    data: updateData,
     select: {
       id: true,
       status: true,

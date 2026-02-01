@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 
@@ -97,9 +98,35 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     );
   }
 
+  if (parsed.data.goals === null || parsed.data.brandVoice === null) {
+    return NextResponse.json(
+      { error: "Invalid input", code: "VALIDATION_ERROR" },
+      { status: 400 },
+    );
+  }
+
+  const updateData: Prisma.ProjectUpdateInput = {
+    ...(parsed.data.name !== undefined ? { name: parsed.data.name } : {}),
+    ...(parsed.data.description !== undefined
+      ? { description: parsed.data.description }
+      : {}),
+    ...(parsed.data.url !== undefined ? { url: parsed.data.url ?? null } : {}),
+    ...(parsed.data.niche !== undefined ? { niche: parsed.data.niche } : {}),
+    ...(parsed.data.goals !== undefined
+      ? { goals: parsed.data.goals as Prisma.InputJsonValue }
+      : {}),
+    ...(parsed.data.brandVoice !== undefined
+      ? { brandVoice: parsed.data.brandVoice as Prisma.InputJsonValue }
+      : {}),
+    ...(parsed.data.constraints !== undefined
+      ? { constraints: parsed.data.constraints ?? Prisma.DbNull }
+      : {}),
+    ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
+  };
+
   const updated = await prisma.project.update({
     where: { id },
-    data: parsed.data,
+    data: updateData,
     select: {
       id: true,
       name: true,

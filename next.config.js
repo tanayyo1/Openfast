@@ -14,6 +14,15 @@ const nextConfig = {
     ],
   },
   async headers() {
+    // Build allowed origins list
+    const allowedOrigins = [
+      process.env.APP_URL,
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      // Allow Vercel preview deployments
+      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+    ].filter(Boolean);
+
     return [
       {
         source: "/api/:path*",
@@ -21,7 +30,7 @@ const nextConfig = {
           { key: "Access-Control-Allow-Credentials", value: "true" },
           {
             key: "Access-Control-Allow-Origin",
-            value: process.env.APP_URL || "http://localhost:3000",
+            value: allowedOrigins.join(", ") || "http://localhost:3000",
           },
           {
             key: "Access-Control-Allow-Methods",

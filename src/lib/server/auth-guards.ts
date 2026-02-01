@@ -2,6 +2,14 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 
 export async function requireSession() {
+  // Check if Supabase is configured
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  ) {
+    throw new Error("SUPABASE_NOT_CONFIGURED");
+  }
+
   const supabase = createClient();
   const {
     data: { user },
@@ -31,14 +39,18 @@ export type WorkspaceSession = Awaited<ReturnType<typeof requireSession>> & {
 export async function requireWorkspaceSession() {
   const session = await requireSession();
 
-  // Get user's default workspace
-  const workspace = await prisma.workspace.findFirst({
-    where: { ownerId: session.user.id },
+  // Get workspace through membership (supports owners AND members)
+  const membership = await prisma.workspaceMember.findFirst({
+    where: { userId: session.user.id },
+    include: { workspace: true },
   });
 
-  if (!workspace) {
+  if (!membership) {
     throw new Error("WORKSPACE_REQUIRED");
   }
 
-  return { ...session, workspaceId: workspace.id } as WorkspaceSession;
+  return {
+    ...session,
+    workspaceId: membership.workspace.id,
+  } as WorkspaceSession;
 }

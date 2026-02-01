@@ -8,6 +8,7 @@ import {
   fetchRedditMe,
   getRedditOAuthConfig,
 } from "@/lib/reddit/oauth";
+import { TokenCryptoError } from "@/lib/security/tokenCrypto";
 
 const OAUTH_STATE_COOKIE = "rf_reddit_oauth_state";
 const OAUTH_NEXT_COOKIE = "rf_reddit_oauth_next";
@@ -110,14 +111,30 @@ export async function GET(req: Request) {
   const scopes = tokenResponse.scope.split(" ").filter(Boolean);
 
   // Store encrypted tokens at rest.
-  const accessTokenEncrypted = encryptRedditToken(tokenResponse.access_token);
-  const refreshTokenEncrypted = encryptRedditToken(
-    tokenResponse.refresh_token ?? "",
-  );
+  let accessTokenEncrypted: string;
+  let refreshTokenEncrypted: string;
+  try {
+    accessTokenEncrypted = encryptRedditToken(tokenResponse.access_token);
+    refreshTokenEncrypted = encryptRedditToken(
+      tokenResponse.refresh_token ?? "",
+    );
+  } catch (err) {
+    const code =
+      err instanceof TokenCryptoError ? err.code : "TOKEN_ENCRYPTION_FAILED";
+    return NextResponse.json(
+      { error: "Token encryption failed", code },
+      { status: 500 },
+    );
+  }
 
   const now = new Date();
   const created = await prisma.redditAccount.upsert({
-    where: { redditUsername: me.name },
+    where: {
+      workspaceId_redditUsername: {
+        workspaceId: session.workspaceId,
+        redditUsername: me.name,
+      },
+    },
     update: {
       workspaceId: session.workspaceId,
       redditUserId: me.id,

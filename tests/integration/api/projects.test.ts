@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import {
   GET as listProjects,
   POST as createProject,
@@ -151,7 +151,7 @@ describe("Projects API (workspace-scoped)", () => {
         niche: "other",
         goals: { primary: "traffic", targets: [], kpis: [] },
         brandVoice: { tone: "neutral", do: [], dont: [] },
-        constraints: null,
+        constraints: Prisma.DbNull,
       },
       select: { id: true },
     });

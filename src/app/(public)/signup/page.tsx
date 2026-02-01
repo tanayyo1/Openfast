@@ -41,6 +41,19 @@ export default function SignupPage() {
               setMessage(null);
               setLoading(true);
 
+              if (!supabase) {
+                // Allow local UI testing without Supabase configured.
+                if (process.env.NODE_ENV !== "production") {
+                  setDemoAuthCookie();
+                  router.push("/onboarding");
+                  return;
+                }
+
+                setLoading(false);
+                setError("Sign up is unavailable right now.");
+                return;
+              }
+
               const { data, error } = await supabase.auth.signUp({
                 email,
                 password,

@@ -45,6 +45,19 @@ export default function LoginPage() {
               setError(null);
               setLoading(true);
 
+              if (!supabase) {
+                // Allow local UI testing without Supabase configured.
+                if (process.env.NODE_ENV !== "production") {
+                  setDemoAuthCookie();
+                  router.push(next);
+                  return;
+                }
+
+                setLoading(false);
+                setError("Sign in is unavailable right now.");
+                return;
+              }
+
               const { error } = await supabase.auth.signInWithPassword({
                 email,
                 password,

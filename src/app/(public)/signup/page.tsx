@@ -12,7 +12,7 @@ function setDemoAuthCookie() {
 
 export default function SignupPage() {
   const router = useRouter();
-  const { supabase, isConfigured } = useSupabase();
+  const { supabase } = useSupabase();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,10 +42,15 @@ export default function SignupPage() {
               setLoading(true);
 
               if (!supabase) {
+                // Allow local UI testing without Supabase configured.
+                if (process.env.NODE_ENV !== "production") {
+                  setDemoAuthCookie();
+                  router.push("/onboarding");
+                  return;
+                }
+
                 setLoading(false);
-                setError(
-                  "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local.",
-                );
+                setError("Sign up is unavailable right now.");
                 return;
               }
 
@@ -155,12 +160,6 @@ export default function SignupPage() {
             >
               {loading ? "Creating account..." : "Create account"}
             </button>
-            {!isConfigured ? (
-              <p className="text-xs text-muted-foreground">
-                Supabase env vars are missing, so sign up is disabled. Use Demo
-                create account in development.
-              </p>
-            ) : null}
             {process.env.NODE_ENV !== "production" ? (
               <button
                 type="button"

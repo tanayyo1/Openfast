@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 
-export async function POST(_req: Request, ctx: { params: { id: string } }) {
+export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
   let session;
   try {
     session = await requireWorkspaceSession();
@@ -13,30 +13,20 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
   }
 
   const id = ctx.params.id;
-  const draft = await prisma.draft.findFirst({
+  const existing = await prisma.redditAccount.findFirst({
     where: { id, workspaceId: session.workspaceId },
-    select: { id: true, status: true },
+    select: { id: true },
   });
 
-  if (!draft) {
+  if (!existing) {
     return NextResponse.json(
       { error: "Not found", code: "NOT_FOUND" },
       { status: 404 },
     );
   }
 
-  if (draft.status !== "DRAFT" && draft.status !== "REJECTED") {
-    return NextResponse.json(
-      { error: "Draft cannot be submitted for review", code: "INVALID_STATE" },
-      { status: 409 },
-    );
-  }
+  // MVP: delete the connection. (Tokens are encrypted, but removal is simplest.)
+  await prisma.redditAccount.delete({ where: { id } });
 
-  const updated = await prisma.draft.update({
-    where: { id },
-    data: { status: "REVIEWING" },
-    select: { id: true, status: true, updatedAt: true },
-  });
-
-  return NextResponse.json({ draft: updated });
+  return NextResponse.json({ ok: true });
 }

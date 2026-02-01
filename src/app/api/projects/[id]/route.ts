@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server'
-import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
-import { requireWorkspaceSession } from '@/lib/server/auth-guards'
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 
 const updateProjectSchema = z.object({
   name: z.string().min(1).max(120).optional(),
@@ -11,20 +11,20 @@ const updateProjectSchema = z.object({
   goals: z.unknown().optional(),
   brandVoice: z.unknown().optional(),
   constraints: z.unknown().optional().nullable(),
-  status: z.enum(['ACTIVE', 'PAUSED', 'ARCHIVED']).optional(),
-})
+  status: z.enum(["ACTIVE", "PAUSED", "ARCHIVED"]).optional(),
+});
 
 export async function GET(_req: Request, ctx: { params: { id: string } }) {
-  let session
+  let session;
   try {
-    session = await requireWorkspaceSession()
+    session = await requireWorkspaceSession();
   } catch (err) {
-    const code = err instanceof Error ? err.message : 'UNAUTHORIZED'
-    const status = code === 'WORKSPACE_REQUIRED' ? 400 : 401
-    return NextResponse.json({ error: 'Unauthorized', code }, { status })
+    const code = err instanceof Error ? err.message : "UNAUTHORIZED";
+    const status = code === "WORKSPACE_REQUIRED" ? 400 : 401;
+    return NextResponse.json({ error: "Unauthorized", code }, { status });
   }
 
-  const id = ctx.params.id
+  const id = ctx.params.id;
   const project = await prisma.project.findFirst({
     where: { id, workspaceId: session.workspaceId },
     select: {
@@ -40,48 +40,61 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
       createdAt: true,
       updatedAt: true,
     },
-  })
+  });
 
   if (!project) {
-    return NextResponse.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 })
+    return NextResponse.json(
+      { error: "Not found", code: "NOT_FOUND" },
+      { status: 404 },
+    );
   }
 
-  return NextResponse.json({ project })
+  return NextResponse.json({ project });
 }
 
 export async function PATCH(req: Request, ctx: { params: { id: string } }) {
-  let session
+  let session;
   try {
-    session = await requireWorkspaceSession()
+    session = await requireWorkspaceSession();
   } catch (err) {
-    const code = err instanceof Error ? err.message : 'UNAUTHORIZED'
-    const status = code === 'WORKSPACE_REQUIRED' ? 400 : 401
-    return NextResponse.json({ error: 'Unauthorized', code }, { status })
+    const code = err instanceof Error ? err.message : "UNAUTHORIZED";
+    const status = code === "WORKSPACE_REQUIRED" ? 400 : 401;
+    return NextResponse.json({ error: "Unauthorized", code }, { status });
   }
 
-  let json: unknown
+  let json: unknown;
   try {
-    json = await req.json()
+    json = await req.json();
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body', code: 'BAD_JSON' }, { status: 400 })
+    return NextResponse.json(
+      { error: "Invalid JSON body", code: "BAD_JSON" },
+      { status: 400 },
+    );
   }
 
-  const parsed = updateProjectSchema.safeParse(json)
+  const parsed = updateProjectSchema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Invalid input', code: 'VALIDATION_ERROR', details: parsed.error.flatten() },
+      {
+        error: "Invalid input",
+        code: "VALIDATION_ERROR",
+        details: parsed.error.flatten(),
+      },
       { status: 400 },
-    )
+    );
   }
 
-  const id = ctx.params.id
+  const id = ctx.params.id;
   const existing = await prisma.project.findFirst({
     where: { id, workspaceId: session.workspaceId },
     select: { id: true },
-  })
+  });
 
   if (!existing) {
-    return NextResponse.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 })
+    return NextResponse.json(
+      { error: "Not found", code: "NOT_FOUND" },
+      { status: 404 },
+    );
   }
 
   const updated = await prisma.project.update({
@@ -100,37 +113,39 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
       createdAt: true,
       updatedAt: true,
     },
-  })
+  });
 
-  return NextResponse.json({ project: updated })
+  return NextResponse.json({ project: updated });
 }
 
 export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
-  let session
+  let session;
   try {
-    session = await requireWorkspaceSession()
+    session = await requireWorkspaceSession();
   } catch (err) {
-    const code = err instanceof Error ? err.message : 'UNAUTHORIZED'
-    const status = code === 'WORKSPACE_REQUIRED' ? 400 : 401
-    return NextResponse.json({ error: 'Unauthorized', code }, { status })
+    const code = err instanceof Error ? err.message : "UNAUTHORIZED";
+    const status = code === "WORKSPACE_REQUIRED" ? 400 : 401;
+    return NextResponse.json({ error: "Unauthorized", code }, { status });
   }
 
-  const id = ctx.params.id
+  const id = ctx.params.id;
   const existing = await prisma.project.findFirst({
     where: { id, workspaceId: session.workspaceId },
     select: { id: true },
-  })
+  });
 
   if (!existing) {
-    return NextResponse.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 })
+    return NextResponse.json(
+      { error: "Not found", code: "NOT_FOUND" },
+      { status: 404 },
+    );
   }
 
   await prisma.project.update({
     where: { id },
-    data: { status: 'ARCHIVED' },
+    data: { status: "ARCHIVED" },
     select: { id: true },
-  })
+  });
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true });
 }
-

@@ -1,20 +1,22 @@
-import { NextResponse } from 'next/server'
-import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
-import { requireWorkspaceSession } from '@/lib/server/auth-guards'
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 
 const listQuerySchema = z.object({
   projectId: z.string().optional(),
   taskId: z.string().optional(),
-  status: z.enum(['DRAFT', 'REVIEWING', 'APPROVED', 'REJECTED', 'ARCHIVED']).optional(),
+  status: z
+    .enum(["DRAFT", "REVIEWING", "APPROVED", "REJECTED", "ARCHIVED"])
+    .optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
-})
+});
 
 const createDraftSchema = z.object({
   projectId: z.string().min(1),
   taskId: z.string().min(1).optional(),
   subredditId: z.string().min(1).optional(),
-  type: z.enum(['POST', 'COMMENT']),
+  type: z.enum(["POST", "COMMENT"]),
   title: z.string().min(1).max(300).optional().nullable(),
   body: z.string().min(1).max(50_000),
   mediaUrls: z.array(z.string().url()).optional().default([]),
@@ -28,34 +30,38 @@ const createDraftSchema = z.object({
     )
     .optional(),
   generationParams: z.unknown().optional(),
-})
+});
 
 export async function GET(req: Request) {
-  let session
+  let session;
   try {
-    session = await requireWorkspaceSession()
+    session = await requireWorkspaceSession();
   } catch (err) {
-    const code = err instanceof Error ? err.message : 'UNAUTHORIZED'
-    const status = code === 'WORKSPACE_REQUIRED' ? 400 : 401
-    return NextResponse.json({ error: 'Unauthorized', code }, { status })
+    const code = err instanceof Error ? err.message : "UNAUTHORIZED";
+    const status = code === "WORKSPACE_REQUIRED" ? 400 : 401;
+    return NextResponse.json({ error: "Unauthorized", code }, { status });
   }
 
-  const { searchParams } = new URL(req.url)
+  const { searchParams } = new URL(req.url);
   const parsed = listQuerySchema.safeParse({
-    projectId: searchParams.get('projectId') ?? undefined,
-    taskId: searchParams.get('taskId') ?? undefined,
-    status: searchParams.get('status') ?? undefined,
-    limit: searchParams.get('limit') ?? undefined,
-  })
+    projectId: searchParams.get("projectId") ?? undefined,
+    taskId: searchParams.get("taskId") ?? undefined,
+    status: searchParams.get("status") ?? undefined,
+    limit: searchParams.get("limit") ?? undefined,
+  });
 
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Invalid query params', code: 'VALIDATION_ERROR', details: parsed.error.flatten() },
+      {
+        error: "Invalid query params",
+        code: "VALIDATION_ERROR",
+        details: parsed.error.flatten(),
+      },
       { status: 400 },
-    )
+    );
   }
 
-  const { projectId, taskId, status, limit } = parsed.data
+  const { projectId, taskId, status, limit } = parsed.data;
 
   const drafts = await prisma.draft.findMany({
     where: {
@@ -64,7 +70,7 @@ export async function GET(req: Request) {
       ...(taskId ? { taskId } : {}),
       ...(status ? { status } : {}),
     },
-    orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     take: limit,
     select: {
       id: true,
@@ -83,53 +89,70 @@ export async function GET(req: Request) {
       approvedAt: true,
       approvedBy: true,
     },
-  })
+  });
 
-  return NextResponse.json({ items: drafts })
+  return NextResponse.json({ items: drafts });
 }
 
 export async function POST(req: Request) {
-  let session
+  let session;
   try {
-    session = await requireWorkspaceSession()
+    session = await requireWorkspaceSession();
   } catch (err) {
-    const code = err instanceof Error ? err.message : 'UNAUTHORIZED'
-    const status = code === 'WORKSPACE_REQUIRED' ? 400 : 401
-    return NextResponse.json({ error: 'Unauthorized', code }, { status })
+    const code = err instanceof Error ? err.message : "UNAUTHORIZED";
+    const status = code === "WORKSPACE_REQUIRED" ? 400 : 401;
+    return NextResponse.json({ error: "Unauthorized", code }, { status });
   }
 
-  let json: unknown
+  let json: unknown;
   try {
-    json = await req.json()
+    json = await req.json();
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body', code: 'BAD_JSON' }, { status: 400 })
+    return NextResponse.json(
+      { error: "Invalid JSON body", code: "BAD_JSON" },
+      { status: 400 },
+    );
   }
 
-  const parsed = createDraftSchema.safeParse(json)
+  const parsed = createDraftSchema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Invalid input', code: 'VALIDATION_ERROR', details: parsed.error.flatten() },
+      {
+        error: "Invalid input",
+        code: "VALIDATION_ERROR",
+        details: parsed.error.flatten(),
+      },
       { status: 400 },
-    )
+    );
   }
 
-  const data = parsed.data
+  const data = parsed.data;
 
   const project = await prisma.project.findFirst({
-    where: { id: data.projectId, workspaceId: session.workspaceId, status: { not: 'ARCHIVED' } },
+    where: {
+      id: data.projectId,
+      workspaceId: session.workspaceId,
+      status: { not: "ARCHIVED" },
+    },
     select: { id: true },
-  })
+  });
   if (!project) {
-    return NextResponse.json({ error: 'Project not found', code: 'PROJECT_NOT_FOUND' }, { status: 404 })
+    return NextResponse.json(
+      { error: "Project not found", code: "PROJECT_NOT_FOUND" },
+      { status: 404 },
+    );
   }
 
   if (data.taskId) {
     const task = await prisma.roadmapTask.findFirst({
       where: { id: data.taskId, workspaceId: session.workspaceId },
       select: { id: true },
-    })
+    });
     if (!task) {
-      return NextResponse.json({ error: 'Task not found', code: 'TASK_NOT_FOUND' }, { status: 404 })
+      return NextResponse.json(
+        { error: "Task not found", code: "TASK_NOT_FOUND" },
+        { status: 404 },
+      );
     }
   }
 
@@ -145,7 +168,7 @@ export async function POST(req: Request) {
       mediaUrls: data.mediaUrls,
       variants: data.variants ?? null,
       generationParams: data.generationParams ?? null,
-      status: 'DRAFT',
+      status: "DRAFT",
       riskScore: 0,
       riskReasons: [],
       suggestedFixes: null,
@@ -162,8 +185,7 @@ export async function POST(req: Request) {
       createdAt: true,
       updatedAt: true,
     },
-  })
+  });
 
-  return NextResponse.json({ draft: created }, { status: 201 })
+  return NextResponse.json({ draft: created }, { status: 201 });
 }
-

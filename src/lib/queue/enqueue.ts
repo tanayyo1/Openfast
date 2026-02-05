@@ -16,9 +16,13 @@ export async function enqueuePublishJob(
 ) {
   const queue = getPublishQueue();
 
+  // Default to deterministic IDs for idempotency; callers can override via
+  // opts.jobId if they intentionally want multiple jobs per scheduled post.
+  const jobId = opts.jobId ?? publishJobId(data.scheduledPostId);
+
   return queue.add("publish", data, {
-    jobId: publishJobId(data.scheduledPostId),
     ...opts,
+    jobId,
   });
 }
 
@@ -28,8 +32,10 @@ export async function enqueueMetricsFetchJob(
 ) {
   const queue = getMetricsFetchQueue();
 
+  const jobId = opts.jobId ?? metricsFetchJobId(data.publishedItemId);
+
   return queue.add("metrics_fetch", data, {
-    jobId: metricsFetchJobId(data.publishedItemId),
     ...opts,
+    jobId,
   });
 }

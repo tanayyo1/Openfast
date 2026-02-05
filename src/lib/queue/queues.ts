@@ -14,7 +14,11 @@ function createQueue(name: string) {
       // Keep retries conservative; callers may override.
       attempts: 5,
       backoff: { type: "exponential", delay: 5_000 },
+      // Avoid unbounded Redis growth in queue metadata. These defaults are a
+      // debugging-oriented compromise and can be overridden per job.
       removeOnComplete: { count: 1_000 },
+      // We keep a larger window of failed jobs for quick inspection even
+      // though terminal failures are also forwarded to the DLQ.
       removeOnFail: { count: 10_000 },
     },
   });

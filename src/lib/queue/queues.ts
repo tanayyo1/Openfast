@@ -4,6 +4,8 @@ import { QUEUE_NAMES } from "./constants";
 
 let publishQueue: Queue | null = null;
 let metricsFetchQueue: Queue | null = null;
+let subredditIngestQueue: Queue | null = null;
+let subredditComputeTimeWindowsQueue: Queue | null = null;
 let deadLetterQueue: Queue | null = null;
 
 function createQueue(name: string) {
@@ -33,6 +35,21 @@ export function getMetricsFetchQueue() {
   if (!metricsFetchQueue)
     metricsFetchQueue = createQueue(QUEUE_NAMES.REDDIT_METRICS_FETCH);
   return metricsFetchQueue;
+}
+
+export function getSubredditIngestQueue() {
+  if (!subredditIngestQueue)
+    subredditIngestQueue = createQueue(QUEUE_NAMES.SUBREDDIT_INGEST);
+  return subredditIngestQueue;
+}
+
+export function getSubredditComputeTimeWindowsQueue() {
+  if (!subredditComputeTimeWindowsQueue) {
+    subredditComputeTimeWindowsQueue = createQueue(
+      QUEUE_NAMES.SUBREDDIT_COMPUTE_TIME_WINDOWS,
+    );
+  }
+  return subredditComputeTimeWindowsQueue;
 }
 
 export function getDeadLetterQueue() {

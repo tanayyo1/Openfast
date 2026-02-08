@@ -1,6 +1,16 @@
 import type { JobsOptions } from "bullmq";
-import { getMetricsFetchQueue, getPublishQueue } from "./queues";
-import { metricsFetchJobId, publishJobId } from "./jobIds";
+import {
+  getMetricsFetchQueue,
+  getPublishQueue,
+  getSubredditComputeTimeWindowsQueue,
+  getSubredditIngestQueue,
+} from "./queues";
+import {
+  metricsFetchJobId,
+  publishJobId,
+  subredditComputeTimeWindowsJobId,
+  subredditIngestJobId,
+} from "./jobIds";
 
 export type PublishJobData = {
   scheduledPostId: string;
@@ -8,6 +18,14 @@ export type PublishJobData = {
 
 export type MetricsFetchJobData = {
   publishedItemId: string;
+};
+
+export type SubredditIngestJobData = {
+  subredditName: string;
+};
+
+export type SubredditComputeTimeWindowsJobData = {
+  subredditId: string;
 };
 
 export async function enqueuePublishJob(
@@ -35,6 +53,33 @@ export async function enqueueMetricsFetchJob(
   const jobId = opts.jobId ?? metricsFetchJobId(data.publishedItemId);
 
   return queue.add("metrics_fetch", data, {
+    ...opts,
+    jobId,
+  });
+}
+
+export async function enqueueSubredditIngestJob(
+  data: SubredditIngestJobData,
+  opts: JobsOptions = {},
+) {
+  const queue = getSubredditIngestQueue();
+  const jobId = opts.jobId ?? subredditIngestJobId(data.subredditName);
+
+  return queue.add("subreddit_ingest", data, {
+    ...opts,
+    jobId,
+  });
+}
+
+export async function enqueueSubredditComputeTimeWindowsJob(
+  data: SubredditComputeTimeWindowsJobData,
+  opts: JobsOptions = {},
+) {
+  const queue = getSubredditComputeTimeWindowsQueue();
+  const jobId =
+    opts.jobId ?? subredditComputeTimeWindowsJobId(data.subredditId);
+
+  return queue.add("subreddit_compute_time_windows", data, {
     ...opts,
     jobId,
   });

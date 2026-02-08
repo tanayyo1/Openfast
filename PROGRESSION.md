@@ -35,7 +35,7 @@
 
 ### Queue + Worker Baseline
 
-- [x] Queues present: `reddit.publish`, `reddit.metrics_fetch`, `dead.letter`.
+- [x] Queues present: `reddit.publish`, `reddit.metrics_fetch`, `subreddit.ingest`, `subreddit.compute_time_windows`, `dead.letter`.
 - [x] Deterministic job IDs for idempotency.
 - [x] Worker process bootstrapping + DLQ forwarding for failed jobs.
 - [x] Unit tests for queue helpers and worker stubs.

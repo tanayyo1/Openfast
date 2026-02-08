@@ -4,6 +4,8 @@ import { QUEUE_NAMES } from "@/lib/queue/constants";
 import { getDeadLetterQueue } from "@/lib/queue/queues";
 import { processPublishJob } from "./publish.worker";
 import { processMetricsFetchJob } from "./metrics.worker";
+import { processSubredditIngestJob } from "./subredditIngest.worker";
+import { processSubredditComputeTimeWindowsJob } from "./subredditTimeWindows.worker";
 
 function parseWorkerConcurrency(envName: string, fallback: number) {
   const raw = process.env[envName];
@@ -23,6 +25,14 @@ async function start() {
     "METRICS_WORKER_CONCURRENCY",
     2,
   );
+  const subredditIngestConcurrency = parseWorkerConcurrency(
+    "SUBREDDIT_INGEST_WORKER_CONCURRENCY",
+    2,
+  );
+  const subredditWindowsConcurrency = parseWorkerConcurrency(
+    "SUBREDDIT_WINDOWS_WORKER_CONCURRENCY",
+    2,
+  );
 
   const publishWorker = new Worker(
     QUEUE_NAMES.REDDIT_PUBLISH,
@@ -39,6 +49,24 @@ async function start() {
     {
       connection,
       concurrency: metricsConcurrency,
+    },
+  );
+
+  const subredditIngestWorker = new Worker(
+    QUEUE_NAMES.SUBREDDIT_INGEST,
+    processSubredditIngestJob,
+    {
+      connection,
+      concurrency: subredditIngestConcurrency,
+    },
+  );
+
+  const subredditWindowsWorker = new Worker(
+    QUEUE_NAMES.SUBREDDIT_COMPUTE_TIME_WINDOWS,
+    processSubredditComputeTimeWindowsJob,
+    {
+      connection,
+      concurrency: subredditWindowsConcurrency,
     },
   );
 
@@ -90,6 +118,36 @@ async function start() {
     );
   });
 
+  subredditIngestWorker.on("failed", (job, err) => {
+    if (!job) return;
+    if (!job.id) {
+      console.warn(
+        "Failed job missing id; skipping DLQ forward for queue:",
+        QUEUE_NAMES.SUBREDDIT_INGEST,
+      );
+      return;
+    }
+    forwardToDlq(QUEUE_NAMES.SUBREDDIT_INGEST, job.id, err.message).catch(
+      (dlqErr) => console.error("DLQ forward failed:", dlqErr),
+    );
+  });
+
+  subredditWindowsWorker.on("failed", (job, err) => {
+    if (!job) return;
+    if (!job.id) {
+      console.warn(
+        "Failed job missing id; skipping DLQ forward for queue:",
+        QUEUE_NAMES.SUBREDDIT_COMPUTE_TIME_WINDOWS,
+      );
+      return;
+    }
+    forwardToDlq(
+      QUEUE_NAMES.SUBREDDIT_COMPUTE_TIME_WINDOWS,
+      job.id,
+      err.message,
+    ).catch((dlqErr) => console.error("DLQ forward failed:", dlqErr));
+  });
+
   let shuttingDown = false;
   const shutdown = async (signal: string) => {
     if (shuttingDown) return;
@@ -99,6 +157,8 @@ async function start() {
     await Promise.allSettled([
       publishWorker.close(),
       metricsWorker.close(),
+      subredditIngestWorker.close(),
+      subredditWindowsWorker.close(),
       dlq.close(),
     ]);
   };
@@ -118,6 +178,8 @@ async function start() {
   await Promise.all([
     publishWorker.waitUntilReady(),
     metricsWorker.waitUntilReady(),
+    subredditIngestWorker.waitUntilReady(),
+    subredditWindowsWorker.waitUntilReady(),
   ]);
 }
 

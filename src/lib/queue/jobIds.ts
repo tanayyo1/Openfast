@@ -5,3 +5,11 @@ export function publishJobId(scheduledPostId: string) {
 export function metricsFetchJobId(publishedItemId: string) {
   return `metrics_fetch:${publishedItemId}`;
 }
+
+export function subredditIngestJobId(subredditName: string) {
+  return `subreddit_ingest:${subredditName.toLowerCase()}`;
+}
+
+export function subredditComputeTimeWindowsJobId(subredditId: string) {
+  return `subreddit_windows:${subredditId}`;
+}

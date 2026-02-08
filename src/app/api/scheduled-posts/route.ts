@@ -1,0 +1,367 @@
+import { createHash } from "crypto";
+import { Prisma } from "@prisma/client";
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { enqueuePublishJob } from "@/lib/queue/enqueue";
+import { prisma } from "@/lib/prisma";
+import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+
+const listQuerySchema = z.object({
+  projectId: z.string().optional(),
+  redditAccountId: z.string().optional(),
+  status: z
+    .enum([
+      "SCHEDULED",
+      "PENDING_APPROVAL",
+      "PUBLISHING",
+      "PUBLISHED",
+      "FAILED_RETRYABLE",
+      "FAILED_PERMANENT",
+      "CANCELLED",
+    ])
+    .optional(),
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+const createScheduledPostSchema = z.object({
+  draftId: z.string().min(1),
+  redditAccountId: z.string().min(1),
+  subredditId: z.string().min(1).optional(),
+  scheduledAt: z.string().datetime(),
+  timezone: z.string().min(1).max(100).default("UTC"),
+  idempotencyKey: z.string().min(16).max(128).optional(),
+});
+
+function authError(err: unknown) {
+  const code = err instanceof Error ? err.message : "UNAUTHORIZED";
+  const status = code === "WORKSPACE_REQUIRED" ? 400 : 401;
+  return NextResponse.json({ error: "Unauthorized", code }, { status });
+}
+
+function isUniqueViolationFor(
+  err: unknown,
+  field: "idempotencyKey" | "draftId",
+) {
+  if (!(err instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  if (err.code !== "P2002") return false;
+  const target = (err.meta?.target as string[] | undefined) ?? [];
+  return target.includes(field);
+}
+
+function defaultIdempotencyKey(input: {
+  workspaceId: string;
+  draftId: string;
+  redditAccountId: string;
+  subredditId: string;
+  scheduledAtIso: string;
+  timezone: string;
+}) {
+  const raw = [
+    input.workspaceId,
+    input.draftId,
+    input.redditAccountId,
+    input.subredditId,
+    input.scheduledAtIso,
+    input.timezone,
+  ].join("|");
+  return `sched_${createHash("sha256").update(raw).digest("hex").slice(0, 40)}`;
+}
+
+export async function GET(req: Request) {
+  let session;
+  try {
+    session = await requireWorkspaceSession();
+  } catch (err) {
+    return authError(err);
+  }
+
+  const { searchParams } = new URL(req.url);
+  const parsed = listQuerySchema.safeParse({
+    projectId: searchParams.get("projectId") ?? undefined,
+    redditAccountId: searchParams.get("redditAccountId") ?? undefined,
+    status: searchParams.get("status") ?? undefined,
+    from: searchParams.get("from") ?? undefined,
+    to: searchParams.get("to") ?? undefined,
+    limit: searchParams.get("limit") ?? undefined,
+  });
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: "Invalid query params",
+        code: "VALIDATION_ERROR",
+        details: parsed.error.flatten(),
+      },
+      { status: 400 },
+    );
+  }
+
+  const { projectId, redditAccountId, status, from, to, limit } = parsed.data;
+  const items = await prisma.scheduledPost.findMany({
+    where: {
+      workspaceId: session.workspaceId,
+      ...(projectId ? { draft: { projectId } } : {}),
+      ...(redditAccountId ? { redditAccountId } : {}),
+      ...(status ? { status } : {}),
+      ...(from || to
+        ? {
+            scheduledAt: {
+              ...(from ? { gte: new Date(from) } : {}),
+              ...(to ? { lte: new Date(to) } : {}),
+            },
+          }
+        : {}),
+    },
+    orderBy: [{ scheduledAt: "asc" }, { id: "asc" }],
+    take: limit,
+    select: {
+      id: true,
+      draftId: true,
+      redditAccountId: true,
+      subredditId: true,
+      scheduledAt: true,
+      timezone: true,
+      status: true,
+      attempts: true,
+      lastError: true,
+      idempotencyKey: true,
+      publishedAt: true,
+      publishedItemId: true,
+      createdAt: true,
+      updatedAt: true,
+      draft: {
+        select: {
+          id: true,
+          projectId: true,
+          type: true,
+          title: true,
+          status: true,
+        },
+      },
+      redditAccount: {
+        select: {
+          id: true,
+          redditUsername: true,
+          safetyTier: true,
+          isActive: true,
+        },
+      },
+      subreddit: {
+        select: { id: true, name: true, title: true },
+      },
+    },
+  });
+
+  return NextResponse.json({ items });
+}
+
+export async function POST(req: Request) {
+  let session;
+  try {
+    session = await requireWorkspaceSession();
+  } catch (err) {
+    return authError(err);
+  }
+
+  let json: unknown;
+  try {
+    json = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body", code: "BAD_JSON" },
+      { status: 400 },
+    );
+  }
+
+  const parsed = createScheduledPostSchema.safeParse(json);
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: "Invalid input",
+        code: "VALIDATION_ERROR",
+        details: parsed.error.flatten(),
+      },
+      { status: 400 },
+    );
+  }
+
+  const data = parsed.data;
+  const draft = await prisma.draft.findFirst({
+    where: { id: data.draftId, workspaceId: session.workspaceId },
+    select: { id: true, status: true, subredditId: true },
+  });
+  if (!draft) {
+    return NextResponse.json(
+      { error: "Draft not found", code: "DRAFT_NOT_FOUND" },
+      { status: 404 },
+    );
+  }
+  if (draft.status !== "APPROVED") {
+    return NextResponse.json(
+      {
+        error: "Only approved drafts can be scheduled",
+        code: "INVALID_STATE",
+      },
+      { status: 409 },
+    );
+  }
+
+  const redditAccount = await prisma.redditAccount.findFirst({
+    where: {
+      id: data.redditAccountId,
+      workspaceId: session.workspaceId,
+      isActive: true,
+    },
+    select: { id: true },
+  });
+  if (!redditAccount) {
+    return NextResponse.json(
+      { error: "Reddit account not found", code: "REDDIT_ACCOUNT_NOT_FOUND" },
+      { status: 404 },
+    );
+  }
+
+  const subredditId = data.subredditId ?? draft.subredditId;
+  if (!subredditId) {
+    return NextResponse.json(
+      {
+        error: "Subreddit is required for scheduling",
+        code: "SUBREDDIT_REQUIRED",
+      },
+      { status: 400 },
+    );
+  }
+  const subreddit = await prisma.subredditCatalog.findUnique({
+    where: { id: subredditId },
+    select: { id: true },
+  });
+  if (!subreddit) {
+    return NextResponse.json(
+      { error: "Subreddit not found", code: "SUBREDDIT_NOT_FOUND" },
+      { status: 404 },
+    );
+  }
+
+  const scheduledAt = new Date(data.scheduledAt);
+  if (Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date()) {
+    return NextResponse.json(
+      {
+        error: "scheduledAt must be in the future",
+        code: "INVALID_SCHEDULED_AT",
+      },
+      { status: 400 },
+    );
+  }
+
+  const idempotencyKey =
+    data.idempotencyKey ??
+    defaultIdempotencyKey({
+      workspaceId: session.workspaceId,
+      draftId: data.draftId,
+      redditAccountId: data.redditAccountId,
+      subredditId,
+      scheduledAtIso: scheduledAt.toISOString(),
+      timezone: data.timezone,
+    });
+
+  let created: {
+    id: string;
+    draftId: string;
+    redditAccountId: string;
+    subredditId: string;
+    scheduledAt: Date;
+    timezone: string;
+    status: string;
+    attempts: number;
+    lastError: string | null;
+    idempotencyKey: string;
+    publishedAt: Date | null;
+    publishedItemId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null = null;
+
+  try {
+    created = await prisma.scheduledPost.create({
+      data: {
+        workspaceId: session.workspaceId,
+        draftId: data.draftId,
+        redditAccountId: data.redditAccountId,
+        subredditId,
+        scheduledAt,
+        timezone: data.timezone,
+        status: "SCHEDULED",
+        idempotencyKey,
+      },
+      select: {
+        id: true,
+        draftId: true,
+        redditAccountId: true,
+        subredditId: true,
+        scheduledAt: true,
+        timezone: true,
+        status: true,
+        attempts: true,
+        lastError: true,
+        idempotencyKey: true,
+        publishedAt: true,
+        publishedItemId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  } catch (err) {
+    if (isUniqueViolationFor(err, "idempotencyKey")) {
+      const existing = await prisma.scheduledPost.findFirst({
+        where: { workspaceId: session.workspaceId, idempotencyKey },
+      });
+      if (existing) {
+        return NextResponse.json({
+          scheduledPost: existing,
+          idempotent: true,
+        });
+      }
+    }
+    if (isUniqueViolationFor(err, "draftId")) {
+      return NextResponse.json(
+        { error: "Draft is already scheduled", code: "ALREADY_SCHEDULED" },
+        { status: 409 },
+      );
+    }
+    throw err;
+  }
+
+  if (!created) {
+    return NextResponse.json(
+      { error: "Failed to schedule post", code: "INTERNAL_ERROR" },
+      { status: 500 },
+    );
+  }
+
+  const delayMs = Math.max(0, scheduledAt.getTime() - Date.now());
+  try {
+    const job = await enqueuePublishJob(
+      { scheduledPostId: created.id },
+      { delay: delayMs },
+    );
+    return NextResponse.json(
+      { scheduledPost: created, queue: { id: job.id, delayMs } },
+      { status: 201 },
+    );
+  } catch (err) {
+    await prisma.scheduledPost.update({
+      where: { id: created.id },
+      data: {
+        status: "FAILED_RETRYABLE",
+        lastError:
+          err instanceof Error ? `QUEUE_ENQUEUE_FAILED:${err.message}` : null,
+      },
+    });
+    return NextResponse.json(
+      { error: "Unable to enqueue publish job", code: "QUEUE_UNAVAILABLE" },
+      { status: 503 },
+    );
+  }
+}

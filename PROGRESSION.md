@@ -67,12 +67,12 @@
 
 ## P0 - Must Build Next (Core MVP Execution Path)
 
-- [ ] Implement scheduling APIs (`/api/scheduled-posts` create/list/cancel/delete).
-- [ ] Enforce “approved draft only” when scheduling posts.
-- [ ] Persist scheduled jobs with strong idempotency keys.
-- [ ] Implement real `reddit.publish` worker (preflight checks, Reddit submit, `published_items` write, scheduled status/error updates).
-- [ ] Implement real `reddit.metrics_fetch` worker (score/comments/upvote-ratio fetch, snapshot writes, removal signal updates).
-- [ ] Implement analytics APIs: `/api/analytics/projects/:id`, `/api/analytics/accounts/:id`, `/api/analytics/dashboard`.
+- [x] Implement scheduling APIs (`/api/scheduled-posts` create/list/cancel/delete).
+- [x] Enforce “approved draft only” when scheduling posts.
+- [x] Persist scheduled jobs with strong idempotency keys.
+- [x] Implement real `reddit.publish` worker (preflight checks, Reddit submit, `published_items` write, scheduled status/error updates).
+- [x] Implement real `reddit.metrics_fetch` worker (score/comments/upvote-ratio fetch, snapshot writes, removal signal updates).
+- [x] Implement analytics APIs: `/api/analytics/projects/:id`, `/api/analytics/accounts/:id`, `/api/analytics/dashboard`.
 
 ## P1 - Recommendations + Intel (Required by Report Flows)
 
@@ -126,8 +126,8 @@
 
 ## P8 - Test Coverage to Support MVP Confidence
 
-- [ ] Integration tests for scheduled-post APIs and publish lifecycle.
-- [ ] Integration tests for analytics endpoints.
+- [x] Integration tests for scheduled-post APIs and publish lifecycle.
+- [x] Integration tests for analytics endpoints.
 - [ ] Integration tests for recommendations + content generation flow.
 - [ ] Worker tests for retry behavior and failure classification.
 - [ ] E2E smoke flow: signup/login -> create project -> connect Reddit -> generate roadmap -> generate draft -> approve -> schedule -> publish -> view analytics.

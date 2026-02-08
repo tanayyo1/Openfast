@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ==================== USER & WORKSPACE ====================
@@ -43,17 +43,18 @@ model Workspace {
   updatedAt DateTime        @updatedAt @map("updated_at")
 
   // Relations
-  owner          User                  @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members        WorkspaceMember[]
-  subscription   Subscription?
-  projects       Project[]
-  redditAccounts RedditAccount[]
-  entitlements   WorkspaceEntitlement?
-  Roadmap        Roadmap[]
-  RoadmapTask    RoadmapTask[]
-  Draft          Draft[]
-  ScheduledPost  ScheduledPost[]
-  PublishedItem  PublishedItem[]
+  owner                    User                      @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members                  WorkspaceMember[]
+  subscription             Subscription?
+  projects                 Project[]
+  redditAccounts           RedditAccount[]
+  entitlements             WorkspaceEntitlement?
+  Roadmap                  Roadmap[]
+  RoadmapTask              RoadmapTask[]
+  Draft                    Draft[]
+  ScheduledPost            ScheduledPost[]
+  PublishedItem            PublishedItem[]
+  subredditRecommendations SubredditRecommendation[]
 
   @@map("workspaces")
 }
@@ -172,11 +173,12 @@ model Project {
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
   // Relations
-  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  roadmaps    Roadmap[]
-  clickLinks  ClickLink[]
-  conversions Conversion[]
-  Draft       Draft[]
+  workspace       Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  roadmaps        Roadmap[]
+  clickLinks      ClickLink[]
+  conversions     Conversion[]
+  Draft           Draft[]
+  recommendations SubredditRecommendation[]
 
   @@index([workspaceId])
   @@map("projects")
@@ -210,8 +212,8 @@ model RedditAccount {
   scheduledPosts ScheduledPost[]
   publishedItems PublishedItem[]
 
-  @@index([workspaceId])
   @@unique([workspaceId, redditUsername])
+  @@index([workspaceId])
   @@map("reddit_accounts")
 }
 
@@ -244,10 +246,12 @@ model SubredditCatalog {
   rules            SubredditRule[]
   policy           SubredditPolicy?
   timeSlots        SubredditTimeSlot[]
+  dailyStats       SubredditStatsDaily[]
   tasks            RoadmapTask[]
   scheduledPosts   ScheduledPost[]
   publishedItems   PublishedItem[]
   threadCandidates ThreadCandidate[]
+  recommendations  SubredditRecommendation[]
 
   @@map("subreddit_catalog")
 }
@@ -311,6 +315,48 @@ model SubredditTimeSlot {
 
   @@unique([subredditId, dayOfWeek, hourUtc])
   @@map("subreddit_time_slots")
+}
+
+model SubredditStatsDaily {
+  id          String   @id @default(cuid())
+  subredditId String   @map("subreddit_id")
+  day         DateTime @db.Date
+  postsCount  Int      @default(0) @map("posts_count")
+  avgScore    Float    @default(0) @map("avg_score")
+  avgComments Float    @default(0) @map("avg_comments")
+  removalRate Float    @default(0) @map("removal_rate")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  subreddit SubredditCatalog @relation(fields: [subredditId], references: [id], onDelete: Cascade)
+
+  @@unique([subredditId, day])
+  @@index([day])
+  @@map("subreddit_stats_daily")
+}
+
+model SubredditRecommendation {
+  id          String    @id @default(cuid())
+  workspaceId String    @map("workspace_id")
+  projectId   String    @map("project_id")
+  subredditId String    @map("subreddit_id")
+  fitScore    Float     @map("fit_score")
+  riskScore   Float     @map("risk_score")
+  timeScore   Float     @default(0) @map("time_score")
+  totalScore  Float     @map("total_score")
+  reasons     Json
+  selected    Boolean   @default(false)
+  selectedAt  DateTime? @map("selected_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  subreddit SubredditCatalog @relation(fields: [subredditId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, subredditId])
+  @@index([workspaceId, projectId, selected])
+  @@index([projectId, totalScore])
+  @@map("subreddit_recommendations")
 }
 
 // ==================== ROADMAPS & TASKS ====================

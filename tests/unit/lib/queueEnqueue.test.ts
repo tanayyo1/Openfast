@@ -1,18 +1,31 @@
 jest.mock("@/lib/queue/queues", () => ({
   getPublishQueue: jest.fn(),
   getMetricsFetchQueue: jest.fn(),
+  getSubredditIngestQueue: jest.fn(),
+  getSubredditComputeTimeWindowsQueue: jest.fn(),
 }));
 
 jest.mock("@/lib/queue/jobIds", () => ({
   publishJobId: jest.fn((id: string) => `publish:${id}`),
   metricsFetchJobId: jest.fn((id: string) => `metrics:${id}`),
+  subredditIngestJobId: jest.fn((name: string) => `subreddit_ingest:${name}`),
+  subredditComputeTimeWindowsJobId: jest.fn(
+    (id: string) => `subreddit_windows:${id}`,
+  ),
 }));
 
-import { enqueueMetricsFetchJob, enqueuePublishJob } from "@/lib/queue/enqueue";
+import {
+  enqueueMetricsFetchJob,
+  enqueuePublishJob,
+  enqueueSubredditComputeTimeWindowsJob,
+  enqueueSubredditIngestJob,
+} from "@/lib/queue/enqueue";
 
 const mockedQueues = jest.requireMock("@/lib/queue/queues") as {
   getPublishQueue: jest.Mock;
   getMetricsFetchQueue: jest.Mock;
+  getSubredditIngestQueue: jest.Mock;
+  getSubredditComputeTimeWindowsQueue: jest.Mock;
 };
 
 describe("enqueue helpers", () => {
@@ -52,6 +65,32 @@ describe("enqueue helpers", () => {
       "metrics_fetch",
       { publishedItemId: "pi_1" },
       expect.objectContaining({ jobId: "metrics:pi_1" }),
+    );
+  });
+
+  test("enqueueSubredditIngestJob uses deterministic jobId by default", async () => {
+    const add = jest.fn().mockResolvedValue({ id: "job4" });
+    mockedQueues.getSubredditIngestQueue.mockReturnValue({ add });
+
+    await enqueueSubredditIngestJob({ subredditName: "startups" });
+
+    expect(add).toHaveBeenCalledWith(
+      "subreddit_ingest",
+      { subredditName: "startups" },
+      expect.objectContaining({ jobId: "subreddit_ingest:startups" }),
+    );
+  });
+
+  test("enqueueSubredditComputeTimeWindowsJob uses deterministic jobId by default", async () => {
+    const add = jest.fn().mockResolvedValue({ id: "job5" });
+    mockedQueues.getSubredditComputeTimeWindowsQueue.mockReturnValue({ add });
+
+    await enqueueSubredditComputeTimeWindowsJob({ subredditId: "sub_1" });
+
+    expect(add).toHaveBeenCalledWith(
+      "subreddit_compute_time_windows",
+      { subredditId: "sub_1" },
+      expect.objectContaining({ jobId: "subreddit_windows:sub_1" }),
     );
   });
 });

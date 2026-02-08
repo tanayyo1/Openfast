@@ -35,7 +35,7 @@
 
 ### Queue + Worker Baseline
 
-- [x] Queues present: `reddit.publish`, `reddit.metrics_fetch`, `dead.letter`.
+- [x] Queues present: `reddit.publish`, `reddit.metrics_fetch`, `subreddit.ingest`, `subreddit.compute_time_windows`, `dead.letter`.
 - [x] Deterministic job IDs for idempotency.
 - [x] Worker process bootstrapping + DLQ forwarding for failed jobs.
 - [x] Unit tests for queue helpers and worker stubs.
@@ -76,13 +76,13 @@
 
 ## P1 - Recommendations + Intel (Required by Report Flows)
 
-- [ ] Add recommendation data model support (project↔subreddit recommendations with fit/risk/reasons).
-- [ ] Build recommendation endpoints: `POST /projects/:id/recommend-subreddits`, `GET /projects/:id/recommendations`, `POST /projects/:id/recommendations/select`.
-- [ ] Implement `subreddit.ingest` queue + worker.
-- [ ] Implement rules ingestion + parser into derived policy flags.
-- [ ] Implement subreddit stats aggregation (daily stats + freshness timestamps).
-- [ ] Implement `subreddit.compute_time_windows` queue + worker.
-- [ ] Return “best 5 subreddit recommendations” based on project + risk + time windows.
+- [x] Add recommendation data model support (project↔subreddit recommendations with fit/risk/reasons).
+- [x] Build recommendation endpoints: `POST /projects/:id/recommend-subreddits`, `GET /projects/:id/recommendations`, `POST /projects/:id/recommendations/select`.
+- [x] Implement `subreddit.ingest` queue + worker.
+- [x] Implement rules ingestion + parser into derived policy flags.
+- [x] Implement subreddit stats aggregation (daily stats + freshness timestamps).
+- [x] Implement `subreddit.compute_time_windows` queue + worker.
+- [x] Return “best 5 subreddit recommendations” based on project + risk + time windows.
 
 ## P2 - AI Content Pipeline (Report-Parity APIs)
 

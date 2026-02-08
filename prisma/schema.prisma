@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ==================== USER & WORKSPACE ====================
@@ -43,17 +43,20 @@ model Workspace {
   updatedAt DateTime        @updatedAt @map("updated_at")
 
   // Relations
-  owner          User                  @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members        WorkspaceMember[]
-  subscription   Subscription?
-  projects       Project[]
-  redditAccounts RedditAccount[]
-  entitlements   WorkspaceEntitlement?
-  Roadmap        Roadmap[]
-  RoadmapTask    RoadmapTask[]
-  Draft          Draft[]
-  ScheduledPost  ScheduledPost[]
-  PublishedItem  PublishedItem[]
+  owner                           User                             @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members                         WorkspaceMember[]
+  subscription                    Subscription?
+  projects                        Project[]
+  redditAccounts                  RedditAccount[]
+  entitlements                    WorkspaceEntitlement?
+  Roadmap                         Roadmap[]
+  RoadmapTask                     RoadmapTask[]
+  Draft                           Draft[]
+  ScheduledPost                   ScheduledPost[]
+  PublishedItem                   PublishedItem[]
+  projectSubredditRecommendations ProjectSubredditRecommendation[]
+  accountHealthSnapshots          AccountHealthSnapshot[]
+  visibilityChecks                VisibilityCheck[]
 
   @@map("workspaces")
 }
@@ -172,11 +175,12 @@ model Project {
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
   // Relations
-  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  roadmaps    Roadmap[]
-  clickLinks  ClickLink[]
-  conversions Conversion[]
-  Draft       Draft[]
+  workspace                Workspace                        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  roadmaps                 Roadmap[]
+  clickLinks               ClickLink[]
+  conversions              Conversion[]
+  Draft                    Draft[]
+  subredditRecommendations ProjectSubredditRecommendation[]
 
   @@index([workspaceId])
   @@map("projects")
@@ -206,12 +210,14 @@ model RedditAccount {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  scheduledPosts ScheduledPost[]
-  publishedItems PublishedItem[]
+  workspace        Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  scheduledPosts   ScheduledPost[]
+  publishedItems   PublishedItem[]
+  healthSnapshots  AccountHealthSnapshot[]
+  visibilityChecks VisibilityCheck[]
 
-  @@index([workspaceId])
   @@unique([workspaceId, redditUsername])
+  @@index([workspaceId])
   @@map("reddit_accounts")
 }
 
@@ -241,13 +247,14 @@ model SubredditCatalog {
   lastFetchedAt DateTime @map("last_fetched_at")
 
   // Relations
-  rules            SubredditRule[]
-  policy           SubredditPolicy?
-  timeSlots        SubredditTimeSlot[]
-  tasks            RoadmapTask[]
-  scheduledPosts   ScheduledPost[]
-  publishedItems   PublishedItem[]
-  threadCandidates ThreadCandidate[]
+  rules                  SubredditRule[]
+  policy                 SubredditPolicy?
+  timeSlots              SubredditTimeSlot[]
+  tasks                  RoadmapTask[]
+  scheduledPosts         ScheduledPost[]
+  publishedItems         PublishedItem[]
+  threadCandidates       ThreadCandidate[]
+  projectRecommendations ProjectSubredditRecommendation[]
 
   @@map("subreddit_catalog")
 }
@@ -313,6 +320,35 @@ model SubredditTimeSlot {
   @@map("subreddit_time_slots")
 }
 
+model ProjectSubredditRecommendation {
+  id          String @id @default(cuid())
+  workspaceId String @map("workspace_id")
+  projectId   String @map("project_id")
+  subredditId String @map("subreddit_id")
+
+  fitScore   Float                @map("fit_score")
+  riskScore  Float                @map("risk_score")
+  reasons    Json
+  status     RecommendationStatus @default(CANDIDATE)
+  rank       Int?
+  selectedAt DateTime?            @map("selected_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  subreddit SubredditCatalog @relation(fields: [subredditId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, subredditId])
+  @@index([workspaceId, projectId])
+  @@index([workspaceId, status])
+  @@index([projectId, status])
+  @@index([workspaceId, createdAt])
+  @@map("project_subreddit_recos")
+}
+
 // ==================== ROADMAPS & TASKS ====================
 
 model Roadmap {
@@ -360,6 +396,7 @@ model RoadmapTask {
 
   @@index([workspaceId])
   @@index([roadmapId])
+  @@index([workspaceId, status, createdAt])
   @@map("roadmap_tasks")
 }
 
@@ -403,6 +440,7 @@ model Draft {
   @@index([workspaceId])
   @@index([projectId])
   @@index([taskId])
+  @@index([workspaceId, status, updatedAt])
   @@map("drafts")
 }
 
@@ -440,6 +478,8 @@ model ScheduledPost {
   publishedItem PublishedItem?
 
   @@index([workspaceId, scheduledAt])
+  @@index([workspaceId, status, scheduledAt])
+  @@index([status, scheduledAt])
   @@index([redditAccountId, scheduledAt])
   @@map("scheduled_posts")
 }
@@ -465,14 +505,64 @@ model PublishedItem {
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
-  workspace     Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  redditAccount RedditAccount         @relation(fields: [redditAccountId], references: [id], onDelete: Cascade)
-  subreddit     SubredditCatalog      @relation(fields: [subredditId], references: [id])
-  scheduledPost ScheduledPost?        @relation(fields: [scheduledPostId], references: [id])
-  snapshots     PerformanceSnapshot[]
+  workspace        Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  redditAccount    RedditAccount         @relation(fields: [redditAccountId], references: [id], onDelete: Cascade)
+  subreddit        SubredditCatalog      @relation(fields: [subredditId], references: [id])
+  scheduledPost    ScheduledPost?        @relation(fields: [scheduledPostId], references: [id])
+  snapshots        PerformanceSnapshot[]
+  visibilityChecks VisibilityCheck[]
 
   @@index([workspaceId, createdAt])
+  @@index([workspaceId, redditAccountId, createdAt])
+  @@index([subredditId, createdAt])
   @@map("published_items")
+}
+
+model AccountHealthSnapshot {
+  id              String @id @default(cuid())
+  workspaceId     String @map("workspace_id")
+  redditAccountId String @map("reddit_account_id")
+
+  capturedAt  DateTime @default(now()) @map("captured_at")
+  healthScore Float    @map("health_score")
+  signalsJson Json     @map("signals_json")
+
+  // Relations
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  redditAccount RedditAccount @relation(fields: [redditAccountId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, capturedAt])
+  @@index([redditAccountId, capturedAt])
+  @@index([workspaceId, redditAccountId, capturedAt])
+  @@map("account_health_snapshots")
+}
+
+model VisibilityCheck {
+  id              String  @id @default(cuid())
+  workspaceId     String  @map("workspace_id")
+  redditAccountId String  @map("reddit_account_id")
+  publishedItemId String? @map("published_item_id")
+
+  permalink        String
+  checkedAt        DateTime              @default(now()) @map("checked_at")
+  visibleLoggedIn  Boolean?              @map("visible_logged_in")
+  visibleLoggedOut Boolean?              @map("visible_logged_out")
+  visibleAlt       Boolean?              @map("visible_alt")
+  result           VisibilityCheckResult @default(UNKNOWN)
+  signalsJson      Json?                 @map("signals_json")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  redditAccount RedditAccount  @relation(fields: [redditAccountId], references: [id], onDelete: Cascade)
+  publishedItem PublishedItem? @relation(fields: [publishedItemId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, checkedAt])
+  @@index([redditAccountId, checkedAt])
+  @@index([workspaceId, result, checkedAt])
+  @@index([publishedItemId])
+  @@map("visibility_checks")
 }
 
 // ==================== ANALYTICS ====================
@@ -503,6 +593,7 @@ model PerformanceSnapshot {
   publishedItem PublishedItem @relation(fields: [publishedItemId], references: [id], onDelete: Cascade)
 
   @@index([publishedItemId, capturedAt])
+  @@index([capturedAt])
   @@map("performance_snapshots")
 }
 
@@ -537,6 +628,7 @@ model ThreadCandidate {
   subreddit SubredditCatalog @relation(fields: [subredditId], references: [id], onDelete: Cascade)
 
   @@index([subredditId, score])
+  @@index([subredditId, status, score])
   @@index([expiresAt])
   @@map("thread_candidates")
 }
@@ -748,6 +840,19 @@ enum CandidateStatus {
   EXPIRED
   USED
   REMOVED
+}
+
+enum RecommendationStatus {
+  CANDIDATE
+  SELECTED
+  DISMISSED
+}
+
+enum VisibilityCheckResult {
+  OK
+  SUSPICIOUS
+  FAILED
+  UNKNOWN
 }
 
 enum ConversionType {

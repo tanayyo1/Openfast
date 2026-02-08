@@ -76,7 +76,7 @@
 
 ## P1 - Recommendations + Intel (Required by Report Flows)
 
-- [ ] Add recommendation data model support (project↔subreddit recommendations with fit/risk/reasons).
+- [x] Add recommendation data model support (project↔subreddit recommendations with fit/risk/reasons).
 - [ ] Build recommendation endpoints: `POST /projects/:id/recommend-subreddits`, `GET /projects/:id/recommendations`, `POST /projects/:id/recommendations/select`.
 - [ ] Implement `subreddit.ingest` queue + worker.
 - [ ] Implement rules ingestion + parser into derived policy flags.
@@ -94,7 +94,7 @@
 
 ## P3 - Account Health + Visibility Checks
 
-- [ ] Add health snapshot + visibility check persistence if missing in schema.
+- [x] Add health snapshot + visibility check persistence if missing in schema.
 - [ ] Implement `risk.account_health` queue + worker.
 - [ ] Implement `risk.visibility_check` queue + worker.
 - [ ] Build APIs: `GET /reddit/accounts/:id/health`, `POST /reddit/accounts/:id/visibility-check`.

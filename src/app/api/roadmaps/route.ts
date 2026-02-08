@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import type { Prisma } from "@prisma/client";
+import type { Prisma, TaskType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { generateProjectRecommendations } from "@/lib/recommendations/generate";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 
 const listQuerySchema = z.object({
@@ -166,6 +167,45 @@ export async function POST(req: Request) {
     );
   }
 
+  // Ensure recommendation set exists; roadmap generation consumes selected/candidate recs.
+  await generateProjectRecommendations({
+    workspaceId: session.workspaceId,
+    projectId,
+  });
+
+  const selectedRecs = await prisma.projectSubredditRecommendation.findMany({
+    where: {
+      workspaceId: session.workspaceId,
+      projectId,
+      status: "SELECTED",
+    },
+    include: {
+      subreddit: {
+        select: { id: true, name: true, title: true },
+      },
+    },
+    orderBy: [{ compositeScore: "desc" }, { id: "asc" }],
+    take: 5,
+  });
+
+  const candidateRecs = await prisma.projectSubredditRecommendation.findMany({
+    where: {
+      workspaceId: session.workspaceId,
+      projectId,
+      status: "CANDIDATE",
+    },
+    include: {
+      subreddit: {
+        select: { id: true, name: true, title: true },
+      },
+    },
+    orderBy: [{ compositeScore: "desc" }, { id: "asc" }],
+    take: 5,
+  });
+
+  const recommendations =
+    selectedRecs.length > 0 ? selectedRecs : candidateRecs;
+
   const created = await prisma.$transaction(
     async (tx: Prisma.TransactionClient) => {
       const roadmap = await tx.roadmap.create({
@@ -176,7 +216,11 @@ export async function POST(req: Request) {
           horizonDays,
           version: 1,
           status: "ACTIVE",
-          strategy: { approach: "mvp_stub" },
+          strategy: {
+            approach: "recommendation_informed_mvp",
+            selectedFirst: selectedRecs.length > 0,
+            recommendationCount: recommendations.length,
+          },
         },
         select: {
           id: true,
@@ -189,18 +233,60 @@ export async function POST(req: Request) {
         },
       });
 
-      const tasks = await tx.roadmapTask.createMany({
-        data: Array.from({ length: horizonDays }).map((_, idx) => ({
+      const tasksInput = Array.from({ length: horizonDays }).map((_, idx) => {
+        const rec = recommendations[idx % Math.max(1, recommendations.length)];
+        const dayIndex = idx + 1;
+        const taskType: TaskType =
+          dayIndex % 3 === 1
+            ? "RESEARCH"
+            : dayIndex % 3 === 2
+              ? "COMMENT"
+              : "POST";
+
+        if (!rec) {
+          return {
+            workspaceId: session.workspaceId,
+            roadmapId: roadmap.id,
+            dayIndex,
+            type: taskType,
+            title: `Day ${dayIndex}`,
+            instructions:
+              "Build karma via useful comments, then post once approved.",
+            priority: 3,
+            status: "PENDING" as const,
+          };
+        }
+
+        const recReasons =
+          rec.reasons && typeof rec.reasons === "object"
+            ? (rec.reasons as Record<string, unknown>)
+            : {};
+        const reasonSummary =
+          typeof recReasons.summary === "string" && recReasons.summary
+            ? recReasons.summary
+            : "Good fit based on project niche and subreddit activity.";
+
+        const instructionPrefix =
+          taskType === "RESEARCH"
+            ? "Review latest subreddit rules and top posts."
+            : taskType === "COMMENT"
+              ? "Write 2-3 value-first comments to build credibility."
+              : "Draft a post aligned with project voice and subreddit norms.";
+
+        return {
           workspaceId: session.workspaceId,
           roadmapId: roadmap.id,
-          dayIndex: idx + 1,
-          type: idx % 3 === 0 ? "RESEARCH" : idx % 3 === 1 ? "COMMENT" : "POST",
-          title: `Day ${idx + 1}`,
-          instructions: "MVP task stub. Replace with AI-generated plan later.",
-          priority: 3,
-          status: "PENDING",
-        })),
+          dayIndex,
+          type: taskType,
+          subredditId: rec.subredditId,
+          title: `${taskType} in r/${rec.subreddit.name}`,
+          instructions: `${instructionPrefix}\nReason: ${reasonSummary}`,
+          priority: taskType === "POST" ? 4 : 3,
+          status: "PENDING" as const,
+        };
       });
+
+      const tasks = await tx.roadmapTask.createMany({ data: tasksInput });
 
       return { roadmap, tasksCreated: tasks.count };
     },

@@ -1,38 +1,82 @@
 import Link from "next/link";
 import { MaxWidth } from "@/components/public/MaxWidth";
 
-const highlights = [
+const heroSignals = [
+  "Compliance guardrails baked in",
+  "Approval-first publishing flow",
+  "Subreddit-aware task planning",
+];
+
+const proofCards = [
   {
-    title: "Safe pacing by default",
-    description:
-      "Adaptive caps and rule checks reduce removals and protect account health.",
+    label: "Risk Score",
+    value: "18 / 100",
+    detail: "Draft flagged as low-risk and ready for review",
   },
   {
-    title: "Best time windows",
-    description:
-      "Subreddit intelligence ranks posting windows so each task lands when the feed is active.",
+    label: "Best Window",
+    value: "Tue 09:00",
+    detail: "Highest engagement forecast in r/startups",
   },
   {
-    title: "Human approval first",
+    label: "Queue Health",
+    value: "98.7%",
+    detail: "Publish success in last 30 days (demo baseline)",
+  },
+];
+
+const pillars = [
+  {
+    title: "Plan with subreddit intelligence",
     description:
-      "Every post waits for review, keeping your tone aligned and your team in control.",
+      "Match your product goals to subreddits using rules, activity windows, and risk signals.",
+  },
+  {
+    title: "Write with built-in compliance context",
+    description:
+      "Generate variants with rule-aware prompts, then keep only drafts that pass risk checks.",
+  },
+  {
+    title: "Ship with approval-first automation",
+    description:
+      "Schedule confidently with idempotent jobs and metrics feedback after publish.",
   },
 ];
 
 const steps = [
   {
-    title: "Connect Reddit",
+    title: "Create project and connect account",
     detail:
-      "Secure OAuth connection with scoped permissions and encrypted tokens.",
+      "Set tone, goals, and constraints. Then connect Reddit via OAuth with encrypted token storage.",
   },
   {
-    title: "Generate the roadmap",
+    title: "Generate recommendations and roadmap",
     detail:
-      "Pick goals and get a day-by-day plan with the safest posting cadence.",
+      "Pick top subreddits and receive day-by-day post/comment tasks with suggested time windows.",
   },
   {
-    title: "Publish with confidence",
-    detail: "Schedule, review, and track results with realtime feedback loops.",
+    title: "Approve, schedule, and learn",
+    detail:
+      "Review every draft, schedule safely, and use analytics snapshots to improve the next cycle.",
+  },
+];
+
+const featureGrid = [
+  {
+    title: "Workspace-scoped projects",
+    body: "Run multiple growth experiments with strict isolation across teams and accounts.",
+  },
+  {
+    title: "Draft lifecycle controls",
+    body: "Move drafts from DRAFT to REVIEWING to APPROVED before they can be scheduled.",
+  },
+  {
+    title: "Queue-backed publishing",
+    body: "Use deterministic job IDs and retries to avoid duplicate publish behavior.",
+  },
+  {
+    title: "Metrics snapshots",
+    body: "Track score, comments, and post state over time for accountable iteration.",
   },
 ];
 
@@ -40,17 +84,19 @@ const tools = [
   {
     title: "Post generator",
     description:
-      "Craft Reddit-ready drafts with tone controls and structure hints.",
+      "Shape Reddit-ready copy quickly with structure hints and tone controls.",
     href: "/tools/post-generator",
   },
   {
     title: "Subreddit analyzer",
-    description: "See rules, risk signals, and best-time windows at a glance.",
+    description:
+      "Review rules, activity profile, and timing signals before you post.",
     href: "/tools/subreddit-analyzer",
   },
   {
     title: "Shadowban check",
-    description: "Run visibility checks and track account health trends.",
+    description:
+      "Run visibility checks and inspect account-health warning signals.",
     href: "/tools/shadowban-check",
   },
 ];
@@ -60,43 +106,39 @@ export default function HomePage() {
     <div>
       <section className="relative pb-20 pt-16">
         <MaxWidth>
-          <div className="grid gap-12 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="grid gap-12 lg:grid-cols-[1.15fr_0.85fr]">
             <div>
-              <p className="inline-flex items-center gap-2 rounded-full border border-border bg-background/70 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Reddit marketing without bans
+              <p className="inline-flex items-center gap-2 rounded-full border border-border bg-background/80 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                MediaFast-style Reddit execution engine
               </p>
               <h1 className="mt-6 text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
-                Build steady Reddit growth with safe automation and clear
-                timing.
+                Build a predictable Reddit growth pipeline without losing
+                authenticity.
               </h1>
               <p className="mt-6 text-base text-muted-foreground sm:text-lg">
-                ReditFast blends subreddit intelligence, compliance scoring, and
-                human approval so founders can scale authentic Reddit presence
-                without risky shortcuts.
+                ReditFast gives founders a compliance-first workflow from
+                discovery to scheduling: recommendations, roadmap tasks, AI
+                variants, review gates, and analytics.
               </p>
-              <div className="mt-8 flex flex-wrap items-center gap-4">
+              <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link
                   href="/signup"
-                  className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+                  className="rounded-full bg-primary px-7 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
                 >
                   Start free trial
                 </Link>
                 <Link
-                  href="/tools/post-generator"
-                  className="rounded-full border border-border px-6 py-3 text-sm font-semibold text-foreground transition hover:border-foreground/40"
+                  href="/pricing"
+                  className="rounded-full border border-border px-7 py-3 text-sm font-semibold text-foreground transition hover:border-foreground/40"
                 >
-                  Try the tools
+                  View plans
                 </Link>
               </div>
-              <div className="mt-10 grid gap-4 sm:grid-cols-3">
-                {[
-                  "95% safer pacing",
-                  "30 day roadmaps",
-                  "Real-time analytics",
-                ].map((item) => (
+              <div className="mt-10 grid gap-3 sm:grid-cols-3">
+                {heroSignals.map((item) => (
                   <div
                     key={item}
-                    className="rounded-2xl border border-border bg-background/70 px-4 py-4 text-sm font-semibold"
+                    className="rounded-2xl border border-border bg-background/80 px-4 py-3 text-sm font-semibold"
                   >
                     {item}
                   </div>
@@ -104,38 +146,29 @@ export default function HomePage() {
               </div>
             </div>
             <div className="relative">
-              <div className="absolute -left-6 top-8 h-44 w-44 rounded-[40px] bg-secondary/70 blur-xl" />
-              <div className="absolute -right-4 bottom-6 h-32 w-32 rounded-full bg-primary/20 blur-lg" />
+              <div className="absolute -left-8 top-6 h-44 w-44 rounded-[40px] bg-secondary/70 blur-xl" />
+              <div className="absolute -right-6 bottom-2 h-40 w-40 rounded-full bg-primary/20 blur-xl" />
               <div className="relative rounded-[32px] border border-border bg-card/90 p-6 shadow-xl animate-fade-up">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Weekly pulse
+                  Operator dashboard
                 </p>
                 <div className="mt-4 space-y-4">
-                  <div className="rounded-2xl border border-border bg-background px-4 py-3">
-                    <p className="text-sm font-semibold">Best-time windows</p>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Tue 9:00, Thu 13:00, Sat 10:00
-                    </p>
-                    <div className="mt-3 h-2 w-full rounded-full bg-muted">
-                      <div className="h-2 w-3/4 rounded-full bg-primary" />
+                  {proofCards.map((card) => (
+                    <div
+                      key={card.label}
+                      className="rounded-2xl border border-border bg-background px-4 py-3"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold">{card.label}</p>
+                        <p className="text-sm font-semibold text-foreground/80">
+                          {card.value}
+                        </p>
+                      </div>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {card.detail}
+                      </p>
                     </div>
-                  </div>
-                  <div className="rounded-2xl border border-border bg-background px-4 py-3">
-                    <p className="text-sm font-semibold">Risk check</p>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Low risk, 2 rule reminders, no promo flags
-                    </p>
-                    <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="h-2 w-2 rounded-full bg-accent" />
-                      Healthy account pacing
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-border bg-background px-4 py-3">
-                    <p className="text-sm font-semibold">Scheduled tasks</p>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      5 posts, 9 comments, 3 drafts pending review
-                    </p>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -146,7 +179,7 @@ export default function HomePage() {
       <section className="py-16">
         <MaxWidth>
           <div className="grid gap-6 md:grid-cols-3">
-            {highlights.map((item, index) => (
+            {pillars.map((item, index) => (
               <div
                 key={item.title}
                 className={`rounded-[28px] border border-border bg-card/80 p-6 shadow-sm ${
@@ -169,17 +202,17 @@ export default function HomePage() {
 
       <section className="py-16">
         <MaxWidth>
-          <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="grid gap-10 lg:grid-cols-[0.95fr_1.05fr]">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 How it works
               </p>
               <h2 className="mt-4 text-3xl font-semibold sm:text-4xl">
-                A workflow designed for compliance and clarity.
+                One operating loop from idea to measured outcome.
               </h2>
               <p className="mt-4 text-sm text-muted-foreground">
-                Each step is built to align with subreddit rules while keeping
-                your team in control of voice and timing.
+                The product is built for durable systems, not one-off viral
+                attempts. Every task is planned, reviewed, and measured.
               </p>
             </div>
             <div className="grid gap-4">
@@ -210,13 +243,57 @@ export default function HomePage() {
 
       <section className="py-16">
         <MaxWidth>
+          <div className="rounded-[32px] border border-border bg-card/75 p-8 sm:p-10">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Product surface
+                </p>
+                <h2 className="mt-3 text-3xl font-semibold sm:text-4xl">
+                  Everything needed for a practical Reddit growth stack.
+                </h2>
+              </div>
+              <Link
+                href="/dashboard"
+                className="rounded-full border border-border px-5 py-2 text-sm font-semibold transition hover:border-foreground/40"
+              >
+                Open app
+              </Link>
+            </div>
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              {featureGrid.map((item, index) => (
+                <div
+                  key={item.title}
+                  className={`rounded-2xl border border-border bg-background/80 p-5 ${
+                    index === 0
+                      ? "animate-fade-up"
+                      : index === 1
+                        ? "animate-fade-up-delay-1"
+                        : index === 2
+                          ? "animate-fade-up-delay-2"
+                          : "animate-fade-up-delay-3"
+                  }`}
+                >
+                  <p className="text-base font-semibold">{item.title}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {item.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </MaxWidth>
+      </section>
+
+      <section className="py-16">
+        <MaxWidth>
           <div className="flex items-end justify-between gap-6">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Free tools
               </p>
               <h2 className="mt-4 text-3xl font-semibold sm:text-4xl">
-                Try the toolkit before you commit.
+                Validate your workflow before you subscribe.
               </h2>
             </div>
             <Link
@@ -256,11 +333,11 @@ export default function HomePage() {
         <MaxWidth>
           <div className="rounded-[32px] border border-border bg-primary/10 p-10 text-center">
             <h2 className="text-3xl font-semibold sm:text-4xl">
-              Ready to build a safer Reddit engine?
+              Ready to turn Reddit into a repeatable growth channel?
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-sm text-muted-foreground">
-              Start with the free tools, then move into full roadmaps,
-              scheduling, and analytics once you are ready to scale.
+              Start with free tools, then move into recommendations, roadmap
+              tasks, approval-first scheduling, and analytics loops.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-4">
               <Link

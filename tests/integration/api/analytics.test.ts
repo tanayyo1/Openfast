@@ -266,4 +266,32 @@ describe("Analytics APIs", () => {
       await cleanupFixture(ids);
     }
   });
+
+  test("returns 404 for unknown project/account ids", async () => {
+    const projectRes = await getProjectAnalytics(
+      new Request("http://test.local/api/analytics/projects/missing"),
+      { params: { id: "missing" } },
+    );
+    expect(projectRes.status).toBe(404);
+    const projectJson = (await readJson(projectRes)) as { code: string };
+    expect(projectJson.code).toBe("PROJECT_NOT_FOUND");
+
+    const accountRes = await getAccountAnalytics(
+      new Request("http://test.local/api/analytics/accounts/missing"),
+      { params: { id: "missing" } },
+    );
+    expect(accountRes.status).toBe(404);
+    const accountJson = (await readJson(accountRes)) as { code: string };
+    expect(accountJson.code).toBe("REDDIT_ACCOUNT_NOT_FOUND");
+  });
+
+  test("returns unauthorized when session is missing", async () => {
+    mockedGuards.requireWorkspaceSession.mockRejectedValueOnce(
+      new Error("UNAUTHORIZED"),
+    );
+    const res = await getDashboardAnalytics();
+    expect(res.status).toBe(401);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("UNAUTHORIZED");
+  });
 });

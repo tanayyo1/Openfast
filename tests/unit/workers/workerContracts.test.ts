@@ -1,4 +1,5 @@
 import type { Job } from "bullmq";
+import { UnrecoverableError } from "bullmq";
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
@@ -158,6 +159,85 @@ describe("worker contracts", () => {
           numComments: 3,
         }),
       }),
+    );
+  });
+
+  test("publish worker fails permanently when draft is not approved", async () => {
+    mockedPrisma.scheduledPost.findUnique.mockResolvedValue({
+      id: "sp_2",
+      workspaceId: "ws_1",
+      status: "SCHEDULED",
+      attempts: 0,
+      draft: {
+        id: "d_2",
+        type: "POST",
+        title: "Title",
+        body: "Body",
+        status: "DRAFT",
+      },
+      subreddit: { id: "sub_1", name: "startups" },
+      redditAccount: { id: "ra_1", accessToken: "enc", isActive: true },
+    });
+    mockedPrisma.scheduledPost.update.mockResolvedValue({});
+
+    const job = {
+      data: { scheduledPostId: "sp_2" },
+    } as unknown as Job<{ scheduledPostId: string }>;
+    await expect(processPublishJob(job)).rejects.toBeInstanceOf(
+      UnrecoverableError,
+    );
+    expect(mockedPrisma.scheduledPost.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "FAILED_PERMANENT",
+          lastError: "DRAFT_NOT_APPROVED",
+        }),
+      }),
+    );
+  });
+
+  test("publish worker marks retryable failure on transient submit error", async () => {
+    mockedPrisma.scheduledPost.findUnique.mockResolvedValue({
+      id: "sp_3",
+      workspaceId: "ws_1",
+      status: "SCHEDULED",
+      attempts: 0,
+      draft: {
+        id: "d_3",
+        type: "POST",
+        title: "Title",
+        body: "Body",
+        status: "APPROVED",
+      },
+      subreddit: { id: "sub_1", name: "startups" },
+      redditAccount: { id: "ra_1", accessToken: "enc", isActive: true },
+    });
+    mockedPrisma.scheduledPost.update.mockResolvedValue({});
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({}),
+    }) as unknown as typeof fetch;
+
+    const job = {
+      data: { scheduledPostId: "sp_3" },
+    } as unknown as Job<{ scheduledPostId: string }>;
+    await expect(processPublishJob(job)).rejects.toBeInstanceOf(Error);
+    expect(mockedPrisma.scheduledPost.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "FAILED_RETRYABLE" }),
+      }),
+    );
+  });
+
+  test("metrics worker errors unrecoverably when item is missing", async () => {
+    mockedPrisma.publishedItem.findUnique.mockResolvedValue(null);
+
+    const job = {
+      data: { publishedItemId: "missing" },
+    } as unknown as Job<{ publishedItemId: string }>;
+    await expect(processMetricsFetchJob(job)).rejects.toBeInstanceOf(
+      UnrecoverableError,
     );
   });
 });

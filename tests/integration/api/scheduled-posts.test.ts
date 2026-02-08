@@ -261,4 +261,167 @@ describe("Scheduled posts API", () => {
       await cleanupFixture(ids);
     }
   });
+
+  test("rejects scheduling with past scheduledAt", async () => {
+    const ids = await makeFixture("APPROVED");
+    try {
+      const res = await createScheduledPost(
+        new Request("http://test.local/api/scheduled-posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            draftId: ids.draftId,
+            redditAccountId: ids.redditAccountId,
+            scheduledAt: new Date(Date.now() - 30_000).toISOString(),
+            timezone: "UTC",
+          }),
+        }),
+      );
+      expect(res.status).toBe(400);
+      const json = (await readJson(res)) as { code: string };
+      expect(json.code).toBe("INVALID_SCHEDULED_AT");
+    } finally {
+      await cleanupFixture(ids);
+    }
+  });
+
+  test("cancel rejects invalid action", async () => {
+    const ids = await makeFixture("APPROVED");
+    let scheduledId = "";
+    try {
+      const created = await prisma.scheduledPost.create({
+        data: {
+          workspaceId,
+          draftId: ids.draftId,
+          redditAccountId: ids.redditAccountId,
+          subredditId: ids.subredditId,
+          scheduledAt: new Date(Date.now() + 5 * 60_000),
+          timezone: "UTC",
+          status: "SCHEDULED",
+          idempotencyKey: `sched_invalid_action_${Date.now()}_${counter}`,
+        },
+        select: { id: true },
+      });
+      scheduledId = created.id;
+
+      const res = await patchScheduledPost(
+        new Request(`http://test.local/api/scheduled-posts/${scheduledId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "noop" }),
+        }),
+        { params: { id: scheduledId } },
+      );
+      expect(res.status).toBe(400);
+      const json = (await readJson(res)) as { code: string };
+      expect(json.code).toBe("VALIDATION_ERROR");
+    } finally {
+      await cleanupFixture(ids);
+    }
+  });
+
+  test("cancel/delete reject invalid state transitions", async () => {
+    const ids = await makeFixture("APPROVED");
+    let publishingId = "";
+    let publishedId = "";
+    let extraDraftId = "";
+    try {
+      const publishing = await prisma.scheduledPost.create({
+        data: {
+          workspaceId,
+          draftId: ids.draftId,
+          redditAccountId: ids.redditAccountId,
+          subredditId: ids.subredditId,
+          scheduledAt: new Date(Date.now() + 5 * 60_000),
+          timezone: "UTC",
+          status: "PUBLISHING",
+          idempotencyKey: `sched_publishing_${Date.now()}_${counter}`,
+        },
+        select: { id: true },
+      });
+      publishingId = publishing.id;
+
+      const cancelRes = await patchScheduledPost(
+        new Request(`http://test.local/api/scheduled-posts/${publishingId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "cancel" }),
+        }),
+        { params: { id: publishingId } },
+      );
+      expect(cancelRes.status).toBe(409);
+      const cancelJson = (await readJson(cancelRes)) as { code: string };
+      expect(cancelJson.code).toBe("INVALID_STATE");
+
+      const extraDraft = await prisma.draft.create({
+        data: {
+          workspaceId,
+          projectId: ids.projectId,
+          subredditId: ids.subredditId,
+          type: "POST",
+          title: "Extra approved draft",
+          body: "Body",
+          mediaUrls: [],
+          variants: Prisma.DbNull,
+          generationParams: Prisma.DbNull,
+          status: "APPROVED",
+          riskScore: 0,
+          riskReasons: [],
+          suggestedFixes: Prisma.DbNull,
+          approvedAt: new Date(),
+          approvedBy: userId,
+        },
+        select: { id: true },
+      });
+      extraDraftId = extraDraft.id;
+
+      const published = await prisma.scheduledPost.create({
+        data: {
+          workspaceId,
+          draftId: extraDraft.id,
+          redditAccountId: ids.redditAccountId,
+          subredditId: ids.subredditId,
+          scheduledAt: new Date(Date.now() + 5 * 60_000),
+          timezone: "UTC",
+          status: "PUBLISHED",
+          idempotencyKey: `sched_published_${Date.now()}_${counter}`,
+        },
+        select: { id: true },
+      });
+      publishedId = published.id;
+
+      const deleteRes = await deleteScheduledPost(
+        new Request(`http://test.local/api/scheduled-posts/${publishedId}`, {
+          method: "DELETE",
+        }),
+        { params: { id: publishedId } },
+      );
+      expect(deleteRes.status).toBe(409);
+      const deleteJson = (await readJson(deleteRes)) as { code: string };
+      expect(deleteJson.code).toBe("INVALID_STATE");
+    } finally {
+      if (publishingId) {
+        await prisma.scheduledPost.deleteMany({ where: { id: publishingId } });
+      }
+      if (publishedId) {
+        await prisma.scheduledPost.deleteMany({ where: { id: publishedId } });
+      }
+      if (extraDraftId) {
+        await prisma.draft.deleteMany({ where: { id: extraDraftId } });
+      }
+      await cleanupFixture(ids);
+    }
+  });
+
+  test("returns unauthorized when session is missing", async () => {
+    mockedGuards.requireWorkspaceSession.mockRejectedValueOnce(
+      new Error("UNAUTHORIZED"),
+    );
+    const res = await listScheduledPosts(
+      new Request("http://test.local/api/scheduled-posts"),
+    );
+    expect(res.status).toBe(401);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("UNAUTHORIZED");
+  });
 });

@@ -77,12 +77,12 @@
 ## P1 - Recommendations + Intel (Required by Report Flows)
 
 - [x] Add recommendation data model support (project↔subreddit recommendations with fit/risk/reasons).
-- [x] Build recommendation endpoints: `POST /projects/:id/recommend-subreddits`, `GET /projects/:id/recommendations`, `POST /projects/:id/recommendations/select`.
-- [x] Implement `subreddit.ingest` queue + worker.
-- [x] Implement rules ingestion + parser into derived policy flags.
-- [x] Implement subreddit stats aggregation (daily stats + freshness timestamps).
-- [x] Implement `subreddit.compute_time_windows` queue + worker.
-- [x] Return “best 5 subreddit recommendations” based on project + risk + time windows.
+- [ ] Build recommendation endpoints: `POST /projects/:id/recommend-subreddits`, `GET /projects/:id/recommendations`, `POST /projects/:id/recommendations/select`.
+- [ ] Implement `subreddit.ingest` queue + worker.
+- [ ] Implement rules ingestion + parser into derived policy flags.
+- [ ] Implement subreddit stats aggregation (daily stats + freshness timestamps).
+- [ ] Implement `subreddit.compute_time_windows` queue + worker.
+- [ ] Return “best 5 subreddit recommendations” based on project + risk + time windows.
 
 ## P2 - AI Content Pipeline (Report-Parity APIs)
 
@@ -94,7 +94,7 @@
 
 ## P3 - Account Health + Visibility Checks
 
-- [ ] Add health snapshot + visibility check persistence if missing in schema.
+- [x] Add health snapshot + visibility check persistence if missing in schema.
 - [ ] Implement `risk.account_health` queue + worker.
 - [ ] Implement `risk.visibility_check` queue + worker.
 - [ ] Build APIs: `GET /reddit/accounts/:id/health`, `POST /reddit/accounts/:id/visibility-check`.

@@ -183,8 +183,8 @@ export async function generateProjectRecommendations(input: {
     { limit: 5 },
   );
 
-  const scoreMap = new Map(
-    ranked.map((item) => [item.subredditId, item] as const),
+  const scoreMap = new Map<string, (typeof ranked)[number]>(
+    ranked.map((item: (typeof ranked)[number]) => [item.subredditId, item]),
   );
 
   await prisma.$transaction(async (tx) => {
@@ -198,7 +198,7 @@ export async function generateProjectRecommendations(input: {
     if (ranked.length === 0) return;
 
     await tx.projectSubredditRecommendation.createMany({
-      data: ranked.map((item) => ({
+      data: ranked.map((item: (typeof ranked)[number]) => ({
         workspaceId: input.workspaceId,
         projectId: input.projectId,
         subredditId: item.subredditId,

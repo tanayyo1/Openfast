@@ -4,6 +4,7 @@ import { QUEUE_NAMES } from "./constants";
 
 let publishQueue: Queue | null = null;
 let metricsFetchQueue: Queue | null = null;
+let contentGenerateQueue: Queue | null = null;
 let subredditIngestQueue: Queue | null = null;
 let subredditComputeTimeWindowsQueue: Queue | null = null;
 let deadLetterQueue: Queue | null = null;
@@ -35,6 +36,12 @@ export function getMetricsFetchQueue() {
   if (!metricsFetchQueue)
     metricsFetchQueue = createQueue(QUEUE_NAMES.REDDIT_METRICS_FETCH);
   return metricsFetchQueue;
+}
+
+export function getContentGenerateQueue() {
+  if (!contentGenerateQueue)
+    contentGenerateQueue = createQueue(QUEUE_NAMES.CONTENT_GENERATE);
+  return contentGenerateQueue;
 }
 
 export function getSubredditIngestQueue() {

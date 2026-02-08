@@ -28,18 +28,18 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
     );
   }
 
-  const items = await prisma.subredditRecommendation.findMany({
+  const items = await prisma.projectSubredditRecommendation.findMany({
     where: { workspaceId: session.workspaceId, projectId },
-    orderBy: [{ totalScore: "desc" }, { createdAt: "desc" }],
+    orderBy: [{ compositeScore: "desc" }, { createdAt: "desc" }],
     select: {
       id: true,
       subredditId: true,
       fitScore: true,
       riskScore: true,
-      timeScore: true,
-      totalScore: true,
+      timeWindowScore: true,
+      compositeScore: true,
       reasons: true,
-      selected: true,
+      status: true,
       selectedAt: true,
       createdAt: true,
       subreddit: {
@@ -61,5 +61,14 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
     },
   });
 
-  return NextResponse.json({ projectId, count: items.length, items });
+  return NextResponse.json({
+    projectId,
+    count: items.length,
+    items: items.map((item) => ({
+      ...item,
+      timeScore: item.timeWindowScore,
+      totalScore: item.compositeScore,
+      selected: item.status === "SELECTED",
+    })),
+  });
 }

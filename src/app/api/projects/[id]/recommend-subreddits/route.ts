@@ -111,22 +111,23 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
 
   const byId = new Map(ranked.map((r) => [r.subredditId, r]));
   await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    await tx.subredditRecommendation.deleteMany({
+    await tx.projectSubredditRecommendation.deleteMany({
       where: { workspaceId: session.workspaceId, projectId },
     });
     if (ranked.length === 0) return;
 
-    await tx.subredditRecommendation.createMany({
-      data: ranked.map((rec) => ({
+    await tx.projectSubredditRecommendation.createMany({
+      data: ranked.map((rec, index) => ({
         workspaceId: session.workspaceId,
         projectId,
         subredditId: rec.subredditId,
         fitScore: rec.fitScore,
         riskScore: rec.riskScore,
-        timeScore: rec.timeScore,
-        totalScore: rec.totalScore,
+        timeWindowScore: rec.timeScore,
+        compositeScore: rec.totalScore,
         reasons: rec.reasons as Prisma.InputJsonValue,
-        selected: false,
+        rank: index + 1,
+        status: "CANDIDATE",
       })),
     });
   });

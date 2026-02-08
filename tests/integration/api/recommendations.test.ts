@@ -81,7 +81,9 @@ describe("Recommendations APIs", () => {
   }
 
   async function cleanupProject(projectId: string) {
-    await prisma.subredditRecommendation.deleteMany({ where: { projectId } });
+    await prisma.projectSubredditRecommendation.deleteMany({
+      where: { projectId },
+    });
     await prisma.project.deleteMany({ where: { id: projectId } });
   }
 

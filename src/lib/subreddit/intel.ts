@@ -123,7 +123,6 @@ export async function ingestSubreddit(subredditName: string) {
   const data = pickCatalogData(subredditName);
   const parsed = parseSubredditRules(data.rules);
   const now = new Date();
-  const today = new Date(now.toISOString().slice(0, 10));
 
   const saved = await prisma.$transaction(async (tx) => {
     const subreddit = await tx.subredditCatalog.upsert({
@@ -190,24 +189,6 @@ export async function ingestSubreddit(subredditName: string) {
         noLinksInPosts: parsed.noLinksInPosts,
         noLinksInComments: parsed.noLinksInComments,
         notes: parsed.notes,
-      },
-    });
-
-    await tx.subredditStatsDaily.upsert({
-      where: { subredditId_day: { subredditId: subreddit.id, day: today } },
-      create: {
-        subredditId: subreddit.id,
-        day: today,
-        postsCount: Math.round(data.avgPostsPerDay),
-        avgScore: Math.max(1, data.avgCommentsPerPost * 1.8),
-        avgComments: data.avgCommentsPerPost,
-        removalRate: parsed.promoAllowed === "DISALLOWED" ? 0.35 : 0.12,
-      },
-      update: {
-        postsCount: Math.round(data.avgPostsPerDay),
-        avgScore: Math.max(1, data.avgCommentsPerPost * 1.8),
-        avgComments: data.avgCommentsPerPost,
-        removalRate: parsed.promoAllowed === "DISALLOWED" ? 0.35 : 0.12,
       },
     });
 

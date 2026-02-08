@@ -1,28 +1,347 @@
 import type { Job } from "bullmq";
-import { processPublishJob } from "@/workers/publish.worker";
-import { processMetricsFetchJob } from "@/workers/metrics.worker";
-import { processSubredditIngestJob } from "@/workers/subredditIngest.worker";
-import { processSubredditComputeTimeWindowsJob } from "@/workers/subredditTimeWindows.worker";
 
-jest.mock("@/lib/subreddit/intel", () => ({
-  ingestSubreddit: jest.fn(async (name: string) => ({ id: "sub_1", name })),
-  computeSubredditTimeWindows: jest.fn(async (id: string) => ({
-    subredditId: id,
-    slotCount: 168,
-    averageScore: 0.42,
-  })),
+jest.mock("@/lib/prisma", () => ({
+  prisma: {
+    scheduledPost: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+    accountHealthSnapshot: {
+      findFirst: jest.fn(),
+    },
+    publishedItem: {
+      count: jest.fn(),
+      upsert: jest.fn(),
+      findUnique: jest.fn(),
+    },
+    performanceSnapshot: {
+      create: jest.fn(),
+    },
+    visibilityCheck: {
+      create: jest.fn(),
+    },
+  },
 }));
 
-describe("worker processor input validation", () => {
-  test("processPublishJob rejects missing scheduledPostId", async () => {
-    const job = { data: {} } as unknown as Job<{ scheduledPostId: string }>;
-    await expect(processPublishJob(job)).rejects.toThrow("INVALID_JOB_DATA");
+jest.mock("@/lib/reddit/client", () => ({
+  redditFetch: jest.fn(),
+}));
+
+jest.mock("@/lib/security/tokenCrypto", () => ({
+  TokenCryptoError: class TokenCryptoError extends Error {
+    code: string;
+
+    constructor(code: string, message: string) {
+      super(message);
+      this.code = code;
+    }
+  },
+  decryptToken: jest.fn(),
+}));
+
+jest.mock("@/lib/queue/enqueue", () => ({
+  enqueueMetricsFetchJob: jest.fn(),
+}));
+
+import { RedditApiError } from "@/lib/reddit/errors";
+import { processPublishJob } from "@/workers/publishWorker";
+import { processMetricsFetchJob } from "@/workers/metricsWorker";
+
+const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
+  scheduledPost: { findUnique: jest.Mock; update: jest.Mock };
+  accountHealthSnapshot: { findFirst: jest.Mock };
+  publishedItem: { count: jest.Mock; upsert: jest.Mock; findUnique: jest.Mock };
+  performanceSnapshot: { create: jest.Mock };
+  visibilityCheck: { create: jest.Mock };
+};
+
+const mockedRedditClient = jest.requireMock("@/lib/reddit/client") as {
+  redditFetch: jest.Mock;
+};
+
+const mockedTokenCrypto = jest.requireMock("@/lib/security/tokenCrypto") as {
+  decryptToken: jest.Mock;
+};
+
+const mockedQueue = jest.requireMock("@/lib/queue/enqueue") as {
+  enqueueMetricsFetchJob: jest.Mock;
+};
+
+const baseScheduledPost = {
+  id: "sp_1",
+  workspaceId: "ws_1",
+  redditAccountId: "ra_1",
+  subredditId: "sub_1",
+  status: "SCHEDULED",
+  publishedAt: null,
+  publishedItemId: null,
+  draft: {
+    id: "d_1",
+    type: "POST",
+    title: "Title",
+    body: "Body",
+    status: "APPROVED",
+    riskScore: 10,
+    generationParams: null,
+  },
+  redditAccount: {
+    id: "ra_1",
+    accessToken: "rfenc.v1.iv.ct.tag",
+    scopes: ["submit", "read"],
+    safetyTier: "NEW",
+    isActive: true,
+  },
+  subreddit: { id: "sub_1", name: "startups" },
+  publishedItem: null,
+};
+
+const basePublishedItem = {
+  id: "pi_1",
+  workspaceId: "ws_1",
+  redditAccountId: "ra_1",
+  redditFullname: "t3_abc123",
+  permalink: "/r/startups/comments/abc123/example/",
+  redditAccount: {
+    id: "ra_1",
+    accessToken: "rfenc.v1.iv.ct.tag",
+    scopes: ["read"],
+    isActive: true,
+  },
+};
+
+describe("worker processors", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedPrisma.accountHealthSnapshot.findFirst.mockResolvedValue(null);
   });
 
-  test("processMetricsFetchJob rejects missing publishedItemId", async () => {
-    const job = { data: {} } as unknown as Job<{ publishedItemId: string }>;
-    await expect(processMetricsFetchJob(job)).rejects.toThrow(
-      "INVALID_JOB_DATA",
+  test("processPublishJob success path publishes and enqueues metrics", async () => {
+    mockedPrisma.scheduledPost.findUnique.mockResolvedValue(baseScheduledPost);
+    mockedPrisma.publishedItem.count.mockResolvedValue(0);
+    mockedTokenCrypto.decryptToken.mockReturnValue("access-token");
+    mockedRedditClient.redditFetch.mockResolvedValue({
+      data: {
+        json: {
+          data: {
+            name: "t3_abc123",
+            id: "abc123",
+            permalink: "/r/startups/comments/abc123/example/",
+            url: "https://reddit.com/r/startups/comments/abc123/example/",
+          },
+        },
+      },
+    });
+    mockedPrisma.publishedItem.upsert.mockResolvedValue({ id: "pi_1" });
+    mockedQueue.enqueueMetricsFetchJob.mockResolvedValue({ id: "job_m_1" });
+
+    const job = {
+      id: "job_p_1",
+      attemptsStarted: 1,
+      data: { scheduledPostId: "sp_1" },
+    } as unknown as Job<{ scheduledPostId: string }>;
+
+    await expect(processPublishJob(job)).resolves.toEqual({
+      scheduledPostId: "sp_1",
+      publishedItemId: "pi_1",
+      status: "published",
+    });
+
+    expect(mockedRedditClient.redditFetch).toHaveBeenCalledTimes(1);
+    expect(mockedPrisma.publishedItem.upsert).toHaveBeenCalledTimes(1);
+    expect(mockedQueue.enqueueMetricsFetchJob).toHaveBeenCalledWith({
+      publishedItemId: "pi_1",
+    });
+  });
+
+  test("processPublishJob classifies retryable Reddit server errors", async () => {
+    mockedPrisma.scheduledPost.findUnique.mockResolvedValue(baseScheduledPost);
+    mockedPrisma.publishedItem.count.mockResolvedValue(0);
+    mockedTokenCrypto.decryptToken.mockReturnValue("access-token");
+    mockedRedditClient.redditFetch.mockRejectedValue(
+      new RedditApiError({
+        code: "REDDIT_SERVER_ERROR",
+        message: "Server unavailable",
+        httpStatus: 503,
+        isRetryable: true,
+      }),
     );
+
+    const job = {
+      id: "job_p_retry",
+      attemptsStarted: 1,
+      data: { scheduledPostId: "sp_1" },
+    } as unknown as Job<{ scheduledPostId: string }>;
+
+    await expect(processPublishJob(job)).rejects.toThrow("REDDIT_SERVER_ERROR");
+
+    expect(mockedPrisma.scheduledPost.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "FAILED_RETRYABLE" }),
+      }),
+    );
+  });
+
+  test("processPublishJob classifies permanent preflight failures", async () => {
+    mockedPrisma.scheduledPost.findUnique.mockResolvedValue({
+      ...baseScheduledPost,
+      redditAccount: { ...baseScheduledPost.redditAccount, scopes: ["read"] },
+    });
+
+    const job = {
+      id: "job_p_perm",
+      attemptsStarted: 1,
+      data: { scheduledPostId: "sp_1" },
+    } as unknown as Job<{ scheduledPostId: string }>;
+
+    await expect(processPublishJob(job)).rejects.toThrow("INVALID_AUTH_SCOPE");
+
+    expect(mockedRedditClient.redditFetch).not.toHaveBeenCalled();
+    expect(mockedPrisma.scheduledPost.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "FAILED_PERMANENT" }),
+      }),
+    );
+  });
+
+  test("processPublishJob is idempotent when already published", async () => {
+    mockedPrisma.scheduledPost.findUnique.mockResolvedValue({
+      ...baseScheduledPost,
+      status: "PUBLISHED",
+      publishedItemId: "pi_existing",
+    });
+
+    const job = {
+      id: "job_p_idempotent",
+      attemptsStarted: 2,
+      data: { scheduledPostId: "sp_1" },
+    } as unknown as Job<{ scheduledPostId: string }>;
+
+    await expect(processPublishJob(job)).resolves.toEqual({
+      scheduledPostId: "sp_1",
+      publishedItemId: "pi_existing",
+      status: "already_published",
+    });
+
+    expect(mockedRedditClient.redditFetch).not.toHaveBeenCalled();
+    expect(mockedPrisma.publishedItem.upsert).not.toHaveBeenCalled();
+  });
+
+  test("processMetricsFetchJob success path captures snapshot", async () => {
+    mockedPrisma.publishedItem.findUnique.mockResolvedValue(basePublishedItem);
+    mockedTokenCrypto.decryptToken.mockReturnValue("access-token");
+    mockedRedditClient.redditFetch.mockResolvedValue({
+      data: {
+        data: {
+          children: [
+            {
+              data: {
+                score: 12,
+                ups: 14,
+                downs: 2,
+                upvote_ratio: 0.9,
+                num_comments: 5,
+                removed_by_category: null,
+                locked: false,
+                stickied: false,
+              },
+            },
+          ],
+        },
+      },
+    });
+    mockedPrisma.performanceSnapshot.create.mockResolvedValue({ id: "snap_1" });
+
+    const job = {
+      id: "job_m_1",
+      attemptsStarted: 1,
+      data: { publishedItemId: "pi_1" },
+    } as unknown as Job<{ publishedItemId: string }>;
+
+    await expect(processMetricsFetchJob(job)).resolves.toEqual({
+      publishedItemId: "pi_1",
+      snapshotId: "snap_1",
+      status: "captured",
+    });
+
+    expect(mockedPrisma.performanceSnapshot.create).toHaveBeenCalledTimes(1);
+    expect(mockedPrisma.visibilityCheck.create).not.toHaveBeenCalled();
+  });
+
+  test("processMetricsFetchJob classifies retryable failures", async () => {
+    mockedPrisma.publishedItem.findUnique.mockResolvedValue(basePublishedItem);
+    mockedTokenCrypto.decryptToken.mockReturnValue("access-token");
+    mockedRedditClient.redditFetch.mockRejectedValue(
+      new RedditApiError({
+        code: "REDDIT_RATE_LIMIT",
+        message: "Too many requests",
+        httpStatus: 429,
+        isRetryable: true,
+      }),
+    );
+
+    const job = {
+      id: "job_m_retry",
+      attemptsStarted: 1,
+      data: { publishedItemId: "pi_1" },
+    } as unknown as Job<{ publishedItemId: string }>;
+
+    await expect(processMetricsFetchJob(job)).rejects.toThrow(
+      "REDDIT_RATE_LIMIT",
+    );
+    expect(mockedPrisma.performanceSnapshot.create).not.toHaveBeenCalled();
+  });
+
+  test("processMetricsFetchJob classifies permanent missing entity failures", async () => {
+    mockedPrisma.publishedItem.findUnique.mockResolvedValue(null);
+
+    const job = {
+      id: "job_m_perm",
+      attemptsStarted: 1,
+      data: { publishedItemId: "pi_missing" },
+    } as unknown as Job<{ publishedItemId: string }>;
+
+    await expect(processMetricsFetchJob(job)).rejects.toThrow(
+      "PUBLISHED_ITEM_NOT_FOUND",
+    );
+    expect(mockedRedditClient.redditFetch).not.toHaveBeenCalled();
+  });
+
+  test("processMetricsFetchJob keeps history on reruns", async () => {
+    mockedPrisma.publishedItem.findUnique.mockResolvedValue(basePublishedItem);
+    mockedTokenCrypto.decryptToken.mockReturnValue("access-token");
+    mockedRedditClient.redditFetch.mockResolvedValue({
+      data: {
+        data: {
+          children: [
+            {
+              data: {
+                score: 1,
+                ups: 1,
+                downs: 0,
+                upvote_ratio: 1,
+                num_comments: 0,
+                removed_by_category: null,
+                locked: false,
+                stickied: false,
+              },
+            },
+          ],
+        },
+      },
+    });
+    mockedPrisma.performanceSnapshot.create
+      .mockResolvedValueOnce({ id: "snap_1" })
+      .mockResolvedValueOnce({ id: "snap_2" });
+
+    const job = {
+      id: "job_m_rerun",
+      attemptsStarted: 1,
+      data: { publishedItemId: "pi_1" },
+    } as unknown as Job<{ publishedItemId: string }>;
+
+    await processMetricsFetchJob(job);
+    await processMetricsFetchJob(job);
+
+    expect(mockedPrisma.performanceSnapshot.create).toHaveBeenCalledTimes(2);
   });
 });

@@ -9,6 +9,7 @@ import {
   getRedditOAuthConfig,
 } from "@/lib/reddit/oauth";
 import { TokenCryptoError } from "@/lib/security/tokenCrypto";
+import { QuotaExceededError, assertWorkspaceQuota } from "@/lib/billing/quota";
 
 const OAUTH_STATE_COOKIE = "rf_reddit_oauth_state";
 const OAUTH_NEXT_COOKIE = "rf_reddit_oauth_next";
@@ -128,6 +129,39 @@ export async function GET(req: Request) {
   }
 
   const now = new Date();
+  const existingAccount = await prisma.redditAccount.findFirst({
+    where: {
+      workspaceId: session.workspaceId,
+      redditUsername: me.name,
+    },
+    select: { id: true },
+  });
+
+  if (!existingAccount) {
+    try {
+      await assertWorkspaceQuota({
+        workspaceId: session.workspaceId,
+        resource: "reddit_accounts",
+      });
+    } catch (err) {
+      if (err instanceof QuotaExceededError) {
+        return NextResponse.json(
+          {
+            error: err.message,
+            code: err.code,
+            details: {
+              resource: err.resource,
+              used: err.used,
+              limit: err.limit,
+            },
+          },
+          { status: 403 },
+        );
+      }
+      throw err;
+    }
+  }
+
   const created = await prisma.redditAccount.upsert({
     where: {
       workspaceId_redditUsername: {

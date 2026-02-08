@@ -1,0 +1,124 @@
+import { Prisma } from "@prisma/client";
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { requireWorkspaceAdminSession } from "@/lib/server/admin-guards";
+
+const createSchema = z.object({
+  key: z.string().min(2).max(120),
+  title: z.string().min(2).max(160),
+  body: z.string().min(10).max(20000),
+  variables: z.record(z.unknown()).optional(),
+  isActive: z.boolean().optional().default(true),
+});
+
+function authError(err: unknown) {
+  const code = err instanceof Error ? err.message : "UNAUTHORIZED";
+  const status =
+    code === "FORBIDDEN" ? 403 : code === "WORKSPACE_REQUIRED" ? 400 : 401;
+  return NextResponse.json({ error: "Unauthorized", code }, { status });
+}
+
+export async function GET(req: Request) {
+  try {
+    await requireWorkspaceAdminSession();
+  } catch (err) {
+    return authError(err);
+  }
+
+  const { searchParams } = new URL(req.url);
+  const key = searchParams.get("key");
+  const limitRaw = Number(searchParams.get("limit") ?? 50);
+  const limit = Number.isFinite(limitRaw)
+    ? Math.min(Math.max(limitRaw, 1), 200)
+    : 50;
+
+  const items = await prisma.promptTemplate.findMany({
+    where: key ? { key } : {},
+    orderBy: [{ key: "asc" }, { version: "desc" }],
+    take: limit,
+    select: {
+      id: true,
+      key: true,
+      version: true,
+      title: true,
+      isActive: true,
+      createdBy: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  return NextResponse.json({ items });
+}
+
+export async function POST(req: Request) {
+  let session;
+  try {
+    session = await requireWorkspaceAdminSession();
+  } catch (err) {
+    return authError(err);
+  }
+
+  let json: unknown;
+  try {
+    json = await req.json();
+  } catch {
+    json = {};
+  }
+  const parsed = createSchema.safeParse(json);
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: "Invalid input",
+        code: "VALIDATION_ERROR",
+        details: parsed.error.flatten(),
+      },
+      { status: 400 },
+    );
+  }
+
+  const { key, title, body, variables, isActive } = parsed.data;
+  const current = await prisma.promptTemplate.findFirst({
+    where: { key },
+    orderBy: { version: "desc" },
+    select: { version: true },
+  });
+  const nextVersion = (current?.version ?? 0) + 1;
+
+  const created = await prisma.$transaction(async (tx) => {
+    if (isActive) {
+      await tx.promptTemplate.updateMany({
+        where: { key, isActive: true },
+        data: { isActive: false },
+      });
+    }
+    return tx.promptTemplate.create({
+      data: {
+        key,
+        version: nextVersion,
+        title,
+        body,
+        variables: variables
+          ? (variables as Prisma.InputJsonValue)
+          : Prisma.DbNull,
+        isActive,
+        createdBy: session.user.id,
+      },
+      select: {
+        id: true,
+        key: true,
+        version: true,
+        title: true,
+        body: true,
+        variables: true,
+        isActive: true,
+        createdBy: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  });
+
+  return NextResponse.json({ template: created }, { status: 201 });
+}

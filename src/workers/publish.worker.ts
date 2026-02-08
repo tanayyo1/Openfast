@@ -1,244 +1,362 @@
-import { UnrecoverableError } from "bullmq";
 import type { Job } from "bullmq";
+import type { SafetyTier } from "@prisma/client";
+import type { PublishJobData } from "@/lib/queue/enqueue";
 import { enqueueMetricsFetchJob } from "@/lib/queue/enqueue";
 import { prisma } from "@/lib/prisma";
-import { RedditApiError } from "@/lib/reddit/errors";
-import { decryptToken, TokenCryptoError } from "@/lib/security/tokenCrypto";
-import type { PublishJobData } from "@/lib/queue/enqueue";
+import { redditFetch } from "@/lib/reddit/client";
+import { TokenCryptoError, decryptToken } from "@/lib/security/tokenCrypto";
+import { parseSubmitResponse } from "@/workers/redditPayloads";
+import { logWorkerEvent } from "@/workers/workerLog";
+import {
+  normalizeWorkerError,
+  permanentWorkerError,
+  retryableWorkerError,
+  toJobFailure,
+  toStoredError,
+} from "@/workers/workerErrors";
 
-function truncateError(err: unknown, max = 500) {
-  const raw = err instanceof Error ? err.message : "Unknown worker failure";
-  const compact = raw.replace(/\s+/g, " ").trim();
-  if (compact.length <= max) return compact;
-  return `${compact.slice(0, max - 3)}...`;
+const PACE_LIMITS_PER_24H: Record<SafetyTier, number> = {
+  NEW: 2,
+  ESTABLISHED: 5,
+  TRUSTED: 10,
+  RESTRICTED: 1,
+};
+
+function getRiskThreshold() {
+  const raw = process.env.PUBLISH_MAX_RISK_SCORE;
+  const parsed = raw ? Number(raw) : 85;
+  if (!Number.isFinite(parsed) || parsed < 0) return 85;
+  return Math.floor(parsed);
 }
 
-function classifyFailure(err: unknown) {
-  if (err instanceof RedditApiError) return { retryable: err.isRetryable };
-  if (err instanceof TokenCryptoError) return { retryable: false };
-  return { retryable: true };
-}
-
-async function submitPost(opts: {
-  accessToken: string;
-  subredditName: string;
-  title: string | null;
-  body: string;
-}) {
-  const userAgent = process.env.REDDIT_USER_AGENT ?? "ReditFast/0.1";
-
-  const body = new URLSearchParams();
-  body.set("api_type", "json");
-  body.set("kind", "self");
-  body.set("sr", opts.subredditName);
-  body.set("title", opts.title ?? "Untitled Post");
-  body.set("text", opts.body);
-  body.set("resubmit", "true");
-
-  const res = await fetch("https://oauth.reddit.com/api/submit", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${opts.accessToken}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": userAgent,
-    },
-    body: body.toString(),
-  });
-
-  if (res.status === 429) {
-    throw new RedditApiError({
-      code: "REDDIT_RATE_LIMIT",
-      message: "Reddit rate limit exceeded",
-      httpStatus: 429,
-      isRetryable: true,
-    });
+function parseParentThingId(input: unknown): string | null {
+  if (!input || typeof input !== "object") return null;
+  const obj = input as Record<string, unknown>;
+  for (const key of ["parentFullname", "parentThingId", "thingId"]) {
+    const value = obj[key];
+    if (typeof value === "string" && value.length > 0) return value;
   }
-  if (res.status === 401) {
-    throw new RedditApiError({
-      code: "REDDIT_AUTH_FAILED",
-      message: "Reddit auth failed",
-      httpStatus: 401,
-      isRetryable: false,
-    });
-  }
-  if (!res.ok) {
-    throw new RedditApiError({
-      code: res.status >= 500 ? "REDDIT_SERVER_ERROR" : "REDDIT_BAD_REQUEST",
-      message: `Reddit submit failed (${res.status})`,
-      httpStatus: res.status,
-      isRetryable: res.status >= 500,
-    });
-  }
-
-  const json = (await res.json()) as {
-    json?: {
-      errors?: Array<[string, string, string]>;
-      data?: { id?: string; name?: string; url?: string };
-    };
-  };
-
-  const errors = json.json?.errors ?? [];
-  if (errors.length > 0) {
-    throw new RedditApiError({
-      code: "REDDIT_BAD_REQUEST",
-      message: `Reddit submit rejected: ${errors[0]?.[1] ?? "unknown_error"}`,
-      httpStatus: 400,
-      isRetryable: false,
-    });
-  }
-
-  const data = json.json?.data;
-  if (!data?.id || !data?.name || !data?.url) {
-    throw new Error("SUBMIT_RESPONSE_MISSING_DATA");
-  }
-
-  return {
-    redditId: data.id,
-    redditFullname: data.name,
-    permalink: data.url,
-  };
+  return null;
 }
 
 export async function processPublishJob(job: Job<PublishJobData>) {
-  if (!job.data.scheduledPostId) {
-    throw new Error("INVALID_JOB_DATA");
+  const scheduledPostId = job.data.scheduledPostId;
+  if (!scheduledPostId) {
+    throw toJobFailure(
+      permanentWorkerError("INVALID_JOB_DATA", "scheduledPostId is required"),
+    );
   }
 
-  const scheduledPost = await prisma.scheduledPost.findUnique({
-    where: { id: job.data.scheduledPostId },
-    select: {
-      id: true,
-      workspaceId: true,
-      status: true,
-      attempts: true,
-      draft: {
-        select: {
-          id: true,
-          type: true,
-          title: true,
-          body: true,
-          status: true,
-        },
-      },
-      subreddit: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-      redditAccount: {
-        select: {
-          id: true,
-          accessToken: true,
-          isActive: true,
-        },
-      },
-    },
-  });
+  const jobId = typeof job.id === "string" ? job.id : null;
 
-  if (!scheduledPost) {
-    throw new UnrecoverableError("SCHEDULED_POST_NOT_FOUND");
-  }
-  if (
-    scheduledPost.status !== "SCHEDULED" &&
-    scheduledPost.status !== "FAILED_RETRYABLE"
-  ) {
-    throw new UnrecoverableError(`INVALID_STATUS:${scheduledPost.status}`);
-  }
-  if (scheduledPost.draft.status !== "APPROVED") {
-    await prisma.scheduledPost.update({
-      where: { id: scheduledPost.id },
-      data: {
-        status: "FAILED_PERMANENT",
-        attempts: { increment: 1 },
-        lastError: "DRAFT_NOT_APPROVED",
-      },
-    });
-    throw new UnrecoverableError("DRAFT_NOT_APPROVED");
-  }
-  if (!scheduledPost.redditAccount.isActive) {
-    await prisma.scheduledPost.update({
-      where: { id: scheduledPost.id },
-      data: {
-        status: "FAILED_PERMANENT",
-        attempts: { increment: 1 },
-        lastError: "REDDIT_ACCOUNT_INACTIVE",
-      },
-    });
-    throw new UnrecoverableError("REDDIT_ACCOUNT_INACTIVE");
-  }
-
-  await prisma.scheduledPost.update({
-    where: { id: scheduledPost.id },
-    data: {
-      status: "PUBLISHING",
-      attempts: { increment: 1 },
-      lastError: null,
-    },
+  logWorkerEvent("publish", "info", "job.started", {
+    jobId,
+    scheduledPostId,
+    attempt: job.attemptsStarted,
   });
 
   try {
-    if (scheduledPost.draft.type !== "POST") {
-      throw new UnrecoverableError("COMMENT_PUBLISH_NOT_SUPPORTED_YET");
-    }
-
-    const accessToken = decryptToken(scheduledPost.redditAccount.accessToken);
-    const submitted = await submitPost({
-      accessToken,
-      subredditName: scheduledPost.subreddit.name,
-      title: scheduledPost.draft.title,
-      body: scheduledPost.draft.body,
-    });
-
-    const published = await prisma.$transaction(async (tx) => {
-      const created = await tx.publishedItem.create({
-        data: {
-          workspaceId: scheduledPost.workspaceId,
-          redditAccountId: scheduledPost.redditAccount.id,
-          subredditId: scheduledPost.subreddit.id,
-          scheduledPostId: scheduledPost.id,
-          type: "POST",
-          redditFullname: submitted.redditFullname,
-          redditId: submitted.redditId,
-          permalink: submitted.permalink,
-          titleSnapshot: scheduledPost.draft.title,
-          bodySnapshot: scheduledPost.draft.body,
+    const scheduled = await prisma.scheduledPost.findUnique({
+      where: { id: scheduledPostId },
+      include: {
+        draft: {
+          select: {
+            id: true,
+            type: true,
+            title: true,
+            body: true,
+            status: true,
+            riskScore: true,
+            generationParams: true,
+          },
         },
-        select: { id: true },
-      });
-
-      await tx.scheduledPost.update({
-        where: { id: scheduledPost.id },
-        data: {
-          status: "PUBLISHED",
-          publishedAt: new Date(),
-          publishedItemId: created.id,
-          lastError: null,
+        redditAccount: {
+          select: {
+            id: true,
+            accessToken: true,
+            scopes: true,
+            safetyTier: true,
+            isActive: true,
+          },
         },
-      });
-      return created;
-    });
-
-    await enqueueMetricsFetchJob({ publishedItemId: published.id });
-
-    return {
-      scheduledPostId: scheduledPost.id,
-      publishedItemId: published.id,
-      status: "published",
-    };
-  } catch (err) {
-    const { retryable } = classifyFailure(err);
-    await prisma.scheduledPost.update({
-      where: { id: scheduledPost.id },
-      data: {
-        status: retryable ? "FAILED_RETRYABLE" : "FAILED_PERMANENT",
-        lastError: truncateError(err),
+        subreddit: { select: { id: true, name: true } },
+        publishedItem: { select: { id: true } },
       },
     });
 
-    if (!retryable) {
-      throw new UnrecoverableError(truncateError(err));
+    if (!scheduled) {
+      throw permanentWorkerError(
+        "SCHEDULED_POST_NOT_FOUND",
+        "Scheduled post no longer exists",
+      );
     }
-    throw err instanceof Error ? err : new Error("PUBLISH_FAILED");
+
+    if (scheduled.status === "CANCELLED") {
+      logWorkerEvent("publish", "info", "job.skipped_cancelled", {
+        jobId,
+        scheduledPostId,
+      });
+      return { scheduledPostId, status: "cancelled" as const };
+    }
+
+    if (scheduled.publishedItemId || scheduled.publishedItem) {
+      const publishedItemId =
+        scheduled.publishedItemId ?? scheduled.publishedItem?.id;
+      if (!publishedItemId) {
+        throw permanentWorkerError(
+          "PUBLISH_STATE_INCONSISTENT",
+          "Scheduled post is marked published without item id",
+        );
+      }
+
+      if (scheduled.status !== "PUBLISHED") {
+        await prisma.scheduledPost.update({
+          where: { id: scheduled.id },
+          data: {
+            status: "PUBLISHED",
+            publishedAt: scheduled.publishedAt ?? new Date(),
+            lastError: null,
+          },
+        });
+      }
+
+      logWorkerEvent("publish", "info", "job.idempotent_existing_publish", {
+        jobId,
+        scheduledPostId,
+        publishedItemId,
+      });
+      return { scheduledPostId, publishedItemId, status: "already_published" };
+    }
+
+    if (scheduled.status === "PUBLISHING") {
+      throw retryableWorkerError(
+        "PUBLISH_IN_PROGRESS",
+        "Publish already in progress for this scheduled post",
+      );
+    }
+
+    if (scheduled.status === "PUBLISHED") {
+      throw permanentWorkerError(
+        "PUBLISH_STATE_INCONSISTENT",
+        "Scheduled post is published but missing published item",
+      );
+    }
+
+    if (
+      scheduled.status !== "SCHEDULED" &&
+      scheduled.status !== "FAILED_RETRYABLE"
+    ) {
+      throw permanentWorkerError(
+        "INVALID_SCHEDULED_STATE",
+        `Cannot publish from state ${scheduled.status}`,
+      );
+    }
+
+    if (scheduled.draft.status !== "APPROVED") {
+      throw permanentWorkerError(
+        "INVALID_DRAFT_STATE",
+        "Only approved drafts can be published",
+      );
+    }
+
+    if (!scheduled.redditAccount.isActive) {
+      throw permanentWorkerError(
+        "REDDIT_ACCOUNT_INACTIVE",
+        "Reddit account is inactive",
+      );
+    }
+
+    if (!scheduled.redditAccount.scopes.includes("submit")) {
+      throw permanentWorkerError(
+        "INVALID_AUTH_SCOPE",
+        "Reddit submit scope is missing",
+      );
+    }
+
+    const riskThreshold = getRiskThreshold();
+    if (scheduled.draft.riskScore > riskThreshold) {
+      throw permanentWorkerError(
+        "RISK_GATE_BLOCKED",
+        "Draft risk score exceeds publish threshold",
+      );
+    }
+
+    const latestHealth = await prisma.accountHealthSnapshot.findFirst({
+      where: {
+        workspaceId: scheduled.workspaceId,
+        redditAccountId: scheduled.redditAccountId,
+      },
+      orderBy: { capturedAt: "desc" },
+      select: { healthScore: true },
+    });
+    if (latestHealth && latestHealth.healthScore < 30) {
+      throw permanentWorkerError(
+        "ACCOUNT_HEALTH_BLOCKED",
+        "Account health score is below safe publish threshold",
+      );
+    }
+
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const publishedInWindow = await prisma.publishedItem.count({
+      where: {
+        workspaceId: scheduled.workspaceId,
+        redditAccountId: scheduled.redditAccountId,
+        createdAt: { gte: twentyFourHoursAgo },
+      },
+    });
+    const pacingLimit = PACE_LIMITS_PER_24H[scheduled.redditAccount.safetyTier];
+    if (publishedInWindow >= pacingLimit) {
+      throw retryableWorkerError(
+        "PACING_LIMIT_EXCEEDED",
+        "Daily safety pacing limit reached",
+      );
+    }
+
+    let accessToken: string;
+    try {
+      accessToken = decryptToken(scheduled.redditAccount.accessToken);
+    } catch (err) {
+      if (err instanceof TokenCryptoError) {
+        throw permanentWorkerError(
+          "TOKEN_DECRYPT_FAILED",
+          "Unable to decrypt Reddit access token",
+        );
+      }
+      throw err;
+    }
+
+    await prisma.scheduledPost.update({
+      where: { id: scheduled.id },
+      data: {
+        status: "PUBLISHING",
+        attempts: { increment: 1 },
+        lastError: null,
+      },
+    });
+
+    const submitPayload =
+      scheduled.draft.type === "POST"
+        ? {
+            sr: scheduled.subreddit.name,
+            kind: "self",
+            title: scheduled.draft.title ?? "Untitled",
+            text: scheduled.draft.body,
+            api_type: "json",
+            resubmit: false,
+          }
+        : (() => {
+            const parentThingId = parseParentThingId(
+              scheduled.draft.generationParams,
+            );
+            if (!parentThingId) {
+              throw permanentWorkerError(
+                "COMMENT_PARENT_REQUIRED",
+                "Comment draft is missing parent thing id",
+              );
+            }
+            return {
+              thing_id: parentThingId,
+              text: scheduled.draft.body,
+              api_type: "json",
+            };
+          })();
+
+    const response = await redditFetch<unknown>({
+      redditAccountId: scheduled.redditAccountId,
+      accessToken,
+      path: scheduled.draft.type === "POST" ? "/api/submit" : "/api/comment",
+      method: "POST",
+      body: submitPayload,
+    });
+
+    const parsed = parseSubmitResponse(response.data);
+    const now = new Date();
+
+    const publishedItem = await prisma.publishedItem.upsert({
+      where: { scheduledPostId: scheduled.id },
+      create: {
+        workspaceId: scheduled.workspaceId,
+        redditAccountId: scheduled.redditAccountId,
+        subredditId: scheduled.subredditId,
+        scheduledPostId: scheduled.id,
+        type: scheduled.draft.type,
+        redditFullname: parsed.redditFullname,
+        redditId: parsed.redditId,
+        permalink: parsed.permalink,
+        url: parsed.url,
+        titleSnapshot: scheduled.draft.title,
+        bodySnapshot: scheduled.draft.body,
+      },
+      update: {
+        redditFullname: parsed.redditFullname,
+        redditId: parsed.redditId,
+        permalink: parsed.permalink,
+        url: parsed.url,
+        titleSnapshot: scheduled.draft.title,
+        bodySnapshot: scheduled.draft.body,
+      },
+      select: { id: true },
+    });
+
+    await prisma.scheduledPost.update({
+      where: { id: scheduled.id },
+      data: {
+        status: "PUBLISHED",
+        publishedAt: now,
+        publishedItemId: publishedItem.id,
+        lastError: null,
+      },
+    });
+
+    try {
+      await enqueueMetricsFetchJob({ publishedItemId: publishedItem.id });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "unknown metrics enqueue error";
+      logWorkerEvent("publish", "warn", "metrics.enqueue_failed", {
+        jobId,
+        scheduledPostId,
+        publishedItemId: publishedItem.id,
+        error: message,
+      });
+    }
+
+    logWorkerEvent("publish", "info", "job.succeeded", {
+      jobId,
+      scheduledPostId,
+      publishedItemId: publishedItem.id,
+    });
+
+    return {
+      scheduledPostId,
+      publishedItemId: publishedItem.id,
+      status: "published" as const,
+    };
+  } catch (err) {
+    const normalized = normalizeWorkerError(err, "PUBLISH_WORKER_FAILED");
+
+    try {
+      await prisma.scheduledPost.update({
+        where: { id: scheduledPostId },
+        data: {
+          status: normalized.isRetryable
+            ? "FAILED_RETRYABLE"
+            : "FAILED_PERMANENT",
+          lastError: toStoredError(normalized),
+        },
+      });
+    } catch {
+      // Best effort status write; keep original failure classification.
+    }
+
+    logWorkerEvent("publish", "warn", "job.failed", {
+      jobId,
+      scheduledPostId,
+      code: normalized.code,
+      retryable: normalized.isRetryable,
+      message: normalized.message,
+    });
+
+    throw toJobFailure(normalized);
   }
 }

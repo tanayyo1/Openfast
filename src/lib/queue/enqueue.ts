@@ -3,6 +3,10 @@ import {
   getContentGenerateQueue,
   getMetricsFetchQueue,
   getPublishQueue,
+  getRecommendationsGenerateQueue,
+  getRiskAccountHealthQueue,
+  getRiskVisibilityCheckQueue,
+  getRoadmapGenerateQueue,
   getSubredditComputeTimeWindowsQueue,
   getSubredditIngestQueue,
 } from "./queues";
@@ -10,6 +14,10 @@ import {
   contentGenerateJobId,
   metricsFetchJobId,
   publishJobId,
+  recommendationsGenerateJobId,
+  riskAccountHealthJobId,
+  riskVisibilityCheckJobId,
+  roadmapGenerateJobId,
   subredditComputeTimeWindowsJobId,
   subredditIngestJobId,
 } from "./jobIds";
@@ -41,6 +49,29 @@ export type SubredditIngestJobData = {
 
 export type SubredditComputeTimeWindowsJobData = {
   subredditId: string;
+};
+
+export type RecommendationsGenerateJobData = {
+  workspaceId: string;
+  projectId: string;
+};
+
+export type RoadmapGenerateJobData = {
+  workspaceId: string;
+  projectId: string;
+  roadmapId?: string | null;
+};
+
+export type RiskAccountHealthJobData = {
+  workspaceId: string;
+  redditAccountId: string;
+};
+
+export type RiskVisibilityCheckJobData = {
+  workspaceId: string;
+  redditAccountId: string;
+  publishedItemId?: string | null;
+  permalink?: string | null;
 };
 
 export async function enqueuePublishJob(
@@ -111,4 +142,45 @@ export async function enqueueSubredditComputeTimeWindowsJob(
     ...opts,
     jobId,
   });
+}
+
+export async function enqueueRecommendationsGenerateJob(
+  data: RecommendationsGenerateJobData,
+  opts: JobsOptions = {},
+) {
+  const queue = getRecommendationsGenerateQueue();
+  const jobId = opts.jobId ?? recommendationsGenerateJobId(data.projectId);
+  return queue.add("recommendations_generate", data, { ...opts, jobId });
+}
+
+export async function enqueueRoadmapGenerateJob(
+  data: RoadmapGenerateJobData,
+  opts: JobsOptions = {},
+) {
+  const queue = getRoadmapGenerateQueue();
+  const jobId = opts.jobId ?? roadmapGenerateJobId(data.projectId);
+  return queue.add("roadmap_generate", data, { ...opts, jobId });
+}
+
+export async function enqueueRiskAccountHealthJob(
+  data: RiskAccountHealthJobData,
+  opts: JobsOptions = {},
+) {
+  const queue = getRiskAccountHealthQueue();
+  const jobId = opts.jobId ?? riskAccountHealthJobId(data.redditAccountId);
+  return queue.add("risk_account_health", data, { ...opts, jobId });
+}
+
+export async function enqueueRiskVisibilityCheckJob(
+  data: RiskVisibilityCheckJobData,
+  opts: JobsOptions = {},
+) {
+  const queue = getRiskVisibilityCheckQueue();
+  const jobId =
+    opts.jobId ??
+    riskVisibilityCheckJobId({
+      redditAccountId: data.redditAccountId,
+      publishedItemId: data.publishedItemId ?? null,
+    });
+  return queue.add("risk_visibility_check", data, { ...opts, jobId });
 }

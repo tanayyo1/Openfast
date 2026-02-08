@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { QuotaExceededError, assertWorkspaceQuota } from "@/lib/billing/quota";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 
 const listQuerySchema = z.object({
@@ -152,6 +153,25 @@ export async function POST(req: Request) {
   }
 
   const data = parsed.data;
+  try {
+    await assertWorkspaceQuota({
+      workspaceId: session.workspaceId,
+      resource: "projects",
+    });
+  } catch (err) {
+    if (err instanceof QuotaExceededError) {
+      return NextResponse.json(
+        {
+          error: err.message,
+          code: err.code,
+          details: { resource: err.resource, used: err.used, limit: err.limit },
+        },
+        { status: 403 },
+      );
+    }
+    throw err;
+  }
+
   const created = await prisma.project.create({
     data: {
       workspaceId: session.workspaceId,

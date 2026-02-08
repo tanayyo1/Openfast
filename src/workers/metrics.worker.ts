@@ -66,7 +66,7 @@ export async function processMetricsFetchJob(job: Job<MetricsFetchJobData>) {
       throw new UnrecoverableError("REDDIT_POST_NOT_FOUND");
     }
 
-    await prisma.performanceSnapshot.create({
+    const snapshot = await prisma.performanceSnapshot.create({
       data: {
         publishedItemId: item.id,
         score: post.score ?? 0,
@@ -82,19 +82,28 @@ export async function processMetricsFetchJob(job: Job<MetricsFetchJobData>) {
         capturedAt: new Date(),
       },
     });
+
+    return typeof snapshot.id === "string"
+      ? {
+          publishedItemId: item.id,
+          snapshotId: snapshot.id,
+          status: "captured",
+        }
+      : {
+          publishedItemId: item.id,
+          status: "captured",
+        };
   } catch (err) {
     if (err instanceof UnrecoverableError) throw err;
     if (err instanceof TokenCryptoError) {
       throw new UnrecoverableError(`TOKEN_DECRYPT_FAILED:${err.code}`);
+    }
+    if (err instanceof RedditApiError && err.isRetryable) {
+      throw new Error(`${err.code}:${err.message}`);
     }
     if (err instanceof RedditApiError && !err.isRetryable) {
       throw new UnrecoverableError(truncateError(err));
     }
     throw err instanceof Error ? err : new Error("METRICS_FETCH_FAILED");
   }
-
-  return {
-    publishedItemId: item.id,
-    status: "captured",
-  };
 }

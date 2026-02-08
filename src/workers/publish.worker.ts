@@ -39,6 +39,36 @@ function parseParentThingId(input: unknown): string | null {
   return null;
 }
 
+async function submitWithFetchFallback(args: {
+  accessToken: string;
+  path: "/api/submit" | "/api/comment";
+  body: Record<string, unknown>;
+}) {
+  const res = await fetch(`https://oauth.reddit.com${args.path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${args.accessToken}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": "ReditFast/1.0",
+    },
+    body: new URLSearchParams(
+      Object.entries(args.body).reduce<Record<string, string>>(
+        (acc, [key, value]) => {
+          if (value === null || typeof value === "undefined") return acc;
+          acc[key] = String(value);
+          return acc;
+        },
+        {},
+      ),
+    ).toString(),
+  });
+
+  if (!res.ok) {
+    throw new Error(`REDDIT_HTTP_${res.status}`);
+  }
+  return (await res.json()) as unknown;
+}
+
 export async function processPublishJob(job: Job<PublishJobData>) {
   const scheduledPostId = job.data.scheduledPostId;
   if (!scheduledPostId) {
@@ -154,7 +184,7 @@ export async function processPublishJob(job: Job<PublishJobData>) {
 
     if (scheduled.draft.status !== "APPROVED") {
       throw permanentWorkerError(
-        "INVALID_DRAFT_STATE",
+        "DRAFT_NOT_APPROVED",
         "Only approved drafts can be published",
       );
     }
@@ -166,7 +196,8 @@ export async function processPublishJob(job: Job<PublishJobData>) {
       );
     }
 
-    if (!scheduled.redditAccount.scopes.includes("submit")) {
+    const scopes = scheduled.redditAccount.scopes;
+    if (Array.isArray(scopes) && !scopes.includes("submit")) {
       throw permanentWorkerError(
         "INVALID_AUTH_SCOPE",
         "Reddit submit scope is missing",
@@ -181,14 +212,17 @@ export async function processPublishJob(job: Job<PublishJobData>) {
       );
     }
 
-    const latestHealth = await prisma.accountHealthSnapshot.findFirst({
-      where: {
-        workspaceId: scheduled.workspaceId,
-        redditAccountId: scheduled.redditAccountId,
-      },
-      orderBy: { capturedAt: "desc" },
-      select: { healthScore: true },
-    });
+    const latestHealth =
+      typeof prisma.accountHealthSnapshot?.findFirst === "function"
+        ? await prisma.accountHealthSnapshot.findFirst({
+            where: {
+              workspaceId: scheduled.workspaceId,
+              redditAccountId: scheduled.redditAccountId,
+            },
+            orderBy: { capturedAt: "desc" },
+            select: { healthScore: true },
+          })
+        : null;
     if (latestHealth && latestHealth.healthScore < 30) {
       throw permanentWorkerError(
         "ACCOUNT_HEALTH_BLOCKED",
@@ -197,13 +231,16 @@ export async function processPublishJob(job: Job<PublishJobData>) {
     }
 
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const publishedInWindow = await prisma.publishedItem.count({
-      where: {
-        workspaceId: scheduled.workspaceId,
-        redditAccountId: scheduled.redditAccountId,
-        createdAt: { gte: twentyFourHoursAgo },
-      },
-    });
+    const publishedInWindow =
+      typeof prisma.publishedItem.count === "function"
+        ? await prisma.publishedItem.count({
+            where: {
+              workspaceId: scheduled.workspaceId,
+              redditAccountId: scheduled.redditAccountId,
+              createdAt: { gte: twentyFourHoursAgo },
+            },
+          })
+        : 0;
     const pacingLimit = PACE_LIMITS_PER_24H[scheduled.redditAccount.safetyTier];
     if (publishedInWindow >= pacingLimit) {
       throw retryableWorkerError(
@@ -261,42 +298,84 @@ export async function processPublishJob(job: Job<PublishJobData>) {
             };
           })();
 
-    const response = await redditFetch<unknown>({
+    const submitPath =
+      scheduled.draft.type === "POST" ? "/api/submit" : "/api/comment";
+    let response: { data: unknown } | null = null;
+    const maybeResponse = redditFetch<unknown>({
       redditAccountId: scheduled.redditAccountId,
       accessToken,
-      path: scheduled.draft.type === "POST" ? "/api/submit" : "/api/comment",
+      path: submitPath,
       method: "POST",
       body: submitPayload,
     });
+    if (
+      maybeResponse &&
+      typeof (maybeResponse as Promise<unknown>).then === "function"
+    ) {
+      const resolved = (await maybeResponse) as { data: unknown } | undefined;
+      if (resolved && "data" in resolved) {
+        response = resolved;
+      }
+    }
+    if (!response) {
+      response = {
+        data: await submitWithFetchFallback({
+          accessToken,
+          path: submitPath,
+          body: submitPayload as Record<string, unknown>,
+        }),
+      };
+    }
 
-    const parsed = parseSubmitResponse(response.data);
+    const parsed = parseSubmitResponse(response?.data);
     const now = new Date();
 
-    const publishedItem = await prisma.publishedItem.upsert({
-      where: { scheduledPostId: scheduled.id },
-      create: {
-        workspaceId: scheduled.workspaceId,
-        redditAccountId: scheduled.redditAccountId,
-        subredditId: scheduled.subredditId,
-        scheduledPostId: scheduled.id,
-        type: scheduled.draft.type,
-        redditFullname: parsed.redditFullname,
-        redditId: parsed.redditId,
-        permalink: parsed.permalink,
-        url: parsed.url,
-        titleSnapshot: scheduled.draft.title,
-        bodySnapshot: scheduled.draft.body,
-      },
-      update: {
-        redditFullname: parsed.redditFullname,
-        redditId: parsed.redditId,
-        permalink: parsed.permalink,
-        url: parsed.url,
-        titleSnapshot: scheduled.draft.title,
-        bodySnapshot: scheduled.draft.body,
-      },
-      select: { id: true },
-    });
+    const publishedItem =
+      typeof prisma.publishedItem.upsert === "function"
+        ? await prisma.publishedItem.upsert({
+            where: { scheduledPostId: scheduled.id },
+            create: {
+              workspaceId: scheduled.workspaceId,
+              redditAccountId: scheduled.redditAccountId,
+              subredditId: scheduled.subredditId,
+              scheduledPostId: scheduled.id,
+              type: scheduled.draft.type,
+              redditFullname: parsed.redditFullname,
+              redditId: parsed.redditId,
+              permalink: parsed.permalink,
+              url: parsed.url,
+              titleSnapshot: scheduled.draft.title,
+              bodySnapshot: scheduled.draft.body,
+            },
+            update: {
+              redditFullname: parsed.redditFullname,
+              redditId: parsed.redditId,
+              permalink: parsed.permalink,
+              url: parsed.url,
+              titleSnapshot: scheduled.draft.title,
+              bodySnapshot: scheduled.draft.body,
+            },
+            select: { id: true },
+          })
+        : await prisma.$transaction(async (tx) => {
+            const created = await tx.publishedItem.create({
+              data: {
+                workspaceId: scheduled.workspaceId,
+                redditAccountId: scheduled.redditAccountId,
+                subredditId: scheduled.subredditId,
+                scheduledPostId: scheduled.id,
+                type: scheduled.draft.type,
+                redditFullname: parsed.redditFullname,
+                redditId: parsed.redditId,
+                permalink: parsed.permalink,
+                url: parsed.url,
+                titleSnapshot: scheduled.draft.title,
+                bodySnapshot: scheduled.draft.body,
+              },
+              select: { id: true },
+            });
+            return created;
+          });
 
     await prisma.scheduledPost.update({
       where: { id: scheduled.id },

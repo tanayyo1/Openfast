@@ -36,6 +36,14 @@ export type RankedRecommendation = {
   reasons: string[];
 };
 
+export type RankedSubredditScore = {
+  subredditId: string;
+  fitScore: number;
+  riskScore: number;
+  timeWindowScore: number;
+  compositeScore: number;
+};
+
 function clamp(v: number, min = 0, max = 1) {
   return Math.max(min, Math.min(max, v));
 }
@@ -138,5 +146,28 @@ export function rankSubreddits(
       };
     })
     .sort((a, b) => b.totalScore - a.totalScore)
+    .slice(0, limit);
+}
+
+export function rankTopSubreddits(
+  scores: Array<{
+    subredditId: string;
+    fitScore: number;
+    riskScore: number;
+    timeWindowScore: number;
+  }>,
+  opts?: { limit?: number },
+): RankedSubredditScore[] {
+  const limit = opts?.limit ?? 5;
+  return scores
+    .map((item) => ({
+      ...item,
+      compositeScore: clamp(
+        item.fitScore * 0.55 +
+          item.timeWindowScore * 0.25 -
+          item.riskScore * 0.2,
+      ),
+    }))
+    .sort((a, b) => b.compositeScore - a.compositeScore)
     .slice(0, limit);
 }

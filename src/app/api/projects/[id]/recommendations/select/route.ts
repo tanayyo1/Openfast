@@ -58,7 +58,7 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
 
   const subredditIds = Array.from(new Set(parsed.data.subredditIds));
 
-  const existing = await prisma.subredditRecommendation.findMany({
+  const existing = await prisma.projectSubredditRecommendation.findMany({
     where: {
       workspaceId: session.workspaceId,
       projectId,
@@ -78,29 +78,29 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
 
   const updated = await prisma.$transaction(
     async (tx: Prisma.TransactionClient) => {
-      await tx.subredditRecommendation.updateMany({
+      await tx.projectSubredditRecommendation.updateMany({
         where: { workspaceId: session.workspaceId, projectId },
-        data: { selected: false, selectedAt: null },
+        data: { status: "CANDIDATE", selectedAt: null },
       });
-      await tx.subredditRecommendation.updateMany({
+      await tx.projectSubredditRecommendation.updateMany({
         where: {
           workspaceId: session.workspaceId,
           projectId,
           subredditId: { in: subredditIds },
         },
-        data: { selected: true, selectedAt: new Date() },
+        data: { status: "SELECTED", selectedAt: new Date() },
       });
-      return tx.subredditRecommendation.findMany({
+      return tx.projectSubredditRecommendation.findMany({
         where: {
           workspaceId: session.workspaceId,
           projectId,
-          selected: true,
+          status: "SELECTED",
         },
-        orderBy: [{ totalScore: "desc" }],
+        orderBy: [{ compositeScore: "desc" }],
         select: {
           id: true,
           subredditId: true,
-          totalScore: true,
+          compositeScore: true,
           selectedAt: true,
         },
       });
@@ -110,6 +110,9 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
   return NextResponse.json({
     projectId,
     selectedCount: updated.length,
-    items: updated,
+    items: updated.map((item) => ({
+      ...item,
+      totalScore: item.compositeScore,
+    })),
   });
 }

@@ -1,11 +1,13 @@
 import type { JobsOptions } from "bullmq";
 import {
+  getContentGenerateQueue,
   getMetricsFetchQueue,
   getPublishQueue,
   getSubredditComputeTimeWindowsQueue,
   getSubredditIngestQueue,
 } from "./queues";
 import {
+  contentGenerateJobId,
   metricsFetchJobId,
   publishJobId,
   subredditComputeTimeWindowsJobId,
@@ -18,6 +20,19 @@ export type PublishJobData = {
 
 export type MetricsFetchJobData = {
   publishedItemId: string;
+};
+
+export type ContentGenerateMode = "GENERATE" | "REWRITE" | "COMPLIANCE";
+
+export type ContentGenerateJobData = {
+  workspaceId: string;
+  taskId: string;
+  draftId: string;
+  mode: ContentGenerateMode;
+  variantCount: number;
+  tone?: string | null;
+  length?: "short" | "medium" | "long" | null;
+  sourceDraftId?: string | null;
 };
 
 export type SubredditIngestJobData = {
@@ -53,6 +68,19 @@ export async function enqueueMetricsFetchJob(
   const jobId = opts.jobId ?? metricsFetchJobId(data.publishedItemId);
 
   return queue.add("metrics_fetch", data, {
+    ...opts,
+    jobId,
+  });
+}
+
+export async function enqueueContentGenerateJob(
+  data: ContentGenerateJobData,
+  opts: JobsOptions = {},
+) {
+  const queue = getContentGenerateQueue();
+  const jobId = opts.jobId ?? contentGenerateJobId(data.draftId);
+
+  return queue.add("content_generate", data, {
     ...opts,
     jobId,
   });

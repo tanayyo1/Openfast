@@ -144,7 +144,7 @@ jobs:
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/reditfast_test
           REDIS_URL: redis://localhost:6379
-        run: npm run test:integration -- --passWithNoTests
+        run: npm run test:integration -- --passWithNoTests --runInBand --detectOpenHandles --forceExit
 
   # Job 5: Security Scan
   security-scan:

@@ -21,12 +21,12 @@ jobs:
           BRANCH_NAME="${{ github.head_ref }}"
           echo "Checking branch: $BRANCH_NAME"
 
-          # Pattern: type/LIN-XXX-description
-          if [[ ! $BRANCH_NAME =~ ^(feature|bugfix|hotfix|docs|refactor|test)/LIN-[0-9]+-[a-z0-9-]+$ ]]; then
+          # Pattern: type/(LIN|RED)-XXX-description
+          if [[ ! $BRANCH_NAME =~ ^(feature|bugfix|hotfix|docs|refactor|test)/(LIN|RED)-[0-9]+-[a-z0-9-]+$ ]]; then
             echo "Invalid branch name: $BRANCH_NAME"
-            echo "Branch must follow pattern: type/LIN-XXX-description"
+            echo "Branch must follow pattern: type/(LIN|RED)-XXX-description"
             echo "Valid types: feature, bugfix, hotfix, docs, refactor, test"
-            echo "Example: feature/LIN-123-add-scheduler"
+            echo "Example: feature/RED-30-subreddit-rules-cache"
             exit 1
           fi
 

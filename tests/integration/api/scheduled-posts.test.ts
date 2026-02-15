@@ -247,7 +247,7 @@ describe("Scheduled posts API", () => {
     }
   });
 
-  test("supports idempotent create by idempotency key", async () => {
+  test("rejects duplicate scheduling for the same draft", async () => {
     const ids = await makeFixture("APPROVED");
     const idempotencyKey = `sched_test_${Date.now()}_${counter}`;
     try {
@@ -267,9 +267,9 @@ describe("Scheduled posts API", () => {
       const first = await createScheduledPost(makeRequest());
       expect(first.status).toBe(201);
       const second = await createScheduledPost(makeRequest());
-      expect(second.status).toBe(200);
-      const json = (await readJson(second)) as { idempotent: boolean };
-      expect(json.idempotent).toBe(true);
+      expect(second.status).toBe(409);
+      const json = (await readJson(second)) as { code: string };
+      expect(json.code).toBe("ALREADY_SCHEDULED");
     } finally {
       await cleanupFixture(ids);
     }

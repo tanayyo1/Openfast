@@ -31,12 +31,12 @@ git checkout -b feature/RED-XXX-description
 
 ### Branch Naming (STRICT)
 
-| Type | Format | Example |
-|------|--------|---------|
+| Type    | Format                 | Example                         |
+| ------- | ---------------------- | ------------------------------- |
 | Feature | `feature/RED-XXX-desc` | `feature/RED-46-error-boundary` |
-| Bugfix | `bugfix/RED-XXX-desc` | `bugfix/RED-99-oauth-fix` |
-| Hotfix | `hotfix/RED-XXX-desc` | `hotfix/RED-101-critical` |
-| Docs | `docs/RED-XXX-desc` | `docs/RED-50-api-docs` |
+| Bugfix  | `bugfix/RED-XXX-desc`  | `bugfix/RED-99-oauth-fix`       |
+| Hotfix  | `hotfix/RED-XXX-desc`  | `hotfix/RED-101-critical`       |
+| Docs    | `docs/RED-XXX-desc`    | `docs/RED-50-api-docs`          |
 
 ### Workflow
 
@@ -76,6 +76,7 @@ npm run format:check # Prettier formatting
 ## Commit Messages
 
 **Format:**
+
 ```
 RED-XXX: Brief imperative description
 
@@ -86,6 +87,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 ```
 
 **Examples:**
+
 ```
 RED-46: Add root error boundary and not-found components
 
@@ -101,21 +103,26 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 
 ```markdown
 ## Summary
+
 - What changed and why
 
 ## Linear Issue
+
 Closes RED-XXX
 
 ## Changes
+
 - Change 1
 - Change 2
 
 ## Test Plan
+
 - [ ] Tested locally
 - [ ] Unit tests pass
 - [ ] Integration tests pass
 
 ## Checklist
+
 - [ ] Branch named correctly (feature/RED-XXX-desc)
 - [ ] All quality gates pass
 - [ ] Documentation updated (if needed)
@@ -128,17 +135,18 @@ Closes RED-XXX
 ### API Access
 
 Linear API key is in `.env.local`:
+
 ```bash
 LINEAR_API_KEY="lin_api_..."
 ```
 
 ### Status Updates
 
-| Action | Linear Status |
-|--------|---------------|
+| Action     | Linear Status |
+| ---------- | ------------- |
 | Start work | "In Progress" |
-| Open PR | "In Review" |
-| PR merged | "Done" |
+| Open PR    | "In Review"   |
+| PR merged  | "Done"        |
 
 ### Workflow State IDs (for API calls)
 
@@ -275,11 +283,13 @@ npm run test           # Run all tests
 ## If You Mess Up
 
 **Committed to main by accident:**
+
 1. Don't panic, don't push more
 2. Tell the user immediately
 3. They will handle the revert
 
 **Committed secrets:**
+
 1. IMMEDIATELY notify user
 2. Secret must be rotated
 3. Never try to hide it

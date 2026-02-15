@@ -251,20 +251,22 @@ describe("Scheduled posts API", () => {
     const ids = await makeFixture("APPROVED");
     const idempotencyKey = `sched_test_${Date.now()}_${counter}`;
     try {
-      const req = new Request("http://test.local/api/scheduled-posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          draftId: ids.draftId,
-          redditAccountId: ids.redditAccountId,
-          scheduledAt: new Date(Date.now() + 5 * 60_000).toISOString(),
-          timezone: "UTC",
-          idempotencyKey,
-        }),
-      });
-      const first = await createScheduledPost(req);
+      const makeRequest = () =>
+        new Request("http://test.local/api/scheduled-posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            draftId: ids.draftId,
+            redditAccountId: ids.redditAccountId,
+            scheduledAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+            timezone: "UTC",
+            idempotencyKey,
+          }),
+        });
+
+      const first = await createScheduledPost(makeRequest());
       expect(first.status).toBe(201);
-      const second = await createScheduledPost(req);
+      const second = await createScheduledPost(makeRequest());
       expect(second.status).toBe(200);
       const json = (await readJson(second)) as { idempotent: boolean };
       expect(json.idempotent).toBe(true);

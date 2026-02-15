@@ -48,7 +48,11 @@ function isUniqueViolationFor(
   if (!(err instanceof Prisma.PrismaClientKnownRequestError)) return false;
   if (err.code !== "P2002") return false;
   const target = (err.meta?.target as string[] | undefined) ?? [];
-  return target.includes(field);
+  const fieldAliases: Record<typeof field, string[]> = {
+    idempotencyKey: ["idempotencyKey", "idempotency_key"],
+    draftId: ["draftId", "draft_id"],
+  };
+  return fieldAliases[field].some((alias) => target.includes(alias));
 }
 
 function defaultIdempotencyKey(input: {

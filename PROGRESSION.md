@@ -24,6 +24,7 @@
 - [x] Roadmaps: list/create/get/list tasks.
 - [x] Tasks: get/update status.
 - [x] Drafts: list/create/get/update/archive + request-approval/approve/reject lifecycle.
+- [x] RED-63: Draft structure validation API coverage (`GET /api/drafts/:id?includeStructure=1`, `PATCH /api/drafts/:id` revalidation on content edits, `POST /api/drafts/:id/validate-structure`).
 - [x] Reddit OAuth: start/callback + accounts list/disconnect.
 
 ### Security / Compliance Baseline
@@ -39,6 +40,7 @@
 - [x] Deterministic job IDs for idempotency.
 - [x] Worker process bootstrapping + DLQ forwarding for failed jobs.
 - [x] Unit tests for queue helpers and worker stubs.
+- [x] RED-63: content worker persists `structureValidation` (grade, score, warnings, rewriteSuggestions) on generated drafts.
 
 ### UI Surface Present (MVP skeleton)
 
@@ -46,6 +48,7 @@
 - [x] Public tools pages: post generator, subreddit analyzer, shadowban check.
 - [x] App pages: dashboard, projects, roadmaps, content, approvals, scheduling, analytics, health, opportunities.
 - [x] SEO route scaffold: `/seo/[type]/[slug]`.
+- [x] RED-63: Post structure panel with grade/score, warnings, rewrite suggestions (copy action), good/bad examples, and `/docs/post-structure` public doc route.
 
 ### Tests Present
 

@@ -424,6 +424,9 @@ model Draft {
   riskReasons    String[] @map("risk_reasons")
   suggestedFixes Json?    @map("suggested_fixes")
 
+  // Post structure (RED-63): Headline → Value → Product
+  structureValidation Json? @map("structure_validation")
+
   // Status
   status     DraftStatus @default(DRAFT)
   approvedAt DateTime?   @map("approved_at")

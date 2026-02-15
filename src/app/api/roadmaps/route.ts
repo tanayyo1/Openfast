@@ -184,7 +184,7 @@ export async function POST(req: Request) {
         select: { id: true, name: true, title: true },
       },
     },
-    orderBy: [{ compositeScore: "desc" }, { id: "asc" }],
+    orderBy: [{ fitScore: "desc" }, { riskScore: "asc" }, { id: "asc" }],
     take: 5,
   });
 
@@ -199,7 +199,7 @@ export async function POST(req: Request) {
         select: { id: true, name: true, title: true },
       },
     },
-    orderBy: [{ compositeScore: "desc" }, { id: "asc" }],
+    orderBy: [{ fitScore: "desc" }, { riskScore: "asc" }, { id: "asc" }],
     take: 5,
   });
 

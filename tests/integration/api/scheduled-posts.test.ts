@@ -171,8 +171,19 @@ describe("Scheduled posts API", () => {
       expect(createRes.status).toBe(201);
       const created = (await readJson(createRes)) as {
         scheduledPost: { id: string; status: string };
+        structure: {
+          grade: string;
+          score: number;
+          warnings: unknown[];
+          rewriteSuggestions: unknown[];
+        };
       };
       expect(created.scheduledPost.status).toBe("SCHEDULED");
+      expect(created.structure).toBeDefined();
+      expect(created.structure.grade).toMatch(/^[A-F]$/);
+      expect(typeof created.structure.score).toBe("number");
+      expect(Array.isArray(created.structure.warnings)).toBe(true);
+      expect(Array.isArray(created.structure.rewriteSuggestions)).toBe(true);
 
       const listRes = await listScheduledPosts(
         new Request(

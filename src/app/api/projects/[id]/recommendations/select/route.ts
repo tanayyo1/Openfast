@@ -96,11 +96,13 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
           projectId,
           status: "SELECTED",
         },
-        orderBy: [{ compositeScore: "desc" }],
+        orderBy: [{ fitScore: "desc" }, { riskScore: "asc" }, { id: "asc" }],
         select: {
           id: true,
           subredditId: true,
-          compositeScore: true,
+          fitScore: true,
+          riskScore: true,
+          reasons: true,
           selectedAt: true,
         },
       });
@@ -110,9 +112,23 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
   return NextResponse.json({
     projectId,
     selectedCount: updated.length,
-    items: updated.map((item) => ({
-      ...item,
-      totalScore: item.compositeScore,
-    })),
+    items: updated.map((item) => {
+      const reasons =
+        item.reasons && typeof item.reasons === "object"
+          ? (item.reasons as Record<string, unknown>)
+          : null;
+      const totalScore =
+        reasons && typeof reasons.compositeScore === "number"
+          ? reasons.compositeScore
+          : Math.max(
+              0,
+              Math.min(1, item.fitScore * 0.7 + (1 - item.riskScore) * 0.3),
+            );
+
+      return {
+        ...item,
+        totalScore,
+      };
+    }),
   });
 }

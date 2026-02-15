@@ -9,12 +9,10 @@ type RecommendationOutput = {
   subredditId: string;
   fitScore: number;
   riskScore: number;
-  timeWindowScore: number;
-  compositeScore: number;
   reasons: Prisma.JsonValue;
   status: string;
   selectedAt: Date | null;
-  dismissedAt: Date | null;
+  rank: number | null;
   createdAt: Date;
   updatedAt: Date;
   subreddit: {
@@ -198,18 +196,18 @@ export async function generateProjectRecommendations(input: {
     if (ranked.length === 0) return;
 
     await tx.projectSubredditRecommendation.createMany({
-      data: ranked.map((item: (typeof ranked)[number]) => ({
+      data: ranked.map((item: (typeof ranked)[number], index: number) => ({
         workspaceId: input.workspaceId,
         projectId: input.projectId,
         subredditId: item.subredditId,
         fitScore: item.fitScore,
         riskScore: item.riskScore,
-        timeWindowScore: item.timeWindowScore,
-        compositeScore: item.compositeScore,
+        rank: index + 1,
         reasons: {
           fitScore: item.fitScore,
           riskScore: item.riskScore,
           timeWindowScore: item.timeWindowScore,
+          compositeScore: item.compositeScore,
           summary:
             item.riskScore > 0.6
               ? "High potential but elevated moderation risk."
@@ -235,7 +233,7 @@ export async function generateProjectRecommendations(input: {
         },
       },
     },
-    orderBy: [{ compositeScore: "desc" }, { id: "asc" }],
+    orderBy: [{ fitScore: "desc" }, { riskScore: "asc" }, { id: "asc" }],
     take: 5,
   });
 
@@ -244,6 +242,6 @@ export async function generateProjectRecommendations(input: {
     recommendations: recommendations.map((rec) => ({
       ...rec,
       ranking: scoreMap.get(rec.subredditId) ?? null,
-    })) as RecommendationOutput[],
+    })),
   };
 }

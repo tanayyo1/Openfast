@@ -30,14 +30,16 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
 
   const items = await prisma.projectSubredditRecommendation.findMany({
     where: { workspaceId: session.workspaceId, projectId },
-    orderBy: [{ compositeScore: "desc" }, { createdAt: "desc" }],
+    orderBy: [
+      { fitScore: "desc" },
+      { riskScore: "asc" },
+      { createdAt: "desc" },
+    ],
     select: {
       id: true,
       subredditId: true,
       fitScore: true,
       riskScore: true,
-      timeWindowScore: true,
-      compositeScore: true,
       reasons: true,
       status: true,
       selectedAt: true,
@@ -64,11 +66,29 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
   return NextResponse.json({
     projectId,
     count: items.length,
-    items: items.map((item) => ({
-      ...item,
-      timeScore: item.timeWindowScore,
-      totalScore: item.compositeScore,
-      selected: item.status === "SELECTED",
-    })),
+    items: items.map((item) => {
+      const reasons =
+        item.reasons && typeof item.reasons === "object"
+          ? (item.reasons as Record<string, unknown>)
+          : null;
+      const timeScore =
+        reasons && typeof reasons.timeWindowScore === "number"
+          ? reasons.timeWindowScore
+          : null;
+      const totalScore =
+        reasons && typeof reasons.compositeScore === "number"
+          ? reasons.compositeScore
+          : Math.max(
+              0,
+              Math.min(1, item.fitScore * 0.7 + (1 - item.riskScore) * 0.3),
+            );
+
+      return {
+        ...item,
+        timeScore,
+        totalScore,
+        selected: item.status === "SELECTED",
+      };
+    }),
   });
 }

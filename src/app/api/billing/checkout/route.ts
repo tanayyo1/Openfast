@@ -21,6 +21,48 @@ function getPriceId(plan: "PRO" | "LIFETIME") {
   return process.env.STRIPE_PRICE_LIFETIME ?? null;
 }
 
+function resolveAllowedOrigins() {
+  const origins = new Set<string>();
+
+  const appUrl = process.env.APP_URL;
+  if (appUrl) {
+    try {
+      origins.add(new URL(appUrl).origin);
+    } catch {
+      // Ignore invalid APP_URL and rely on explicit allowed origins.
+    }
+  }
+
+  const rawAllowedOrigins = process.env.BILLING_ALLOWED_REDIRECT_ORIGINS ?? "";
+  for (const candidate of rawAllowedOrigins
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)) {
+    try {
+      origins.add(new URL(candidate).origin);
+    } catch {
+      // Ignore invalid configured origins.
+    }
+  }
+
+  return origins;
+}
+
+function resolveRedirectUrl(
+  input: string | undefined,
+  fallback: string,
+  allowedOrigins: Set<string>,
+) {
+  if (!input) return fallback;
+  try {
+    const url = new URL(input);
+    if (!allowedOrigins.has(url.origin)) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(req: Request) {
   let session;
   try {
@@ -91,10 +133,38 @@ export async function POST(req: Request) {
       })
     ).id;
 
-  const appUrl = process.env.APP_URL ?? new URL(req.url).origin;
-  const successUrl =
-    parsed.data.successUrl ?? `${appUrl}/dashboard?billing=success`;
-  const cancelUrl = parsed.data.cancelUrl ?? `${appUrl}/pricing?billing=cancel`;
+  const allowedOrigins = resolveAllowedOrigins();
+  if (allowedOrigins.size === 0) {
+    return NextResponse.json(
+      {
+        error: "Billing redirect origins are not configured",
+        code: "REDIRECT_ORIGINS_NOT_CONFIGURED",
+      },
+      { status: 500 },
+    );
+  }
+  const appOrigin = allowedOrigins.values().next().value as string;
+  const successFallback = `${appOrigin}/dashboard?billing=success`;
+  const cancelFallback = `${appOrigin}/pricing?billing=cancel`;
+  const successUrl = resolveRedirectUrl(
+    parsed.data.successUrl,
+    successFallback,
+    allowedOrigins,
+  );
+  const cancelUrl = resolveRedirectUrl(
+    parsed.data.cancelUrl,
+    cancelFallback,
+    allowedOrigins,
+  );
+  if (!successUrl || !cancelUrl) {
+    return NextResponse.json(
+      {
+        error: "Redirect URL must match application origin",
+        code: "INVALID_REDIRECT_URL",
+      },
+      { status: 400 },
+    );
+  }
 
   const isLifetime = parsed.data.plan === "LIFETIME";
   const checkoutSession = await stripe.checkout.sessions.create({

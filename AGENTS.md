@@ -49,24 +49,28 @@ If docs conflict, prioritize getting the MVP working end-to-end with the report 
 ## 4) MVP Sprint Plan (Tiered)
 
 ### Tier 1 - Must Ship (Core Value)
-| Order | Issue | Feature | Why |
-|-------|-------|---------|-----|
-| 1 | RED-30 | Subreddit rules fetch + cache | Foundation for compliance |
-| 2 | RED-29 | Account health snapshot | Safety tiers for pacing |
-| 3 | RED-35 | Distributed locks + rate limits | Anti-ban infrastructure |
-| 4 | RED-39 | OpenAI client + prompts | AI engine foundation |
-| 5 | RED-40 | Draft generation + compliance | Core value prop |
-| 6 | RED-48 | Value-check scoring | Ban prevention |
-| 7 | RED-63 | Post structure validator | Post quality |
-| 8 | RED-55 | Comment-first mode | New account safety |
+
+| Order | Issue  | Feature                         | Why                       |
+| ----- | ------ | ------------------------------- | ------------------------- |
+| 1     | RED-30 | Subreddit rules fetch + cache   | Foundation for compliance |
+| 2     | RED-29 | Account health snapshot         | Safety tiers for pacing   |
+| 3     | RED-35 | Distributed locks + rate limits | Anti-ban infrastructure   |
+| 4     | RED-39 | OpenAI client + prompts         | AI engine foundation      |
+| 5     | RED-40 | Draft generation + compliance   | Core value prop           |
+| 6     | RED-48 | Value-check scoring             | Ban prevention            |
+| 7     | RED-63 | Post structure validator        | Post quality              |
+| 8     | RED-55 | Comment-first mode              | New account safety        |
 
 ### Tier 2 - Should Have (Differentiation)
+
 RED-62 (discovery), RED-53 (tone), RED-41 (rewrite), RED-49 (fit score), RED-51 (anti-pattern), RED-56 (pain points), RED-50 (engagement threshold)
 
 ### Tier 3 - Nice to Have (Polish)
+
 RED-54 (profile checklist), RED-57 (demand scorecard), RED-59 (comment automation), RED-60 (mobile preview), RED-61 (brand monitoring)
 
 ### Tier 4 - Post-MVP (Parked)
+
 RED-36/37/38 (analytics pipeline), RED-52 (Reddit Ads), RED-58 (landing page gen)
 
 ---

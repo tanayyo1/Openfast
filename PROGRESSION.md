@@ -1,6 +1,6 @@
 # PROGRESSION.md - MediaFast Clone MVP Tracker
 
-> **Last Updated**: 2026-02-15
+> **Last Updated**: 2026-02-16
 > **Target**: `mediafast_clone_system_design_report.md`  
 > **Current Estimate**: ~35-40% of MVP parity complete
 
@@ -140,31 +140,36 @@
 ## 4) Sprint Priority (Updated 2026-02-15)
 
 ### Tier 1 - Must Ship First (In Todo on Linear)
+
 1. RED-30: Subreddit rules fetch + cache (DONE - Reddit fetch + Redis/memory cache + fallback)
 2. RED-29: Account health snapshot (DONE - snapshot scoring + tier updates + stale refresh queueing)
 3. RED-35: Distributed locks + rate limits (DONE - Redis locks in publish worker + fallback rate-limit enforcement)
 4. RED-39: OpenAI client + prompt templates (DONE - OpenAI wrapper + DB-backed prompt template service + content worker LLM path)
 5. RED-40: Draft generation + compliance scoring (DONE - variant-level compliance scoring + safest-variant selection)
-6. RED-48: Value-check scoring
+6. RED-48: Value-check scoring (DONE - value density scoring integrated into compliance risk penalties)
 7. RED-63: Post structure validator
-8. RED-55: Comment-first mode for new accounts (DONE - NEW tier gated from POST scheduling/publishing until minimum published comments)
+8. RED-55: Comment-first mode for new accounts
 
 ### Tier 2 - Differentiation (Backlog, High priority)
-- RED-62: Subreddit discovery tool (DONE - `GET /api/projects/:id/discover-subreddits` with ranking + ingest queue backfill)
-- RED-53: Tone classifier (DONE - tone detection + expected-vs-detected alignment penalties in content generation)
-- RED-41: Draft rewrite (DONE - `POST /api/drafts/:id/rewrite` for REWRITE/COMPLIANCE queued rewrites)
+
+- RED-62: Subreddit discovery tool
+- RED-53: Tone classifier
+- RED-41: Draft rewrite
 - RED-49: Subreddit fit score
-- RED-51: Anti-pattern detector (DONE - anti-pattern scoring integrated into compliance risk)
+- RED-51: Anti-pattern detector (DONE - vote manipulation / engagement-gating / repetition signals added to draft compliance scoring)
 - RED-56: Pain point extractor
 - RED-50: Community engagement threshold
 
 ### Tier 3 - Polish (Backlog, Medium priority)
+
 - RED-54, RED-57, RED-59, RED-60, RED-61
 
 ### Tier 4 - Post-MVP (Backlog, Low priority)
+
 - RED-36/37/38 (analytics pipeline), RED-52 (Reddit Ads), RED-58 (landing page gen)
 
 ### Remaining from Original Plan
+
 - P5: Billing/entitlements (Stripe)
 - P6: Admin/ops
 - P7: Queue/cron parity

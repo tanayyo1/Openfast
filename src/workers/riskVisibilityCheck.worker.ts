@@ -57,7 +57,8 @@ export async function processRiskVisibilityCheckJob(
       workspaceId,
       redditAccountId,
       publishedItemId: publishedItemId ?? null,
-      permalink: normalizeRedditPermalink(resolvedPermalink) ?? resolvedPermalink,
+      permalink:
+        normalizeRedditPermalink(resolvedPermalink) ?? resolvedPermalink,
       visibleLoggedIn: null,
       visibleLoggedOut,
       visibleAlt: null,

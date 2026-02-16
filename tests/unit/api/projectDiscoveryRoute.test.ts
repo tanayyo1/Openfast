@@ -14,7 +14,9 @@ jest.mock("@/lib/queue/enqueue", () => ({
 }));
 
 jest.mock("@/lib/subreddit/intel", () => ({
-  candidateSubredditNamesForProject: jest.fn().mockReturnValue(["startups", "saas"]),
+  candidateSubredditNamesForProject: jest
+    .fn()
+    .mockReturnValue(["startups", "saas"]),
 }));
 
 import { GET as discoverSubreddits } from "@/app/api/projects/[id]/discover-subreddits/route";
@@ -63,7 +65,9 @@ describe("project subreddit discovery route (RED-62)", () => {
     mockedPrisma.project.findFirst.mockResolvedValueOnce(null);
 
     const res = await discoverSubreddits(
-      new Request("http://test.local/api/projects/p_missing/discover-subreddits"),
+      new Request(
+        "http://test.local/api/projects/p_missing/discover-subreddits",
+      ),
       { params: { id: "p_missing" } },
     );
 
@@ -97,7 +101,9 @@ describe("project subreddit discovery route (RED-62)", () => {
           selfPromoAllowed: false,
           affiliateAllowed: false,
         },
-        timeSlots: [{ score: 0.82, dayOfWeek: 2, hourUtc: 14, sampleSize: 120 }],
+        timeSlots: [
+          { score: 0.82, dayOfWeek: 2, hourUtc: 14, sampleSize: 120 },
+        ],
       },
     ]);
 

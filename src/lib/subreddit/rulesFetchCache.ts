@@ -31,6 +31,7 @@ type CachePayload = {
 
 const CACHE_KEY_PREFIX = "cache:subreddit:intel:v1:";
 const DEFAULT_CACHE_TTL_SECONDS = 6 * 60 * 60;
+const DEFAULT_MAX_MEMORY_CACHE_ENTRIES = 500;
 
 type KnownSubredditDefaults = Pick<
   IngestedSubredditData,
@@ -108,6 +109,12 @@ function getCacheTtlSeconds() {
   return DEFAULT_CACHE_TTL_SECONDS;
 }
 
+function getMaxMemoryCacheEntries() {
+  const raw = Number(process.env.SUBREDDIT_RULES_MEMORY_CACHE_MAX_ENTRIES);
+  if (Number.isFinite(raw) && raw > 0) return Math.floor(raw);
+  return DEFAULT_MAX_MEMORY_CACHE_ENTRIES;
+}
+
 function estimateAvgPostsPerDay(activeUsers: number, subscribers: number) {
   const active = Math.max(activeUsers, 1);
   const subscribersScale = Math.log10(Math.max(subscribers, 10));
@@ -181,6 +188,15 @@ function writeMemoryCache(key: string, value: string, ttlSeconds: number) {
   for (const [cachedKey, entry] of memoryCache) {
     if (now >= entry.expiresAtMs) {
       memoryCache.delete(cachedKey);
+    }
+  }
+
+  if (!memoryCache.has(key)) {
+    const maxEntries = getMaxMemoryCacheEntries();
+    while (memoryCache.size >= maxEntries) {
+      const oldestKey = memoryCache.keys().next().value as string | undefined;
+      if (!oldestKey) break;
+      memoryCache.delete(oldestKey);
     }
   }
 

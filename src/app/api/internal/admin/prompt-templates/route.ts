@@ -5,7 +5,7 @@ import {
   createPromptTemplate,
   listPromptTemplates,
 } from "@/lib/prompts/templates";
-import { requireWorkspaceAdminSession } from "@/lib/server/admin-guards";
+import { requirePlatformAdminSession } from "@/lib/server/admin-guards";
 
 const createSchema = z.object({
   key: z.string().min(2).max(120),
@@ -18,13 +18,17 @@ const createSchema = z.object({
 function authError(err: unknown) {
   const code = err instanceof Error ? err.message : "UNAUTHORIZED";
   const status =
-    code === "FORBIDDEN" ? 403 : code === "WORKSPACE_REQUIRED" ? 400 : 401;
+    code === "FORBIDDEN"
+      ? 403
+      : code === "PLATFORM_ADMIN_NOT_CONFIGURED"
+        ? 503
+        : 401;
   return NextResponse.json({ error: "Unauthorized", code }, { status });
 }
 
 export async function GET(req: Request) {
   try {
-    await requireWorkspaceAdminSession();
+    await requirePlatformAdminSession();
   } catch (err) {
     return authError(err);
   }
@@ -44,7 +48,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   let session;
   try {
-    session = await requireWorkspaceAdminSession();
+    session = await requirePlatformAdminSession();
   } catch (err) {
     return authError(err);
   }

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { enqueueRiskVisibilityCheckJob } from "@/lib/queue/enqueue";
 import { normalizeRedditPermalink } from "@/lib/reddit/permalink";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 
@@ -64,14 +63,6 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
     );
   }
 
-  const job = await enqueueRiskVisibilityCheckJob({
-    workspaceId: session.workspaceId,
-    redditAccountId,
-    publishedItemId: parsed.data.publishedItemId ?? null,
-    permalink: parsed.data.permalink ?? null,
-  }).catch(() => null);
-
-  // Also perform an inline visibility check for immediate response.
   const permalink =
     parsed.data.permalink ??
     (parsed.data.publishedItemId
@@ -98,7 +89,8 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
   if (!fullPermalink) {
     return NextResponse.json(
       {
-        error: "Permalink must be a valid reddit.com URL or relative Reddit path",
+        error:
+          "Permalink must be a valid reddit.com URL or relative Reddit path",
         code: "VALIDATION_ERROR",
       },
       { status: 400 },
@@ -148,6 +140,6 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
 
   return NextResponse.json({
     check,
-    queue: job ? { id: job.id } : null,
+    queue: { id: `inline:${check.id}` },
   });
 }

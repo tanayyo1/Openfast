@@ -244,18 +244,18 @@ export async function POST(req: Request) {
               : "POST";
 
         if (!rec) {
-       return {
-         workspaceId: session.workspaceId,
-         roadmapId: roadmap.id,
-         dayIndex,
-         type: taskType,
-         title: `Day ${dayIndex}`,
-         instructions:
-           "Build karma via useful comments, then post once approved.",
-         priority: 3,
-         status: "PENDING" as const,
-         fitScore: null,
-       };
+          return {
+            workspaceId: session.workspaceId,
+            roadmapId: roadmap.id,
+            dayIndex,
+            type: taskType,
+            title: `Day ${dayIndex}`,
+            instructions:
+              "Build karma via useful comments, then post once approved.",
+            priority: 3,
+            status: "PENDING" as const,
+            fitScore: null,
+          };
         }
 
         const recReasons =

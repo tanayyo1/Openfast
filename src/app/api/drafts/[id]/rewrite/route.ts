@@ -130,7 +130,7 @@ export async function POST(
       mediaUrls: sourceDraft.mediaUrls ?? [],
       variants: Prisma.DbNull,
       generationParams: {
-        queued: true,
+        queued: false,
         mode: payload.mode,
         variantCount: payload.variantCount,
         tone: payload.tone ?? null,
@@ -156,16 +156,67 @@ export async function POST(
   });
 
   const mode = payload.mode as ContentGenerateMode;
-  const job = await enqueueContentGenerateJob({
-    workspaceId: sourceDraft.workspaceId,
-    taskId: sourceDraft.taskId,
-    draftId: rewritten.id,
-    mode,
-    variantCount: payload.variantCount,
-    tone: payload.tone ?? null,
-    length: payload.length,
-    sourceDraftId: sourceDraft.id,
-  });
+  const draftUpdate = (prisma.draft as { update?: typeof prisma.draft.update })
+    .update;
+  let job;
+  try {
+    job = await enqueueContentGenerateJob({
+      workspaceId: sourceDraft.workspaceId,
+      taskId: sourceDraft.taskId,
+      draftId: rewritten.id,
+      mode,
+      variantCount: payload.variantCount,
+      tone: payload.tone ?? null,
+      length: payload.length,
+      sourceDraftId: sourceDraft.id,
+    });
+  } catch (err) {
+    const queueError =
+      err instanceof Error
+        ? `QUEUE_ENQUEUE_FAILED:${err.message}`
+        : "QUEUE_ENQUEUE_FAILED";
+    if (draftUpdate) {
+      await draftUpdate({
+        where: { id: rewritten.id },
+        data: {
+          generationParams: {
+            queued: false,
+            mode: payload.mode,
+            variantCount: payload.variantCount,
+            tone: payload.tone ?? null,
+            length: payload.length,
+            sourceDraftId: sourceDraft.id,
+            queueError,
+          } as Prisma.InputJsonValue,
+        },
+      });
+    }
+    return NextResponse.json(
+      { error: "Unable to enqueue rewrite job", code: "QUEUE_UNAVAILABLE" },
+      { status: 503 },
+    );
+  }
+
+  if (draftUpdate) {
+    try {
+      await draftUpdate({
+        where: { id: rewritten.id },
+        data: {
+          generationParams: {
+            queued: true,
+            mode: payload.mode,
+            variantCount: payload.variantCount,
+            tone: payload.tone ?? null,
+            length: payload.length,
+            sourceDraftId: sourceDraft.id,
+            queueJobId: String(job.id),
+          } as Prisma.InputJsonValue,
+        },
+      });
+    } catch {
+      // Best effort metadata update; job is already queued and should proceed.
+    }
+  }
 
   return NextResponse.json(
     {

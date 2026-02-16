@@ -100,6 +100,9 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
   const discovered = await prisma.subredditCatalog.findMany({
     where: {
       subscribers: { gte: parsed.data.minSubscribers },
+      nsfw: false,
+      isRestricted: false,
+      isQuarantined: false,
       ...(searchConditions.length > 0 ? { OR: searchConditions } : {}),
     },
     include: {
@@ -114,7 +117,12 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
       timeSlots: {
         orderBy: [{ score: "desc" }],
         take: 1,
-        select: { score: true, dayOfWeek: true, hourUtc: true, sampleSize: true },
+        select: {
+          score: true,
+          dayOfWeek: true,
+          hourUtc: true,
+          sampleSize: true,
+        },
       },
     },
     orderBy: [{ subscribers: "desc" }, { activeUsers: "desc" }],
@@ -122,7 +130,9 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
   });
 
   const foundNames = new Set(discovered.map((sub) => sub.name.toLowerCase()));
-  const queuedIngestNames = candidateNames.filter((name) => !foundNames.has(name));
+  const queuedIngestNames = candidateNames.filter(
+    (name) => !foundNames.has(name),
+  );
   await Promise.all(
     queuedIngestNames.map((name) =>
       enqueueSubredditIngestJob({ subredditName: name }).catch(() => undefined),

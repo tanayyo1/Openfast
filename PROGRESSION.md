@@ -147,7 +147,7 @@
 5. RED-40: Draft generation + compliance scoring (DONE - variant-level compliance scoring + safest-variant selection)
 6. RED-48: Value-check scoring
 7. RED-63: Post structure validator
-8. RED-55: Comment-first mode for new accounts
+8. RED-55: Comment-first mode for new accounts (DONE - NEW tier gated from POST scheduling/publishing until minimum published comments)
 
 ### Tier 2 - Differentiation (Backlog, High priority)
 - RED-62: Subreddit discovery tool

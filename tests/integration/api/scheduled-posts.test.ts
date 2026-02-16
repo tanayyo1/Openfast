@@ -61,7 +61,13 @@ describe("Scheduled posts API", () => {
     await prisma.$disconnect();
   });
 
-  async function makeFixture(draftStatus: "APPROVED" | "DRAFT") {
+  async function makeFixture(
+    draftStatus: "APPROVED" | "DRAFT",
+    opts?: {
+      safetyTier?: "NEW" | "ESTABLISHED" | "TRUSTED" | "RESTRICTED";
+      draftType?: "POST" | "COMMENT";
+    },
+  ) {
     counter += 1;
     const suffix = `${Date.now()}_${counter}`;
 
@@ -87,7 +93,7 @@ describe("Scheduled posts API", () => {
         linkKarma: 100,
         commentKarma: 100,
         accountAge: 365,
-        safetyTier: "ESTABLISHED",
+        safetyTier: opts?.safetyTier ?? "ESTABLISHED",
         lastSyncAt: new Date(),
         isActive: true,
       },
@@ -112,7 +118,7 @@ describe("Scheduled posts API", () => {
         workspaceId,
         projectId: project.id,
         subredditId: subreddit.id,
-        type: "POST",
+        type: opts?.draftType ?? "POST",
         title: "Approved draft",
         body: "Body",
         mediaUrls: [],
@@ -242,6 +248,37 @@ describe("Scheduled posts API", () => {
       expect(res.status).toBe(409);
       const json = (await readJson(res)) as { code: string };
       expect(json.code).toBe("INVALID_STATE");
+    } finally {
+      await cleanupFixture(ids);
+    }
+  });
+
+  test("enforces comment-first mode for NEW accounts scheduling POST drafts", async () => {
+    const ids = await makeFixture("APPROVED", {
+      safetyTier: "NEW",
+      draftType: "POST",
+    });
+    try {
+      const res = await createScheduledPost(
+        new Request("http://test.local/api/scheduled-posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            draftId: ids.draftId,
+            redditAccountId: ids.redditAccountId,
+            scheduledAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+            timezone: "UTC",
+          }),
+        }),
+      );
+      expect(res.status).toBe(409);
+      const json = (await readJson(res)) as {
+        code: string;
+        details: { requiredComments: number; publishedComments: number };
+      };
+      expect(json.code).toBe("COMMENT_FIRST_REQUIRED");
+      expect(json.details.requiredComments).toBe(3);
+      expect(json.details.publishedComments).toBe(0);
     } finally {
       await cleanupFixture(ids);
     }

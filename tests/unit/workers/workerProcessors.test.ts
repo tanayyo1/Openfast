@@ -97,7 +97,7 @@ const baseScheduledPost = {
     id: "ra_1",
     accessToken: "rfenc.v1.iv.ct.tag",
     scopes: ["submit", "read"],
-    safetyTier: "NEW",
+    safetyTier: "ESTABLISHED",
     isActive: true,
   },
   subreddit: { id: "sub_1", name: "startups" },
@@ -241,6 +241,26 @@ describe("worker processors", () => {
       "DISTRIBUTED_LOCK_NOT_ACQUIRED",
     );
     expect(mockedPrisma.scheduledPost.findUnique).not.toHaveBeenCalled();
+  });
+
+  test("processPublishJob blocks NEW account posts before comment threshold", async () => {
+    mockedPrisma.scheduledPost.findUnique.mockResolvedValue({
+      ...baseScheduledPost,
+      redditAccount: { ...baseScheduledPost.redditAccount, safetyTier: "NEW" },
+      draft: { ...baseScheduledPost.draft, type: "POST" },
+    });
+    mockedPrisma.publishedItem.count.mockResolvedValue(0);
+
+    const job = {
+      id: "job_p_comment_first",
+      attemptsStarted: 1,
+      data: { scheduledPostId: "sp_1" },
+    } as unknown as Job<{ scheduledPostId: string }>;
+
+    await expect(processPublishJob(job)).rejects.toThrow(
+      "COMMENT_FIRST_REQUIRED",
+    );
+    expect(mockedRedditClient.redditFetch).not.toHaveBeenCalled();
   });
 
   test("processPublishJob is idempotent when already published", async () => {

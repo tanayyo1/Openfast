@@ -28,6 +28,7 @@ const PACE_LIMITS_PER_24H: Record<SafetyTier, number> = {
 
 const DEFAULT_SCHEDULED_LOCK_TTL_MS = 120_000;
 const DEFAULT_ACCOUNT_LOCK_TTL_MS = 60_000;
+const DEFAULT_COMMENT_FIRST_MIN_COMMENTS = 3;
 
 function getRiskThreshold() {
   const raw = process.env.PUBLISH_MAX_RISK_SCORE;
@@ -262,6 +263,32 @@ export async function processPublishJob(job: Job<PublishJobData>) {
         "RISK_GATE_BLOCKED",
         "Draft risk score exceeds publish threshold",
       );
+    }
+
+    if (
+      scheduled.redditAccount.safetyTier === "NEW" &&
+      scheduled.draft.type === "POST"
+    ) {
+      const minCommentsRequired = parsePositiveEnvInt(
+        "COMMENT_FIRST_MIN_COMMENTS",
+        DEFAULT_COMMENT_FIRST_MIN_COMMENTS,
+      );
+      const publishedComments =
+        typeof prisma.publishedItem.count === "function"
+          ? await prisma.publishedItem.count({
+              where: {
+                workspaceId: scheduled.workspaceId,
+                redditAccountId: scheduled.redditAccountId,
+                type: "COMMENT",
+              },
+            })
+          : 0;
+      if (publishedComments < minCommentsRequired) {
+        throw permanentWorkerError(
+          "COMMENT_FIRST_REQUIRED",
+          "NEW accounts must publish comments before posts",
+        );
+      }
     }
 
     const latestHealth =

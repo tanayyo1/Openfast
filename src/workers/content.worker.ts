@@ -7,8 +7,16 @@ import {
 import type { ContentGenerateJobData } from "@/lib/queue/enqueue";
 import { prisma } from "@/lib/prisma";
 import { assessRisk, buildDraftVariants } from "@/lib/content/generator";
+import type { DraftVariant, RiskAssessment } from "@/lib/content/generator";
 import { generateDraftVariantsWithOpenAI } from "@/lib/content/openaiVariants";
 import { validatePostStructure } from "@/lib/content/postStructureValidator";
+
+type ScoredDraftVariant = DraftVariant &
+  RiskAssessment & {
+    complianceScore: number;
+    structureGrade: string;
+    valueScore: number;
+  };
 
 export async function processContentGenerateJob(
   job: Job<ContentGenerateJobData>,
@@ -162,7 +170,7 @@ export async function processContentGenerateJob(
         suggestedFixes: mergedFixes,
         structureGrade: structure.grade,
         valueScore: valueCheck.valueScore,
-      },
+      } as ScoredDraftVariant,
       compliance,
     };
   });

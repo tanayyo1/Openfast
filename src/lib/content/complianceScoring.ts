@@ -16,6 +16,27 @@ export type ValueCheckResult = {
   fixes: Array<{ issue: string; fix: string }>;
 };
 
+const MAX_VALUE_PENALTY = 16;
+const VALUE_SCORE_BASE = 40;
+const VALUE_HIT_WEIGHT = 6;
+const MAX_VALUE_HITS_BONUS = 30;
+const WORD_BLOCK_SIZE = 45;
+const WORD_BLOCK_BONUS = 5;
+const MAX_WORD_BONUS = 20;
+const VALUE_SIGNAL_PATTERNS: RegExp[] = [
+  /\bhow\b/g,
+  /\bwhy\b/g,
+  /\bexample\b/g,
+  /\blesson(s)?\b/g,
+  /\btip(s)?\b/g,
+  /\bmistake(s)?\b/g,
+  /\bcase study\b/g,
+  /\bwhat worked\b/g,
+  /\bwe learned\b/g,
+  /\bstep(s)?\b/g,
+  /\b\d+(\.\d+)?%/g,
+];
+
 function gradePenalty(grade: PostStructureResult["grade"]) {
   if (grade === "F") return 25;
   if (grade === "D") return 18;
@@ -39,7 +60,10 @@ export function computeComplianceFromStructure(input: {
 }): ComplianceComputation {
   const gradeAdj = gradePenalty(input.structure.grade);
   const warningsAdj = warningPenalty(input.structure.warnings);
-  const valuePenalty = Math.max(0, Math.min(30, input.valuePenalty ?? 0));
+  const valuePenalty = Math.max(
+    0,
+    Math.min(MAX_VALUE_PENALTY, input.valuePenalty ?? 0),
+  );
   const structurePenalty = gradeAdj + warningsAdj;
   const finalRiskScore = Math.max(
     0,
@@ -74,36 +98,16 @@ export function evaluateValueCheck(input: {
   const combined = `${input.title ?? ""} ${input.body}`.trim();
   const lower = combined.toLowerCase();
   const wordCount = lower.split(/\s+/).filter(Boolean).length;
+  const valueHits = countMatches(lower, VALUE_SIGNAL_PATTERNS);
 
-  const valuePatterns = [
-    /\bhow\b/g,
-    /\bwhy\b/g,
-    /\bexample\b/g,
-    /\blesson(s)?\b/g,
-    /\btip(s)?\b/g,
-    /\bmistake(s)?\b/g,
-    /\bcase study\b/g,
-    /\bwhat worked\b/g,
-    /\bwe learned\b/g,
-    /\bstep(s)?\b/g,
-    /\b\d+(\.\d+)?%/g,
-  ];
-  const promoPatterns = [
-    /\bbuy now\b/g,
-    /\bsign up\b/g,
-    /\bact now\b/g,
-    /\bdm me\b/g,
-    /\bmy product\b/g,
-    /\bfree trial\b/g,
-  ];
-
-  const valueHits = countMatches(lower, valuePatterns);
-  const promoHits = countMatches(lower, promoPatterns);
-
-  let valueScore = 40;
-  valueScore += Math.min(30, valueHits * 6);
-  valueScore += Math.min(20, Math.floor(wordCount / 45) * 5);
-  valueScore -= Math.min(30, promoHits * 8);
+  // This score intentionally rewards educational/helpful signals only.
+  // Promotional language and "too short" spam indicators are handled in assessRisk().
+  let valueScore = VALUE_SCORE_BASE;
+  valueScore += Math.min(MAX_VALUE_HITS_BONUS, valueHits * VALUE_HIT_WEIGHT);
+  valueScore += Math.min(
+    MAX_WORD_BONUS,
+    Math.floor(wordCount / WORD_BLOCK_SIZE) * WORD_BLOCK_BONUS,
+  );
   valueScore = Math.max(0, Math.min(100, valueScore));
 
   const reasons: string[] = [];
@@ -115,15 +119,14 @@ export function evaluateValueCheck(input: {
       fix: "Add concrete tips, lessons, or examples before mentioning product.",
     });
   }
-  if (wordCount < 70) {
-    reasons.push("Content is too short to provide strong standalone value");
-    fixes.push({
-      issue: "Too little context",
-      fix: "Expand with practical context, outcomes, and one specific takeaway.",
-    });
-  }
-
+  // Penalty bands: 75+ excellent (0), 60-74 good (5), 45-59 fair (10), <45 poor (16).
   const penalty =
-    valueScore >= 75 ? 0 : valueScore >= 60 ? 5 : valueScore >= 45 ? 10 : 16;
+    valueScore >= 75
+      ? 0
+      : valueScore >= 60
+        ? 5
+        : valueScore >= 45
+          ? 10
+          : MAX_VALUE_PENALTY;
   return { valueScore, penalty, reasons, fixes };
 }

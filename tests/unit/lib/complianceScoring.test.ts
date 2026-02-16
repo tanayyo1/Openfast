@@ -54,4 +54,32 @@ describe("compliance scoring", () => {
     expect(out.valuePenalty).toBe(value.penalty);
     expect(out.finalRiskScore).toBeGreaterThan(30);
   });
+
+  test("keeps penalty low for educational content with value signals", () => {
+    const promotional = evaluateValueCheck({
+      title: "Limited offer",
+      body: "Short announcement only.",
+    });
+    const educational = evaluateValueCheck({
+      title: "How we improved onboarding",
+      body:
+        "In this case study, we share the steps, lessons learned, and examples " +
+        "that helped reduce churn by 12%. Here is what worked and why.",
+    });
+
+    expect(educational.valueScore).toBeGreaterThan(promotional.valueScore);
+    expect(educational.penalty).toBeLessThanOrEqual(promotional.penalty);
+  });
+
+  test("handles empty title safely", () => {
+    const value = evaluateValueCheck({
+      title: "",
+      body:
+        "This post explains practical tips and one example teams can apply next sprint.",
+    });
+
+    expect(value.valueScore).toBeGreaterThanOrEqual(0);
+    expect(value.penalty).toBeGreaterThanOrEqual(0);
+    expect(Array.isArray(value.reasons)).toBe(true);
+  });
 });

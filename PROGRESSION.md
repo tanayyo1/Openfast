@@ -1,6 +1,6 @@
 # PROGRESSION.md - MediaFast Clone MVP Tracker
 
-> **Last Updated**: 2026-02-08  
+> **Last Updated**: 2026-02-15
 > **Target**: `mediafast_clone_system_design_report.md`  
 > **Current Estimate**: ~35-40% of MVP parity complete
 
@@ -134,15 +134,38 @@
 
 ---
 
-## 4) Quick Priority Order for Fastest Real MVP
+## 4) Sprint Priority (Updated 2026-02-15)
 
-1. Scheduling APIs + real publish worker + metrics worker.
-2. Analytics endpoints using persisted snapshots.
-3. Recommendations (best 5) + intel ingest/time windows.
-4. Task content generation endpoints + AI variants.
-5. Account health + visibility checks.
-6. Free tools backend + rate limits.
-7. Billing entitlements.
+### Tier 1 - Must Ship First (In Todo on Linear)
+1. RED-30: Subreddit rules fetch + cache (IN PROGRESS)
+2. RED-29: Account health snapshot
+3. RED-35: Distributed locks + rate limits
+4. RED-39: OpenAI client + prompt templates
+5. RED-40: Draft generation + compliance scoring
+6. RED-48: Value-check scoring
+7. RED-63: Post structure validator
+8. RED-55: Comment-first mode for new accounts
+
+### Tier 2 - Differentiation (Backlog, High priority)
+- RED-62: Subreddit discovery tool
+- RED-53: Tone classifier
+- RED-41: Draft rewrite
+- RED-49: Subreddit fit score
+- RED-51: Anti-pattern detector
+- RED-56: Pain point extractor
+- RED-50: Community engagement threshold
+
+### Tier 3 - Polish (Backlog, Medium priority)
+- RED-54, RED-57, RED-59, RED-60, RED-61
+
+### Tier 4 - Post-MVP (Backlog, Low priority)
+- RED-36/37/38 (analytics pipeline), RED-52 (Reddit Ads), RED-58 (landing page gen)
+
+### Remaining from Original Plan
+- P5: Billing/entitlements (Stripe)
+- P6: Admin/ops
+- P7: Queue/cron parity
+- P8: Test coverage
 
 ---
 

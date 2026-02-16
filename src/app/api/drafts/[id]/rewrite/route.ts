@@ -196,20 +196,24 @@ export async function POST(
   }
 
   if (draftUpdate) {
-    await draftUpdate({
-      where: { id: rewritten.id },
-      data: {
-        generationParams: {
-          queued: true,
-          mode: payload.mode,
-          variantCount: payload.variantCount,
-          tone: payload.tone ?? null,
-          length: payload.length,
-          sourceDraftId: sourceDraft.id,
-          queueJobId: String(job.id),
-        } as Prisma.InputJsonValue,
-      },
-    });
+    try {
+      await draftUpdate({
+        where: { id: rewritten.id },
+        data: {
+          generationParams: {
+            queued: true,
+            mode: payload.mode,
+            variantCount: payload.variantCount,
+            tone: payload.tone ?? null,
+            length: payload.length,
+            sourceDraftId: sourceDraft.id,
+            queueJobId: String(job.id),
+          } as Prisma.InputJsonValue,
+        },
+      });
+    } catch {
+      // Best effort metadata update; job is already queued and should proceed.
+    }
   }
 
   return NextResponse.json(

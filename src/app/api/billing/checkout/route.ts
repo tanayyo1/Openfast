@@ -21,17 +21,30 @@ function getPriceId(plan: "PRO" | "LIFETIME") {
   return process.env.STRIPE_PRICE_LIFETIME ?? null;
 }
 
-function resolveAllowedOrigins(req: Request) {
+function resolveAllowedOrigins() {
   const origins = new Set<string>();
+
   const appUrl = process.env.APP_URL;
   if (appUrl) {
     try {
       origins.add(new URL(appUrl).origin);
     } catch {
-      // Ignore invalid APP_URL and fallback to request origin.
+      // Ignore invalid APP_URL and rely on explicit allowed origins.
     }
   }
-  origins.add(new URL(req.url).origin);
+
+  const rawAllowedOrigins = process.env.BILLING_ALLOWED_REDIRECT_ORIGINS ?? "";
+  for (const candidate of rawAllowedOrigins
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)) {
+    try {
+      origins.add(new URL(candidate).origin);
+    } catch {
+      // Ignore invalid configured origins.
+    }
+  }
+
   return origins;
 }
 
@@ -120,7 +133,16 @@ export async function POST(req: Request) {
       })
     ).id;
 
-  const allowedOrigins = resolveAllowedOrigins(req);
+  const allowedOrigins = resolveAllowedOrigins();
+  if (allowedOrigins.size === 0) {
+    return NextResponse.json(
+      {
+        error: "Billing redirect origins are not configured",
+        code: "REDIRECT_ORIGINS_NOT_CONFIGURED",
+      },
+      { status: 500 },
+    );
+  }
   const appOrigin = allowedOrigins.values().next().value as string;
   const successFallback = `${appOrigin}/dashboard?billing=success`;
   const cancelFallback = `${appOrigin}/pricing?billing=cancel`;

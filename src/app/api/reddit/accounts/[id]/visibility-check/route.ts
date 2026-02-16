@@ -140,6 +140,6 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
 
   return NextResponse.json({
     check,
-    queue: null,
+    queue: { id: `inline:${check.id}` },
   });
 }

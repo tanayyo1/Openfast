@@ -42,11 +42,31 @@ function safeStatus(value: string | undefined): SubscriptionStatus {
 function isTerminalSubscriptionStatus(status: SubscriptionStatus) {
   return (
     status === "INCOMPLETE_EXPIRED" ||
-    status === "PAST_DUE" ||
     status === "CANCELLED" ||
     status === "UNPAID" ||
     status === "PAUSED"
   );
+}
+
+async function resolvePlanForActiveSubscription(input: {
+  workspaceId: string;
+  stripePriceId: string | null;
+  metadataPlan: string | undefined;
+}) {
+  const byPriceId = planFromPriceId(input.stripePriceId);
+  if (byPriceId && byPriceId !== "FREE") return byPriceId;
+
+  const byMetadata = planFromMetadata(input.metadataPlan);
+  if (byMetadata !== "FREE") return byMetadata;
+
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: input.workspaceId },
+    select: { plan: true },
+  });
+  if (workspace && workspace.plan !== "FREE") return workspace.plan;
+
+  // Fallback for legacy subscriptions missing metadata/known price mapping.
+  return "PRO" satisfies Plan;
 }
 
 async function resolveWorkspaceIdFromSubscriptionEvent(input: {
@@ -213,12 +233,12 @@ export async function POST(req: Request) {
       ) {
         await applyWorkspacePlan(workspaceId, "FREE");
       } else if (nextStatus === "ACTIVE" || nextStatus === "TRIALING") {
-        const plan =
-          planFromPriceId(stripePriceId) ??
-          planFromMetadata(subscription.metadata?.plan);
-        if (plan !== "FREE") {
-          await applyWorkspacePlan(workspaceId, plan);
-        }
+        const plan = await resolvePlanForActiveSubscription({
+          workspaceId,
+          stripePriceId,
+          metadataPlan: subscription.metadata?.plan,
+        });
+        await applyWorkspacePlan(workspaceId, plan);
       }
     }
   }

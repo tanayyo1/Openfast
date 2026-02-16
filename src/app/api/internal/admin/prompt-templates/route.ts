@@ -1,7 +1,10 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
+import {
+  createPromptTemplate,
+  listPromptTemplates,
+} from "@/lib/prompts/templates";
 import { requireWorkspaceAdminSession } from "@/lib/server/admin-guards";
 
 const createSchema = z.object({
@@ -33,21 +36,7 @@ export async function GET(req: Request) {
     ? Math.min(Math.max(limitRaw, 1), 200)
     : 50;
 
-  const items = await prisma.promptTemplate.findMany({
-    where: key ? { key } : {},
-    orderBy: [{ key: "asc" }, { version: "desc" }],
-    take: limit,
-    select: {
-      id: true,
-      key: true,
-      version: true,
-      title: true,
-      isActive: true,
-      createdBy: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
+  const items = await listPromptTemplates({ key, limit });
 
   return NextResponse.json({ items });
 }
@@ -79,45 +68,13 @@ export async function POST(req: Request) {
   }
 
   const { key, title, body, variables, isActive } = parsed.data;
-  const current = await prisma.promptTemplate.findFirst({
-    where: { key },
-    orderBy: { version: "desc" },
-    select: { version: true },
-  });
-  const nextVersion = (current?.version ?? 0) + 1;
-
-  const created = await prisma.$transaction(async (tx) => {
-    if (isActive) {
-      await tx.promptTemplate.updateMany({
-        where: { key, isActive: true },
-        data: { isActive: false },
-      });
-    }
-    return tx.promptTemplate.create({
-      data: {
-        key,
-        version: nextVersion,
-        title,
-        body,
-        variables: variables
-          ? (variables as Prisma.InputJsonValue)
-          : Prisma.DbNull,
-        isActive,
-        createdBy: session.user.id,
-      },
-      select: {
-        id: true,
-        key: true,
-        version: true,
-        title: true,
-        body: true,
-        variables: true,
-        isActive: true,
-        createdBy: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+  const created = await createPromptTemplate({
+    key,
+    title,
+    body,
+    variables: variables as Prisma.JsonValue | undefined,
+    isActive,
+    createdBy: session.user.id,
   });
 
   return NextResponse.json({ template: created }, { status: 201 });

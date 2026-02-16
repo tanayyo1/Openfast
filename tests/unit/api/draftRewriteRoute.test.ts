@@ -108,6 +108,7 @@ describe("draft rewrite route (RED-41)", () => {
       type: "POST",
       title: "Original",
       body: "Original body",
+      mediaUrls: [],
       status: "DRAFT",
       project: { status: "ACTIVE" },
     });
@@ -134,6 +135,7 @@ describe("draft rewrite route (RED-41)", () => {
       type: "POST",
       title: "Original",
       body: "Original body",
+      mediaUrls: [],
       status: "DRAFT",
       project: { status: "ACTIVE" },
     });
@@ -163,6 +165,7 @@ describe("draft rewrite route (RED-41)", () => {
       type: "POST",
       title: "Original",
       body: "Original body",
+      mediaUrls: [],
       status: "REJECTED",
       project: { status: "ACTIVE" },
     });
@@ -210,6 +213,133 @@ describe("draft rewrite route (RED-41)", () => {
         sourceDraftId: "dr_1",
         mode: "REWRITE",
         length: "short",
+      }),
+    );
+    expect(mockedPrisma.draft.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          mediaUrls: [],
+          generationParams: expect.objectContaining({
+            mode: "REWRITE",
+            variantCount: 3,
+            length: "short",
+            sourceDraftId: "dr_1",
+          }),
+        }),
+      }),
+    );
+  });
+
+  test("returns 409 when source draft is archived", async () => {
+    mockedPrisma.draft.findFirst.mockResolvedValueOnce({
+      id: "dr_1",
+      workspaceId: "ws_1",
+      projectId: "p_1",
+      taskId: "task_1",
+      subredditId: "sub_1",
+      type: "POST",
+      title: "Original",
+      body: "Original body",
+      mediaUrls: [],
+      status: "ARCHIVED",
+      project: { status: "ACTIVE" },
+    });
+
+    const res = await rewriteDraft(
+      new Request("http://test.local/api/drafts/dr_1/rewrite", {
+        method: "POST",
+      }),
+      { params: Promise.resolve({ id: "dr_1" }) },
+    );
+
+    expect(res.status).toBe(409);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("INVALID_STATE");
+  });
+
+  test("returns 409 when source project is archived", async () => {
+    mockedPrisma.draft.findFirst.mockResolvedValueOnce({
+      id: "dr_1",
+      workspaceId: "ws_1",
+      projectId: "p_1",
+      taskId: "task_1",
+      subredditId: "sub_1",
+      type: "POST",
+      title: "Original",
+      body: "Original body",
+      mediaUrls: [],
+      status: "DRAFT",
+      project: { status: "ARCHIVED" },
+    });
+
+    const res = await rewriteDraft(
+      new Request("http://test.local/api/drafts/dr_1/rewrite", {
+        method: "POST",
+      }),
+      { params: Promise.resolve({ id: "dr_1" }) },
+    );
+
+    expect(res.status).toBe(409);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("INVALID_STATE");
+  });
+
+  test("trims tone before persistence and enqueue", async () => {
+    mockedPrisma.draft.findFirst.mockResolvedValueOnce({
+      id: "dr_1",
+      workspaceId: "ws_1",
+      projectId: "p_1",
+      taskId: "task_1",
+      subredditId: "sub_1",
+      type: "POST",
+      title: "Original",
+      body: "Original body",
+      mediaUrls: ["https://cdn.test/a.png"],
+      status: "DRAFT",
+      project: { status: "ACTIVE" },
+    });
+    mockedPrisma.draft.create.mockResolvedValueOnce({
+      id: "dr_rewrite_2",
+      taskId: "task_1",
+      type: "POST",
+      title: "Original",
+      body: "Original body",
+      status: "DRAFT",
+      riskScore: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    mockedQueue.enqueueContentGenerateJob.mockResolvedValueOnce({
+      id: "job_rw_2",
+    });
+
+    const res = await rewriteDraft(
+      new Request("http://test.local/api/drafts/dr_1/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "COMPLIANCE",
+          tone: "  professional  ",
+        }),
+      }),
+      { params: Promise.resolve({ id: "dr_1" }) },
+    );
+    expect(res.status).toBe(202);
+    expect(mockedPrisma.draft.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          mediaUrls: ["https://cdn.test/a.png"],
+          generationParams: expect.objectContaining({
+            mode: "COMPLIANCE",
+            tone: "professional",
+          }),
+        }),
+      }),
+    );
+    expect(mockedQueue.enqueueContentGenerateJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "COMPLIANCE",
+        tone: "professional",
       }),
     );
   });

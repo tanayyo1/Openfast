@@ -12,7 +12,7 @@ import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 const rewriteSchema = z.object({
   mode: z.enum(["REWRITE", "COMPLIANCE"]).default("REWRITE"),
   variantCount: z.coerce.number().int().min(3).max(5).default(3),
-  tone: z.string().min(1).max(80).optional(),
+  tone: z.string().trim().min(1).max(80).optional(),
   length: z.enum(["short", "medium", "long"]).default("medium"),
 });
 
@@ -64,6 +64,7 @@ export async function POST(
       type: true,
       title: true,
       body: true,
+      mediaUrls: true,
       status: true,
       project: { select: { status: true } },
     },
@@ -126,7 +127,7 @@ export async function POST(
       type: sourceDraft.type,
       title: sourceDraft.title,
       body: sourceDraft.body,
-      mediaUrls: [],
+      mediaUrls: sourceDraft.mediaUrls ?? [],
       variants: Prisma.DbNull,
       generationParams: {
         queued: true,

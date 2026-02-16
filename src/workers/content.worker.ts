@@ -1,5 +1,6 @@
 import type { Job } from "bullmq";
 import { Prisma } from "@prisma/client";
+import { computeComplianceFromStructure } from "@/lib/content/complianceScoring";
 import type { ContentGenerateJobData } from "@/lib/queue/enqueue";
 import { prisma } from "@/lib/prisma";
 import { assessRisk, buildDraftVariants } from "@/lib/content/generator";
@@ -100,7 +101,7 @@ export async function processContentGenerateJob(
     preferredLength,
   }).catch(() => null);
 
-  const { variants, primary } =
+  const { variants } =
     llmOutput ??
     buildDraftVariants(
       {
@@ -109,8 +110,68 @@ export async function processContentGenerateJob(
       preferredLength,
     );
 
-  const risk = assessRisk(primary.title, primary.body, rule?.rawRules ?? null);
-  const structureResult = validatePostStructure(primary.title, primary.body);
+  const scoredVariants = variants.map((variant) => {
+    const baseRisk = assessRisk(
+      variant.title,
+      variant.body,
+      rule?.rawRules ?? null,
+    );
+    const structure = validatePostStructure(variant.title, variant.body);
+    const compliance = computeComplianceFromStructure({
+      baseRiskScore: baseRisk.riskScore,
+      structure: {
+        grade: structure.grade,
+        warnings: structure.warnings,
+      },
+    });
+
+    const mergedRiskReasons = [
+      ...baseRisk.riskReasons,
+      ...(structure.grade === "A"
+        ? []
+        : [`Structure grade ${structure.grade} increases compliance risk`]),
+      ...structure.warnings
+        .filter((warning) => warning.severity === "error")
+        .slice(0, 2)
+        .map((warning) => warning.message),
+    ];
+    const mergedFixes = [
+      ...baseRisk.suggestedFixes,
+      ...structure.rewriteSuggestions.map((item) => ({
+        issue: item.issue,
+        fix: item.suggestion,
+      })),
+    ];
+
+    return {
+      variant: {
+        ...variant,
+        riskScore: compliance.finalRiskScore,
+        complianceScore: compliance.complianceScore,
+        riskReasons: mergedRiskReasons,
+        suggestedFixes: mergedFixes,
+        structureGrade: structure.grade,
+      },
+      compliance,
+    };
+  });
+
+  const primaryScored =
+    scoredVariants.sort((a, b) => {
+      if (a.variant.riskScore !== b.variant.riskScore) {
+        return a.variant.riskScore - b.variant.riskScore;
+      }
+      return b.variant.score - a.variant.score;
+    })[0] ?? null;
+  if (!primaryScored) {
+    throw new Error("VARIANT_GENERATION_FAILED");
+  }
+
+  const primaryVariant = primaryScored.variant;
+  const structureResult = validatePostStructure(
+    primaryVariant.title,
+    primaryVariant.body,
+  );
   const structureValidation = {
     grade: structureResult.grade,
     score: structureResult.score,
@@ -121,18 +182,27 @@ export async function processContentGenerateJob(
   await prisma.draft.update({
     where: { id: draft.id },
     data: {
-      title: primary.title,
-      body: primary.body,
-      variants: variants as unknown as Prisma.InputJsonValue,
-      riskScore: risk.riskScore,
-      riskReasons: risk.riskReasons,
-      suggestedFixes: risk.suggestedFixes as unknown as Prisma.InputJsonValue,
+      title: primaryVariant.title,
+      body: primaryVariant.body,
+      variants: scoredVariants.map(
+        (item) => item.variant,
+      ) as unknown as Prisma.InputJsonValue,
+      riskScore: primaryVariant.riskScore,
+      riskReasons: primaryVariant.riskReasons,
+      suggestedFixes:
+        primaryVariant.suggestedFixes as unknown as Prisma.InputJsonValue,
       structureValidation,
       generationParams: {
         mode,
-        variantCount: variants.length,
+        variantCount: scoredVariants.length,
         tone: tone ?? null,
         length: preferredLength,
+        compliance: {
+          selectedRiskScore: primaryVariant.riskScore,
+          selectedComplianceScore: primaryVariant.complianceScore,
+          selectedStructureGrade: primaryVariant.structureGrade,
+          structurePenalty: primaryScored.compliance.structurePenalty,
+        },
         generatedAt: new Date().toISOString(),
       } as unknown as Prisma.InputJsonValue,
       status: "DRAFT",
@@ -143,8 +213,8 @@ export async function processContentGenerateJob(
   return {
     draftId: draft.id,
     taskId,
-    variantCount: variants.length,
-    riskScore: risk.riskScore,
+    variantCount: scoredVariants.length,
+    riskScore: primaryVariant.riskScore,
     status: "generated" as const,
   };
 }

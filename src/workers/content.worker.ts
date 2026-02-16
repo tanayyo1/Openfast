@@ -7,6 +7,7 @@ import { assessRisk, buildDraftVariants } from "@/lib/content/generator";
 import { generateDraftVariantsWithOpenAI } from "@/lib/content/openaiVariants";
 import { validatePostStructure } from "@/lib/content/postStructureValidator";
 import { evaluateToneAlignment } from "@/lib/content/toneClassifier";
+import { evaluateAntiPattern } from "@/lib/content/antiPattern";
 
 export async function processContentGenerateJob(
   job: Job<ContentGenerateJobData>,
@@ -138,12 +139,18 @@ export async function processContentGenerateJob(
       title: variant.title,
       body: variant.body,
     });
+    const antiPattern = evaluateAntiPattern({
+      title: variant.title,
+      body: variant.body,
+      projectName: commonInput.projectName,
+    });
     const compliance = computeComplianceFromStructure({
       baseRiskScore: baseRisk.riskScore,
       structure: {
         grade: structure.grade,
         warnings: structure.warnings,
       },
+      antiPenalty: antiPattern.penalty,
     });
     const adjustedRiskScore = Math.max(
       0,
@@ -154,6 +161,7 @@ export async function processContentGenerateJob(
     const mergedRiskReasons = [
       ...baseRisk.riskReasons,
       ...toneCheck.reasons,
+      ...antiPattern.reasons,
       ...(structure.grade === "A"
         ? []
         : [`Structure grade ${structure.grade} increases compliance risk`]),
@@ -165,6 +173,7 @@ export async function processContentGenerateJob(
     const mergedFixes = [
       ...baseRisk.suggestedFixes,
       ...toneCheck.fixes,
+      ...antiPattern.fixes,
       ...structure.rewriteSuggestions.map((item) => ({
         issue: item.issue,
         fix: item.suggestion,
@@ -181,6 +190,7 @@ export async function processContentGenerateJob(
         structureGrade: structure.grade,
         expectedTone: toneCheck.expectedTone,
         detectedTone: toneCheck.detectedTone,
+        antiPenalty: antiPattern.penalty,
       },
       compliance,
       toneCheck,
@@ -233,6 +243,7 @@ export async function processContentGenerateJob(
           selectedComplianceScore: primaryVariant.complianceScore,
           selectedStructureGrade: primaryVariant.structureGrade,
           structurePenalty: primaryScored.compliance.structurePenalty,
+          antiPenalty: primaryScored.compliance.antiPenalty,
           tonePenalty: primaryScored.toneCheck.penalty,
           selectedExpectedTone: primaryVariant.expectedTone ?? null,
           selectedDetectedTone: primaryVariant.detectedTone ?? null,

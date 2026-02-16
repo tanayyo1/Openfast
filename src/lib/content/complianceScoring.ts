@@ -4,6 +4,7 @@ export type ComplianceComputation = {
   finalRiskScore: number;
   complianceScore: number;
   structurePenalty: number;
+  antiPenalty: number;
   gradePenalty: number;
   warningPenalty: number;
 };
@@ -27,13 +28,18 @@ function warningPenalty(warnings: PostStructureResult["warnings"]) {
 export function computeComplianceFromStructure(input: {
   baseRiskScore: number;
   structure: Pick<PostStructureResult, "grade" | "warnings">;
+  antiPenalty?: number;
 }): ComplianceComputation {
   const gradeAdj = gradePenalty(input.structure.grade);
   const warningsAdj = warningPenalty(input.structure.warnings);
+  const antiPenalty = Math.max(0, Math.min(30, input.antiPenalty ?? 0));
   const structurePenalty = gradeAdj + warningsAdj;
   const finalRiskScore = Math.max(
     0,
-    Math.min(100, Math.round(input.baseRiskScore + structurePenalty)),
+    Math.min(
+      100,
+      Math.round(input.baseRiskScore + structurePenalty + antiPenalty),
+    ),
   );
   const complianceScore = Math.max(0, Math.min(100, 100 - finalRiskScore));
 
@@ -41,6 +47,7 @@ export function computeComplianceFromStructure(input: {
     finalRiskScore,
     complianceScore,
     structurePenalty,
+    antiPenalty,
     gradePenalty: gradeAdj,
     warningPenalty: warningsAdj,
   };

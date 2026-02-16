@@ -154,7 +154,7 @@
 - RED-53: Tone classifier (DONE - tone detection + expected-vs-detected alignment penalties in content generation)
 - RED-41: Draft rewrite (DONE - `POST /api/drafts/:id/rewrite` for REWRITE/COMPLIANCE queued rewrites)
 - RED-49: Subreddit fit score
-- RED-51: Anti-pattern detector
+- RED-51: Anti-pattern detector (DONE - anti-pattern scoring integrated into compliance risk)
 - RED-56: Pain point extractor
 - RED-50: Community engagement threshold
 

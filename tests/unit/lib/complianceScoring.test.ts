@@ -32,4 +32,14 @@ describe("compliance scoring", () => {
     expect(out.finalRiskScore).toBe(18);
     expect(out.complianceScore).toBe(82);
   });
+
+  test("applies anti penalty when anti-pattern triggers", () => {
+    const out = computeComplianceFromStructure({
+      baseRiskScore: 20,
+      structure: { grade: "A", warnings: [] },
+      antiPenalty: 8,
+    });
+    expect(out.antiPenalty).toBe(8);
+    expect(out.finalRiskScore).toBeGreaterThan(20);
+  });
 });

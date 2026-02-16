@@ -203,6 +203,7 @@ export async function processContentGenerateJob(
         expectedTone: toneCheck.expectedTone,
         detectedTone: toneCheck.detectedTone,
       } as ScoredDraftVariant,
+      structure,
       compliance,
       toneCheck,
       valueCheck,
@@ -210,26 +211,24 @@ export async function processContentGenerateJob(
   });
 
   const primaryScored =
-    scoredVariants.sort((a, b) => {
+    scoredVariants
+      .slice()
+      .sort((a, b) => {
       if (a.variant.riskScore !== b.variant.riskScore) {
         return a.variant.riskScore - b.variant.riskScore;
       }
       return b.variant.score - a.variant.score;
-    })[0] ?? null;
+      })[0] ?? null;
   if (!primaryScored) {
     throw new Error("VARIANT_GENERATION_FAILED");
   }
 
   const primaryVariant = primaryScored.variant;
-  const structureResult = validatePostStructure(
-    primaryVariant.title,
-    primaryVariant.body,
-  );
   const structureValidation = {
-    grade: structureResult.grade,
-    score: structureResult.score,
-    warnings: structureResult.warnings,
-    rewriteSuggestions: structureResult.rewriteSuggestions,
+    grade: primaryScored.structure.grade,
+    score: primaryScored.structure.score,
+    warnings: primaryScored.structure.warnings,
+    rewriteSuggestions: primaryScored.structure.rewriteSuggestions,
   } as unknown as Prisma.InputJsonValue;
 
   await prisma.draft.update({

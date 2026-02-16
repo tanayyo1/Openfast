@@ -110,15 +110,6 @@ export function evaluateValueCheck(input: {
   );
   valueScore = Math.max(0, Math.min(100, valueScore));
 
-  const reasons: string[] = [];
-  const fixes: Array<{ issue: string; fix: string }> = [];
-  if (valueScore < 45) {
-    reasons.push("Low value density before promotion intent");
-    fixes.push({
-      issue: "Insufficient value",
-      fix: "Add concrete tips, lessons, or examples before mentioning product.",
-    });
-  }
   // Penalty bands: 75+ excellent (0), 60-74 good (5), 45-59 fair (10), <45 poor (16).
   const penalty =
     valueScore >= 75
@@ -128,5 +119,29 @@ export function evaluateValueCheck(input: {
         : valueScore >= 45
           ? 10
           : MAX_VALUE_PENALTY;
+
+  const reasons: string[] = [];
+  const fixes: Array<{ issue: string; fix: string }> = [];
+  if (penalty > 0) {
+    if (valueScore < 45) {
+      reasons.push("Low value density before promotion intent");
+      fixes.push({
+        issue: "Insufficient value",
+        fix: "Add concrete tips, lessons, or examples before mentioning product.",
+      });
+    } else if (valueScore < 60) {
+      reasons.push("Post has limited actionable detail for readers");
+      fixes.push({
+        issue: "Weak practical value",
+        fix: "Include at least one concrete example or step-by-step takeaway.",
+      });
+    } else {
+      reasons.push("Value signals are present but not strong yet");
+      fixes.push({
+        issue: "Value depth can improve",
+        fix: "Add one more specific lesson, metric, or worked example.",
+      });
+    }
+  }
   return { valueScore, penalty, reasons, fixes };
 }

@@ -110,6 +110,18 @@ export async function POST(req: Request) {
       plan: parsed.data.plan,
       priceId,
     },
+    ...(isLifetime
+      ? {}
+      : {
+          subscription_data: {
+            metadata: {
+              workspaceId: workspace.id,
+              userId: session.user.id,
+              plan: parsed.data.plan,
+              priceId,
+            },
+          },
+        }),
   });
 
   return NextResponse.json({

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { enqueueRiskVisibilityCheckJob } from "@/lib/queue/enqueue";
+import { normalizeRedditPermalink } from "@/lib/reddit/permalink";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 
 const schema = z.object({
@@ -93,9 +94,16 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
     );
   }
 
-  const fullPermalink = permalink.startsWith("http")
-    ? permalink
-    : `https://www.reddit.com${permalink.startsWith("/") ? "" : "/"}${permalink}`;
+  const fullPermalink = normalizeRedditPermalink(permalink);
+  if (!fullPermalink) {
+    return NextResponse.json(
+      {
+        error: "Permalink must be a valid reddit.com URL or relative Reddit path",
+        code: "VALIDATION_ERROR",
+      },
+      { status: 400 },
+    );
+  }
 
   let visibleLoggedOut: boolean | null = null;
   let statusCode: number | null = null;

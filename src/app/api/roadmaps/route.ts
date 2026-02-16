@@ -244,17 +244,18 @@ export async function POST(req: Request) {
               : "POST";
 
         if (!rec) {
-          return {
-            workspaceId: session.workspaceId,
-            roadmapId: roadmap.id,
-            dayIndex,
-            type: taskType,
-            title: `Day ${dayIndex}`,
-            instructions:
-              "Build karma via useful comments, then post once approved.",
-            priority: 3,
-            status: "PENDING" as const,
-          };
+       return {
+         workspaceId: session.workspaceId,
+         roadmapId: roadmap.id,
+         dayIndex,
+         type: taskType,
+         title: `Day ${dayIndex}`,
+         instructions:
+           "Build karma via useful comments, then post once approved.",
+         priority: 3,
+         status: "PENDING" as const,
+         fitScore: null,
+       };
         }
 
         const recReasons =
@@ -282,6 +283,7 @@ export async function POST(req: Request) {
           title: `${taskType} in r/${rec.subreddit.name}`,
           instructions: `${instructionPrefix}\nReason: ${reasonSummary}`,
           priority: taskType === "POST" ? 4 : 3,
+          fitScore: rec.fitScore,
           status: "PENDING" as const,
         };
       });

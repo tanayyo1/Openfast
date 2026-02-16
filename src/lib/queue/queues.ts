@@ -7,6 +7,10 @@ let metricsFetchQueue: Queue | null = null;
 let contentGenerateQueue: Queue | null = null;
 let subredditIngestQueue: Queue | null = null;
 let subredditComputeTimeWindowsQueue: Queue | null = null;
+let recommendationsGenerateQueue: Queue | null = null;
+let roadmapGenerateQueue: Queue | null = null;
+let riskAccountHealthQueue: Queue | null = null;
+let riskVisibilityCheckQueue: Queue | null = null;
 let deadLetterQueue: Queue | null = null;
 
 function createQueue(name: string) {
@@ -57,6 +61,36 @@ export function getSubredditComputeTimeWindowsQueue() {
     );
   }
   return subredditComputeTimeWindowsQueue;
+}
+
+export function getRecommendationsGenerateQueue() {
+  if (!recommendationsGenerateQueue) {
+    recommendationsGenerateQueue = createQueue(
+      QUEUE_NAMES.RECOMMENDATIONS_GENERATE,
+    );
+  }
+  return recommendationsGenerateQueue;
+}
+
+export function getRoadmapGenerateQueue() {
+  if (!roadmapGenerateQueue) {
+    roadmapGenerateQueue = createQueue(QUEUE_NAMES.ROADMAP_GENERATE);
+  }
+  return roadmapGenerateQueue;
+}
+
+export function getRiskAccountHealthQueue() {
+  if (!riskAccountHealthQueue) {
+    riskAccountHealthQueue = createQueue(QUEUE_NAMES.RISK_ACCOUNT_HEALTH);
+  }
+  return riskAccountHealthQueue;
+}
+
+export function getRiskVisibilityCheckQueue() {
+  if (!riskVisibilityCheckQueue) {
+    riskVisibilityCheckQueue = createQueue(QUEUE_NAMES.RISK_VISIBILITY_CHECK);
+  }
+  return riskVisibilityCheckQueue;
 }
 
 export function getDeadLetterQueue() {

@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { QuotaExceededError, assertWorkspaceQuota } from "@/lib/billing/quota";
 import {
   enqueueContentGenerateJob,
   type ContentGenerateMode,
@@ -79,6 +80,24 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
     );
   }
 
+  try {
+    await assertWorkspaceQuota({
+      workspaceId: session.workspaceId,
+      resource: "ai_generations",
+    });
+  } catch (err) {
+    if (err instanceof QuotaExceededError) {
+      return NextResponse.json(
+        {
+          error: err.message,
+          code: err.code,
+          details: { resource: err.resource, used: err.used, limit: err.limit },
+        },
+        { status: 403 },
+      );
+    }
+    throw err;
+  }
   const payload = parsed.data;
   let sourceDraft: {
     id: string;

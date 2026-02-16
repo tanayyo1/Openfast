@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { assessRisk, buildDraftVariants } from "@/lib/content/generator";
 import { generateDraftVariantsWithOpenAI } from "@/lib/content/openaiVariants";
 import { validatePostStructure } from "@/lib/content/postStructureValidator";
+import { evaluateToneAlignment } from "@/lib/content/toneClassifier";
 
 export async function processContentGenerateJob(
   job: Job<ContentGenerateJobData>,
@@ -75,6 +76,21 @@ export async function processContentGenerateJob(
 
   const preferredLength =
     length === "short" || length === "long" ? length : "medium";
+  const expectedTone =
+    typeof tone === "string" && tone.trim().length > 0
+      ? tone.trim()
+      : (() => {
+          if (
+            task.roadmap.project.brandVoice &&
+            typeof task.roadmap.project.brandVoice === "object"
+          ) {
+            const raw = (task.roadmap.project.brandVoice as Record<string, unknown>)
+              .tone;
+            if (typeof raw === "string" && raw.trim().length > 0) return raw;
+          }
+          return "neutral";
+        })();
+
   const commonInput = {
     mode,
     baseTitle: draft.title,
@@ -117,6 +133,11 @@ export async function processContentGenerateJob(
       rule?.rawRules ?? null,
     );
     const structure = validatePostStructure(variant.title, variant.body);
+    const toneCheck = evaluateToneAlignment({
+      expectedTone,
+      title: variant.title,
+      body: variant.body,
+    });
     const compliance = computeComplianceFromStructure({
       baseRiskScore: baseRisk.riskScore,
       structure: {
@@ -124,9 +145,15 @@ export async function processContentGenerateJob(
         warnings: structure.warnings,
       },
     });
+    const adjustedRiskScore = Math.max(
+      0,
+      Math.min(100, compliance.finalRiskScore + toneCheck.penalty),
+    );
+    const adjustedComplianceScore = Math.max(0, 100 - adjustedRiskScore);
 
     const mergedRiskReasons = [
       ...baseRisk.riskReasons,
+      ...toneCheck.reasons,
       ...(structure.grade === "A"
         ? []
         : [`Structure grade ${structure.grade} increases compliance risk`]),
@@ -137,6 +164,7 @@ export async function processContentGenerateJob(
     ];
     const mergedFixes = [
       ...baseRisk.suggestedFixes,
+      ...toneCheck.fixes,
       ...structure.rewriteSuggestions.map((item) => ({
         issue: item.issue,
         fix: item.suggestion,
@@ -146,13 +174,16 @@ export async function processContentGenerateJob(
     return {
       variant: {
         ...variant,
-        riskScore: compliance.finalRiskScore,
-        complianceScore: compliance.complianceScore,
+        riskScore: adjustedRiskScore,
+        complianceScore: adjustedComplianceScore,
         riskReasons: mergedRiskReasons,
         suggestedFixes: mergedFixes,
         structureGrade: structure.grade,
+        expectedTone: toneCheck.expectedTone,
+        detectedTone: toneCheck.detectedTone,
       },
       compliance,
+      toneCheck,
     };
   });
 
@@ -202,6 +233,9 @@ export async function processContentGenerateJob(
           selectedComplianceScore: primaryVariant.complianceScore,
           selectedStructureGrade: primaryVariant.structureGrade,
           structurePenalty: primaryScored.compliance.structurePenalty,
+          tonePenalty: primaryScored.toneCheck.penalty,
+          selectedExpectedTone: primaryVariant.expectedTone ?? null,
+          selectedDetectedTone: primaryVariant.detectedTone ?? null,
         },
         generatedAt: new Date().toISOString(),
       } as unknown as Prisma.InputJsonValue,

@@ -97,8 +97,9 @@ export async function processContentGenerateJob(
             task.roadmap.project.brandVoice &&
             typeof task.roadmap.project.brandVoice === "object"
           ) {
-            const raw = (task.roadmap.project.brandVoice as Record<string, unknown>)
-              .tone;
+            const raw = (
+              task.roadmap.project.brandVoice as Record<string, unknown>
+            ).tone;
             if (typeof raw === "string" && raw.trim().length > 0) return raw;
           }
           return "neutral";
@@ -211,14 +212,12 @@ export async function processContentGenerateJob(
   });
 
   const primaryScored =
-    scoredVariants
-      .slice()
-      .sort((a, b) => {
+    scoredVariants.slice().sort((a, b) => {
       if (a.variant.riskScore !== b.variant.riskScore) {
         return a.variant.riskScore - b.variant.riskScore;
       }
       return b.variant.score - a.variant.score;
-      })[0] ?? null;
+    })[0] ?? null;
   if (!primaryScored) {
     throw new Error("VARIANT_GENERATION_FAILED");
   }

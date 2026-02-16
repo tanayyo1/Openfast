@@ -74,8 +74,7 @@ describe("compliance scoring", () => {
   test("handles empty title safely", () => {
     const value = evaluateValueCheck({
       title: "",
-      body:
-        "This post explains practical tips and one example teams can apply next sprint.",
+      body: "This post explains practical tips and one example teams can apply next sprint.",
     });
 
     expect(value.valueScore).toBeGreaterThanOrEqual(0);

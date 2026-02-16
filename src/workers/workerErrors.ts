@@ -46,9 +46,9 @@ export function toJobFailure(err: WorkerFailure): Error {
 function isWorkerFailure(value: unknown): value is WorkerFailure {
   return Boolean(
     value &&
-      typeof value === "object" &&
-      "code" in value &&
-      "message" in value &&
-      "isRetryable" in value,
+    typeof value === "object" &&
+    "code" in value &&
+    "message" in value &&
+    "isRetryable" in value,
   );
 }

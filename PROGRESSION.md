@@ -140,6 +140,7 @@
 ## 4) Sprint Priority (Updated 2026-02-15)
 
 ### Tier 1 - Must Ship First (In Todo on Linear)
+
 1. RED-30: Subreddit rules fetch + cache (DONE - Reddit fetch + Redis/memory cache + fallback)
 2. RED-29: Account health snapshot (DONE - snapshot scoring + tier updates + stale refresh queueing)
 3. RED-35: Distributed locks + rate limits (DONE - Redis locks in publish worker + fallback rate-limit enforcement)
@@ -150,6 +151,7 @@
 8. RED-55: Comment-first mode for new accounts
 
 ### Tier 2 - Differentiation (Backlog, High priority)
+
 - RED-62: Subreddit discovery tool
 - RED-53: Tone classifier
 - RED-41: Draft rewrite
@@ -159,12 +161,15 @@
 - RED-50: Community engagement threshold
 
 ### Tier 3 - Polish (Backlog, Medium priority)
+
 - RED-54, RED-57, RED-59, RED-60, RED-61
 
 ### Tier 4 - Post-MVP (Backlog, Low priority)
+
 - RED-36/37/38 (analytics pipeline), RED-52 (Reddit Ads), RED-58 (landing page gen)
 
 ### Remaining from Original Plan
+
 - P5: Billing/entitlements (Stripe)
 - P6: Admin/ops
 - P7: Queue/cron parity

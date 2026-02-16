@@ -39,8 +39,7 @@ async function resolveWorkspaceIdFromSubscriptionEvent(input: {
   if (input.metadataWorkspaceId) return input.metadataWorkspaceId;
 
   const or: Array<
-    | { stripeSubscriptionId: string }
-    | { stripeCustomerId: string }
+    { stripeSubscriptionId: string } | { stripeCustomerId: string }
   > = [];
   if (input.stripeSubscriptionId) {
     or.push({ stripeSubscriptionId: input.stripeSubscriptionId });

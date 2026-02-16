@@ -1,11 +1,22 @@
 import type { Job } from "bullmq";
 import { Prisma } from "@prisma/client";
-import { computeComplianceFromStructure } from "@/lib/content/complianceScoring";
+import {
+  computeComplianceFromStructure,
+  evaluateValueCheck,
+} from "@/lib/content/complianceScoring";
 import type { ContentGenerateJobData } from "@/lib/queue/enqueue";
 import { prisma } from "@/lib/prisma";
 import { assessRisk, buildDraftVariants } from "@/lib/content/generator";
+import type { DraftVariant, RiskAssessment } from "@/lib/content/generator";
 import { generateDraftVariantsWithOpenAI } from "@/lib/content/openaiVariants";
 import { validatePostStructure } from "@/lib/content/postStructureValidator";
+
+type ScoredDraftVariant = DraftVariant &
+  RiskAssessment & {
+    complianceScore: number;
+    structureGrade: string;
+    valueScore: number;
+  };
 
 export async function processContentGenerateJob(
   job: Job<ContentGenerateJobData>,
@@ -117,16 +128,22 @@ export async function processContentGenerateJob(
       rule?.rawRules ?? null,
     );
     const structure = validatePostStructure(variant.title, variant.body);
+    const valueCheck = evaluateValueCheck({
+      title: variant.title,
+      body: variant.body,
+    });
     const compliance = computeComplianceFromStructure({
       baseRiskScore: baseRisk.riskScore,
       structure: {
         grade: structure.grade,
         warnings: structure.warnings,
       },
+      valuePenalty: valueCheck.penalty,
     });
 
     const mergedRiskReasons = [
       ...baseRisk.riskReasons,
+      ...valueCheck.reasons,
       ...(structure.grade === "A"
         ? []
         : [`Structure grade ${structure.grade} increases compliance risk`]),
@@ -137,6 +154,7 @@ export async function processContentGenerateJob(
     ];
     const mergedFixes = [
       ...baseRisk.suggestedFixes,
+      ...valueCheck.fixes,
       ...structure.rewriteSuggestions.map((item) => ({
         issue: item.issue,
         fix: item.suggestion,
@@ -151,7 +169,8 @@ export async function processContentGenerateJob(
         riskReasons: mergedRiskReasons,
         suggestedFixes: mergedFixes,
         structureGrade: structure.grade,
-      },
+        valueScore: valueCheck.valueScore,
+      } as ScoredDraftVariant,
       compliance,
     };
   });
@@ -201,7 +220,9 @@ export async function processContentGenerateJob(
           selectedRiskScore: primaryVariant.riskScore,
           selectedComplianceScore: primaryVariant.complianceScore,
           selectedStructureGrade: primaryVariant.structureGrade,
+          selectedValueScore: primaryVariant.valueScore,
           structurePenalty: primaryScored.compliance.structurePenalty,
+          valuePenalty: primaryScored.compliance.valuePenalty,
         },
         generatedAt: new Date().toISOString(),
       } as unknown as Prisma.InputJsonValue,

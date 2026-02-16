@@ -4,9 +4,38 @@ export type ComplianceComputation = {
   finalRiskScore: number;
   complianceScore: number;
   structurePenalty: number;
+  valuePenalty: number;
   gradePenalty: number;
   warningPenalty: number;
 };
+
+export type ValueCheckResult = {
+  valueScore: number;
+  penalty: number;
+  reasons: string[];
+  fixes: Array<{ issue: string; fix: string }>;
+};
+
+const MAX_VALUE_PENALTY = 16;
+const VALUE_SCORE_BASE = 40;
+const VALUE_HIT_WEIGHT = 6;
+const MAX_VALUE_HITS_BONUS = 30;
+const WORD_BLOCK_SIZE = 45;
+const WORD_BLOCK_BONUS = 5;
+const MAX_WORD_BONUS = 20;
+const VALUE_SIGNAL_PATTERNS: RegExp[] = [
+  /\bhow\b/g,
+  /\bwhy\b/g,
+  /\bexample\b/g,
+  /\blesson(s)?\b/g,
+  /\btip(s)?\b/g,
+  /\bmistake(s)?\b/g,
+  /\bcase study\b/g,
+  /\bwhat worked\b/g,
+  /\bwe learned\b/g,
+  /\bstep(s)?\b/g,
+  /\b\d+(\.\d+)?%/g,
+];
 
 function gradePenalty(grade: PostStructureResult["grade"]) {
   if (grade === "F") return 25;
@@ -27,13 +56,21 @@ function warningPenalty(warnings: PostStructureResult["warnings"]) {
 export function computeComplianceFromStructure(input: {
   baseRiskScore: number;
   structure: Pick<PostStructureResult, "grade" | "warnings">;
+  valuePenalty?: number;
 }): ComplianceComputation {
   const gradeAdj = gradePenalty(input.structure.grade);
   const warningsAdj = warningPenalty(input.structure.warnings);
+  const valuePenalty = Math.max(
+    0,
+    Math.min(MAX_VALUE_PENALTY, input.valuePenalty ?? 0),
+  );
   const structurePenalty = gradeAdj + warningsAdj;
   const finalRiskScore = Math.max(
     0,
-    Math.min(100, Math.round(input.baseRiskScore + structurePenalty)),
+    Math.min(
+      100,
+      Math.round(input.baseRiskScore + structurePenalty + valuePenalty),
+    ),
   );
   const complianceScore = Math.max(0, Math.min(100, 100 - finalRiskScore));
 
@@ -41,7 +78,55 @@ export function computeComplianceFromStructure(input: {
     finalRiskScore,
     complianceScore,
     structurePenalty,
+    valuePenalty,
     gradePenalty: gradeAdj,
     warningPenalty: warningsAdj,
   };
+}
+
+function countMatches(text: string, patterns: RegExp[]) {
+  return patterns.reduce((count, pattern) => {
+    const matches = text.match(pattern);
+    return count + (matches?.length ?? 0);
+  }, 0);
+}
+
+export function evaluateValueCheck(input: {
+  title: string | null;
+  body: string;
+}): ValueCheckResult {
+  const combined = `${input.title ?? ""} ${input.body}`.trim();
+  const lower = combined.toLowerCase();
+  const wordCount = lower.split(/\s+/).filter(Boolean).length;
+  const valueHits = countMatches(lower, VALUE_SIGNAL_PATTERNS);
+
+  // This score intentionally rewards educational/helpful signals only.
+  // Promotional language and "too short" spam indicators are handled in assessRisk().
+  let valueScore = VALUE_SCORE_BASE;
+  valueScore += Math.min(MAX_VALUE_HITS_BONUS, valueHits * VALUE_HIT_WEIGHT);
+  valueScore += Math.min(
+    MAX_WORD_BONUS,
+    Math.floor(wordCount / WORD_BLOCK_SIZE) * WORD_BLOCK_BONUS,
+  );
+  valueScore = Math.max(0, Math.min(100, valueScore));
+
+  const reasons: string[] = [];
+  const fixes: Array<{ issue: string; fix: string }> = [];
+  if (valueScore < 45) {
+    reasons.push("Low value density before promotion intent");
+    fixes.push({
+      issue: "Insufficient value",
+      fix: "Add concrete tips, lessons, or examples before mentioning product.",
+    });
+  }
+  // Penalty bands: 75+ excellent (0), 60-74 good (5), 45-59 fair (10), <45 poor (16).
+  const penalty =
+    valueScore >= 75
+      ? 0
+      : valueScore >= 60
+        ? 5
+        : valueScore >= 45
+          ? 10
+          : MAX_VALUE_PENALTY;
+  return { valueScore, penalty, reasons, fixes };
 }

@@ -34,6 +34,7 @@ describe("compliance scoring", () => {
 
     expect(out.structurePenalty).toBe(0);
     expect(out.valuePenalty).toBe(0);
+    expect(out.antiPenalty).toBe(0);
     expect(out.finalRiskScore).toBe(18);
     expect(out.complianceScore).toBe(82);
   });
@@ -53,6 +54,18 @@ describe("compliance scoring", () => {
     });
     expect(out.valuePenalty).toBe(value.penalty);
     expect(out.finalRiskScore).toBeGreaterThan(30);
+  });
+
+  test("applies anti-pattern penalty and caps it", () => {
+    const out = computeComplianceFromStructure({
+      baseRiskScore: 30,
+      structure: { grade: "A", warnings: [] },
+      antiPenalty: 99,
+    });
+
+    expect(out.antiPenalty).toBe(20);
+    expect(out.finalRiskScore).toBe(50);
+    expect(out.complianceScore).toBe(50);
   });
 
   test("keeps penalty low for educational content with value signals", () => {

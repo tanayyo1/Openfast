@@ -1,6 +1,6 @@
 # PROGRESSION.md - MediaFast Clone MVP Tracker
 
-> **Last Updated**: 2026-02-15
+> **Last Updated**: 2026-02-16
 > **Target**: `mediafast_clone_system_design_report.md`  
 > **Current Estimate**: ~35-40% of MVP parity complete
 
@@ -156,7 +156,7 @@
 - RED-53: Tone classifier
 - RED-41: Draft rewrite
 - RED-49: Subreddit fit score
-- RED-51: Anti-pattern detector
+- RED-51: Anti-pattern detector (DONE - vote manipulation / engagement-gating / repetition signals added to draft compliance scoring)
 - RED-56: Pain point extractor
 - RED-50: Community engagement threshold
 

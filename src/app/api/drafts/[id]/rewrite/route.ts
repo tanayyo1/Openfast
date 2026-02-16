@@ -172,7 +172,9 @@ export async function POST(
     });
   } catch (err) {
     const queueError =
-      err instanceof Error ? `QUEUE_ENQUEUE_FAILED:${err.message}` : "QUEUE_ENQUEUE_FAILED";
+      err instanceof Error
+        ? `QUEUE_ENQUEUE_FAILED:${err.message}`
+        : "QUEUE_ENQUEUE_FAILED";
     if (draftUpdate) {
       await draftUpdate({
         where: { id: rewritten.id },

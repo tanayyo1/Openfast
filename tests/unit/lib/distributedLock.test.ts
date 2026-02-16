@@ -49,7 +49,8 @@ describe("distributed lock", () => {
 
   test("falls back to no-op lock when redis is unavailable in non-production", async () => {
     const env = process.env.NODE_ENV;
-    process.env.NODE_ENV = "test";
+    const mutableEnv = process.env as Record<string, string | undefined>;
+    mutableEnv.NODE_ENV = "test";
     mockedRedisModule.getRedis.mockReturnValue(null);
 
     const lock = await acquireDistributedLock({
@@ -59,6 +60,6 @@ describe("distributed lock", () => {
 
     expect(lock.acquired).toBe(true);
     await expect(lock.release()).resolves.toBeUndefined();
-    process.env.NODE_ENV = env;
+    mutableEnv.NODE_ENV = env;
   });
 });

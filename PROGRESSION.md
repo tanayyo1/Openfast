@@ -144,7 +144,7 @@
 2. RED-29: Account health snapshot (DONE - snapshot scoring + tier updates + stale refresh queueing)
 3. RED-35: Distributed locks + rate limits (DONE - Redis locks in publish worker + fallback rate-limit enforcement)
 4. RED-39: OpenAI client + prompt templates (DONE - OpenAI wrapper + DB-backed prompt template service + content worker LLM path)
-5. RED-40: Draft generation + compliance scoring
+5. RED-40: Draft generation + compliance scoring (DONE - variant-level compliance scoring + safest-variant selection)
 6. RED-48: Value-check scoring
 7. RED-63: Post structure validator
 8. RED-55: Comment-first mode for new accounts

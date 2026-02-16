@@ -326,27 +326,27 @@ model ProjectSubredditRecommendation {
   projectId   String @map("project_id")
   subredditId String @map("subreddit_id")
 
-  fitScore   Float                @map("fit_score")
-  riskScore  Float                @map("risk_score")
-  reasons    Json
-  status     RecommendationStatus @default(CANDIDATE)
-  rank       Int?
-  selectedAt DateTime?            @map("selected_at")
+  fitScore        Float @map("fit_score")
+  riskScore       Float @map("risk_score")
+  timeWindowScore Float @map("time_window_score")
+  compositeScore  Float @map("composite_score")
+  reasons         Json
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  status      RecommendationStatus @default(CANDIDATE)
+  selectedAt  DateTime?            @map("selected_at")
+  dismissedAt DateTime?            @map("dismissed_at")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
 
   // Relations
   workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   subreddit SubredditCatalog @relation(fields: [subredditId], references: [id], onDelete: Cascade)
 
-  @@unique([projectId, subredditId])
-  @@index([workspaceId, projectId])
-  @@index([workspaceId, status])
-  @@index([projectId, status])
-  @@index([workspaceId, createdAt])
-  @@map("project_subreddit_recos")
+  @@unique([workspaceId, projectId, subredditId])
+  @@index([workspaceId, projectId, compositeScore])
+  @@index([workspaceId, projectId, status, compositeScore])
+  @@map("project_subreddit_recommendations")
 }
 
 // ==================== ROADMAPS & TASKS ====================

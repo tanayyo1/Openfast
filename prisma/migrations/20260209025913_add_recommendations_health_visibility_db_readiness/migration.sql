@@ -1,18 +1,8 @@
 -- CreateEnum
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'RecommendationStatus') THEN
-        CREATE TYPE "RecommendationStatus" AS ENUM ('CANDIDATE', 'SELECTED', 'DISMISSED');
-    END IF;
-END$$;
+CREATE TYPE "RecommendationStatus" AS ENUM ('CANDIDATE', 'SELECTED', 'DISMISSED');
 
 -- CreateEnum
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'VisibilityCheckResult') THEN
-        CREATE TYPE "VisibilityCheckResult" AS ENUM ('OK', 'SUSPICIOUS', 'FAILED', 'UNKNOWN');
-    END IF;
-END$$;
+CREATE TYPE "VisibilityCheckResult" AS ENUM ('OK', 'SUSPICIOUS', 'FAILED', 'UNKNOWN');
 
 -- CreateTable
 CREATE TABLE "project_subreddit_recos" (

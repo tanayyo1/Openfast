@@ -150,7 +150,7 @@
 8. RED-55: Comment-first mode for new accounts (DONE - NEW tier gated from POST scheduling/publishing until minimum published comments)
 
 ### Tier 2 - Differentiation (Backlog, High priority)
-- RED-62: Subreddit discovery tool
+- RED-62: Subreddit discovery tool (DONE - `GET /api/projects/:id/discover-subreddits` with ranking + ingest queue backfill)
 - RED-53: Tone classifier
 - RED-41: Draft rewrite
 - RED-49: Subreddit fit score

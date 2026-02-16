@@ -100,6 +100,9 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
   const discovered = await prisma.subredditCatalog.findMany({
     where: {
       subscribers: { gte: parsed.data.minSubscribers },
+      nsfw: false,
+      isRestricted: false,
+      isQuarantined: false,
       ...(searchConditions.length > 0 ? { OR: searchConditions } : {}),
     },
     include: {

@@ -11,6 +11,14 @@ function planFromMetadata(value: string | undefined): Plan {
   return "FREE";
 }
 
+function planFromPriceId(value: string | null | undefined): Plan | null {
+  if (!value) return null;
+  if (value === process.env.STRIPE_PRICE_PRO_MONTHLY) return "PRO";
+  if (value === process.env.STRIPE_PRICE_LIFETIME) return "LIFETIME";
+  if (value === process.env.STRIPE_PRICE_ENTERPRISE) return "ENTERPRISE";
+  return null;
+}
+
 function safeStatus(value: string | undefined): SubscriptionStatus {
   const fallback: SubscriptionStatus = "INCOMPLETE";
   if (!value) return fallback;
@@ -29,6 +37,16 @@ function safeStatus(value: string | undefined): SubscriptionStatus {
     return normalized === "CANCELED" ? "CANCELLED" : normalized;
   }
   return fallback;
+}
+
+function isTerminalSubscriptionStatus(status: SubscriptionStatus) {
+  return (
+    status === "INCOMPLETE_EXPIRED" ||
+    status === "PAST_DUE" ||
+    status === "CANCELLED" ||
+    status === "UNPAID" ||
+    status === "PAUSED"
+  );
 }
 
 async function resolveWorkspaceIdFromSubscriptionEvent(input: {
@@ -172,13 +190,15 @@ export async function POST(req: Request) {
       stripeCustomerId,
     });
     if (workspaceId) {
+      const nextStatus = safeStatus(subscription.status);
+      const stripePriceId = subscription.items.data[0]?.price?.id ?? null;
       await prisma.subscription.updateMany({
         where: { workspaceId },
         data: {
           ...(stripeCustomerId ? { stripeCustomerId } : {}),
           stripeSubscriptionId: subscription.id,
-          stripePriceId: subscription.items.data[0]?.price?.id ?? null,
-          status: safeStatus(subscription.status),
+          stripePriceId,
+          status: nextStatus,
           currentPeriodStart: new Date(
             subscription.current_period_start * 1000,
           ),
@@ -186,8 +206,19 @@ export async function POST(req: Request) {
           cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
         },
       });
-      if (event.type === "customer.subscription.deleted") {
+
+      if (
+        event.type === "customer.subscription.deleted" ||
+        isTerminalSubscriptionStatus(nextStatus)
+      ) {
         await applyWorkspacePlan(workspaceId, "FREE");
+      } else if (nextStatus === "ACTIVE" || nextStatus === "TRIALING") {
+        const plan =
+          planFromPriceId(stripePriceId) ??
+          planFromMetadata(subscription.metadata?.plan);
+        if (plan !== "FREE") {
+          await applyWorkspacePlan(workspaceId, plan);
+        }
       }
     }
   }

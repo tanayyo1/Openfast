@@ -53,6 +53,7 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
     : null;
   const shouldQueueRefresh =
     !latest || (staleHours !== null && staleHours >= STALE_HOURS);
+  let refreshQueued = false;
 
   if (shouldQueueRefresh) {
     try {
@@ -60,6 +61,7 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
         workspaceId: session.workspaceId,
         redditAccountId,
       });
+      refreshQueued = true;
     } catch {
       // keep response graceful even when queue is unavailable
     }
@@ -80,7 +82,7 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
     account,
     latestSnapshot: latest,
     staleHours,
-    refreshQueued: shouldQueueRefresh,
+    refreshQueued,
     warnings,
     guardrails: {
       blockPublishing:

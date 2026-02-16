@@ -379,6 +379,7 @@ model RoadmapTask {
   dayIndex      Int        @map("day_index") // Day 1-30
   type          TaskType
   subredditId   String?    @map("subreddit_id")
+  fitScore      Float?     @map("fit_score")
   title         String? // Task display title
   instructions  String     @db.Text
   estimatedTime Int?       @map("estimated_time") // minutes

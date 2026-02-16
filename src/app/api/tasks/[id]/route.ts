@@ -26,6 +26,7 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
       dayIndex: true,
       type: true,
       subredditId: true,
+      fitScore: true,
       title: true,
       instructions: true,
       estimatedTime: true,

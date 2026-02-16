@@ -36,10 +36,18 @@ const createScheduledPostSchema = z.object({
   idempotencyKey: z.string().min(16).max(128).optional(),
 });
 
+const DEFAULT_COMMENT_FIRST_MIN_COMMENTS = 3;
+
 function authError(err: unknown) {
   const code = err instanceof Error ? err.message : "UNAUTHORIZED";
   const status = code === "WORKSPACE_REQUIRED" ? 400 : 401;
   return NextResponse.json({ error: "Unauthorized", code }, { status });
+}
+
+function parsePositiveEnvInt(name: string, fallback: number) {
+  const raw = Number(process.env[name]);
+  if (!Number.isFinite(raw) || raw <= 0) return fallback;
+  return Math.floor(raw);
 }
 
 function isUniqueViolationFor(
@@ -220,6 +228,7 @@ export async function POST(req: Request) {
       id: true,
       status: true,
       subredditId: true,
+      type: true,
       title: true,
       body: true,
     },
@@ -248,13 +257,41 @@ export async function POST(req: Request) {
       workspaceId: session.workspaceId,
       isActive: true,
     },
-    select: { id: true },
+    select: { id: true, safetyTier: true },
   });
   if (!redditAccount) {
     return NextResponse.json(
       { error: "Reddit account not found", code: "REDDIT_ACCOUNT_NOT_FOUND" },
       { status: 404 },
     );
+  }
+
+  if (redditAccount.safetyTier === "NEW" && draft.type === "POST") {
+    const minCommentsRequired = parsePositiveEnvInt(
+      "COMMENT_FIRST_MIN_COMMENTS",
+      DEFAULT_COMMENT_FIRST_MIN_COMMENTS,
+    );
+    const publishedComments = await prisma.publishedItem.count({
+      where: {
+        workspaceId: session.workspaceId,
+        redditAccountId: redditAccount.id,
+        type: "COMMENT",
+      },
+    });
+    if (publishedComments < minCommentsRequired) {
+      return NextResponse.json(
+        {
+          error:
+            "Comment-first mode active for NEW accounts. Publish comments first.",
+          code: "COMMENT_FIRST_REQUIRED",
+          details: {
+            requiredComments: minCommentsRequired,
+            publishedComments,
+          },
+        },
+        { status: 409 },
+      );
+    }
   }
 
   const subredditId = data.subredditId ?? draft.subredditId;

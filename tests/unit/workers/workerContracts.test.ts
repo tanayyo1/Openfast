@@ -30,6 +30,11 @@ jest.mock("@/lib/queue/enqueue", () => ({
 
 jest.mock("@/lib/reddit/client", () => ({
   redditFetch: jest.fn(),
+  enforceRedditAccountRateLimit: jest.fn(),
+}));
+
+jest.mock("@/lib/locks/distributed", () => ({
+  acquireDistributedLock: jest.fn(),
 }));
 
 import { processPublishJob } from "@/workers/publish.worker";
@@ -37,6 +42,7 @@ import { processMetricsFetchJob } from "@/workers/metrics.worker";
 import { prisma } from "@/lib/prisma";
 import { enqueueMetricsFetchJob } from "@/lib/queue/enqueue";
 import { redditFetch } from "@/lib/reddit/client";
+import { acquireDistributedLock } from "@/lib/locks/distributed";
 
 const mockedPrisma = prisma as unknown as {
   scheduledPost: {
@@ -55,6 +61,15 @@ const mockedPrisma = prisma as unknown as {
 describe("worker contracts", () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    (acquireDistributedLock as jest.Mock)
+      .mockResolvedValueOnce({
+        acquired: true,
+        release: jest.fn().mockResolvedValue(undefined),
+      })
+      .mockResolvedValue({
+        acquired: true,
+        release: jest.fn().mockResolvedValue(undefined),
+      });
   });
 
   test("publish worker writes published item and schedules metrics fetch", async () => {

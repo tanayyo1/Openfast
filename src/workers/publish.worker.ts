@@ -1,9 +1,13 @@
 import type { Job } from "bullmq";
 import type { SafetyTier } from "@prisma/client";
+import { acquireDistributedLock } from "@/lib/locks/distributed";
 import type { PublishJobData } from "@/lib/queue/enqueue";
 import { enqueueMetricsFetchJob } from "@/lib/queue/enqueue";
 import { prisma } from "@/lib/prisma";
-import { redditFetch } from "@/lib/reddit/client";
+import {
+  enforceRedditAccountRateLimit,
+  redditFetch,
+} from "@/lib/reddit/client";
 import { TokenCryptoError, decryptToken } from "@/lib/security/tokenCrypto";
 import { parseSubmitResponse } from "@/workers/redditPayloads";
 import { logWorkerEvent } from "@/workers/workerLog";
@@ -22,11 +26,20 @@ const PACE_LIMITS_PER_24H: Record<SafetyTier, number> = {
   RESTRICTED: 1,
 };
 
+const DEFAULT_SCHEDULED_LOCK_TTL_MS = 120_000;
+const DEFAULT_ACCOUNT_LOCK_TTL_MS = 60_000;
+
 function getRiskThreshold() {
   const raw = process.env.PUBLISH_MAX_RISK_SCORE;
   const parsed = raw ? Number(raw) : 85;
   if (!Number.isFinite(parsed) || parsed < 0) return 85;
   return Math.floor(parsed);
+}
+
+function parsePositiveEnvInt(name: string, fallback: number) {
+  const raw = Number(process.env[name]);
+  if (!Number.isFinite(raw) || raw <= 0) return fallback;
+  return Math.floor(raw);
 }
 
 function parseParentThingId(input: unknown): string | null {
@@ -40,10 +53,15 @@ function parseParentThingId(input: unknown): string | null {
 }
 
 async function submitWithFetchFallback(args: {
+  redditAccountId: string;
   accessToken: string;
   path: "/api/submit" | "/api/comment";
   body: Record<string, unknown>;
 }) {
+  await enforceRedditAccountRateLimit({
+    redditAccountId: args.redditAccountId,
+  });
+
   const res = await fetch(`https://oauth.reddit.com${args.path}`, {
     method: "POST",
     headers: {
@@ -78,6 +96,16 @@ export async function processPublishJob(job: Job<PublishJobData>) {
   }
 
   const jobId = typeof job.id === "string" ? job.id : null;
+  const scheduledLockTtlMs = parsePositiveEnvInt(
+    "PUBLISH_SCHEDULED_LOCK_TTL_MS",
+    DEFAULT_SCHEDULED_LOCK_TTL_MS,
+  );
+  const accountLockTtlMs = parsePositiveEnvInt(
+    "PUBLISH_ACCOUNT_LOCK_TTL_MS",
+    DEFAULT_ACCOUNT_LOCK_TTL_MS,
+  );
+  let releaseScheduledLock: (() => Promise<void>) | null = null;
+  let releaseAccountLock: (() => Promise<void>) | null = null;
 
   logWorkerEvent("publish", "info", "job.started", {
     jobId,
@@ -86,6 +114,18 @@ export async function processPublishJob(job: Job<PublishJobData>) {
   });
 
   try {
+    const scheduledLock = await acquireDistributedLock({
+      key: `publish:scheduled:${scheduledPostId}`,
+      ttlMs: scheduledLockTtlMs,
+    });
+    if (!scheduledLock.acquired) {
+      throw retryableWorkerError(
+        "DISTRIBUTED_LOCK_NOT_ACQUIRED",
+        "Another worker is publishing this scheduled post",
+      );
+    }
+    releaseScheduledLock = scheduledLock.release;
+
     const scheduled = await prisma.scheduledPost.findUnique({
       where: { id: scheduledPostId },
       include: {
@@ -181,6 +221,18 @@ export async function processPublishJob(job: Job<PublishJobData>) {
         `Cannot publish from state ${scheduled.status}`,
       );
     }
+
+    const accountLock = await acquireDistributedLock({
+      key: `publish:account:${scheduled.redditAccountId}`,
+      ttlMs: accountLockTtlMs,
+    });
+    if (!accountLock.acquired) {
+      throw retryableWorkerError(
+        "DISTRIBUTED_ACCOUNT_LOCK_NOT_ACQUIRED",
+        "Another publish is already in progress for this Reddit account",
+      );
+    }
+    releaseAccountLock = accountLock.release;
 
     if (scheduled.draft.status !== "APPROVED") {
       throw permanentWorkerError(
@@ -320,6 +372,7 @@ export async function processPublishJob(job: Job<PublishJobData>) {
     if (!response) {
       response = {
         data: await submitWithFetchFallback({
+          redditAccountId: scheduled.redditAccountId,
           accessToken,
           path: submitPath,
           body: submitPayload as Record<string, unknown>,
@@ -437,5 +490,12 @@ export async function processPublishJob(job: Job<PublishJobData>) {
     });
 
     throw toJobFailure(normalized);
+  } finally {
+    if (releaseAccountLock) {
+      await releaseAccountLock();
+    }
+    if (releaseScheduledLock) {
+      await releaseScheduledLock();
+    }
   }
 }

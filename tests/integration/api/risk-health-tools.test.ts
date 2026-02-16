@@ -123,6 +123,38 @@ describe("Risk health + tools APIs", () => {
     });
   });
 
+  test("GET /reddit/accounts/:id/health re-queues when latest snapshot is stale", async () => {
+    await prisma.accountHealthSnapshot.create({
+      data: {
+        workspaceId,
+        redditAccountId: accountId,
+        healthScore: 72,
+        signalsJson: { sampleSize: 8, removals: 1 },
+        capturedAt: new Date(Date.now() - 26 * 60 * 60 * 1000),
+      },
+    });
+
+    const res = await getAccountHealth(
+      new Request(`http://test.local/api/reddit/accounts/${accountId}/health`),
+      { params: { id: accountId } },
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as {
+      latestSnapshot: { healthScore: number } | null;
+      staleHours: number | null;
+      refreshQueued: boolean;
+    };
+    expect(json.latestSnapshot?.healthScore).toBe(72);
+    expect(json.staleHours).not.toBeNull();
+    expect((json.staleHours ?? 0) >= 24).toBe(true);
+    expect(json.refreshQueued).toBe(true);
+    expect(mockedQueue.enqueueRiskAccountHealthJob).toHaveBeenCalledWith({
+      workspaceId,
+      redditAccountId: accountId,
+    });
+  });
+
   test("POST /reddit/accounts/:id/visibility-check persists check entry", async () => {
     const fetchSpy = jest
       .spyOn(global, "fetch")

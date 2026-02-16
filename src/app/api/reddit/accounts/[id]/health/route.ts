@@ -3,6 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { enqueueRiskAccountHealthJob } from "@/lib/queue/enqueue";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 
+const parsedStaleHours = Number(process.env.HEALTH_SNAPSHOT_STALE_HOURS);
+const STALE_HOURS =
+  Number.isFinite(parsedStaleHours) && parsedStaleHours > 0
+    ? Math.floor(parsedStaleHours)
+    : 24;
+
 function authError(err: unknown) {
   const code = err instanceof Error ? err.message : "UNAUTHORIZED";
   const status = code === "WORKSPACE_REQUIRED" ? 400 : 401;
@@ -42,7 +48,13 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
     orderBy: { capturedAt: "desc" },
   });
 
-  if (!latest) {
+  const staleHours = latest
+    ? Math.floor((Date.now() - latest.capturedAt.getTime()) / (1000 * 60 * 60))
+    : null;
+  const shouldQueueRefresh =
+    !latest || (staleHours !== null && staleHours >= STALE_HOURS);
+
+  if (shouldQueueRefresh) {
     try {
       await enqueueRiskAccountHealthJob({
         workspaceId: session.workspaceId,
@@ -67,6 +79,8 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
   return NextResponse.json({
     account,
     latestSnapshot: latest,
+    staleHours,
+    refreshQueued: shouldQueueRefresh,
     warnings,
     guardrails: {
       blockPublishing:

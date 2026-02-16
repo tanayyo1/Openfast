@@ -98,9 +98,9 @@
 ## P3 - Account Health + Visibility Checks
 
 - [x] Add health snapshot + visibility check persistence if missing in schema.
-- [ ] Implement `risk.account_health` queue + worker.
-- [ ] Implement `risk.visibility_check` queue + worker.
-- [ ] Build APIs: `GET /reddit/accounts/:id/health`, `POST /reddit/accounts/:id/visibility-check`.
+- [x] Implement `risk.account_health` queue + worker.
+- [x] Implement `risk.visibility_check` queue + worker.
+- [x] Build APIs: `GET /reddit/accounts/:id/health`, `POST /reddit/accounts/:id/visibility-check`.
 - [ ] Surface health warnings in app UX (blocking high-risk publish attempts).
 
 ## P4 - Free Tools Backend + Rate Limiting
@@ -141,7 +141,7 @@
 
 ### Tier 1 - Must Ship First (In Todo on Linear)
 1. RED-30: Subreddit rules fetch + cache (DONE - Reddit fetch + Redis/memory cache + fallback)
-2. RED-29: Account health snapshot
+2. RED-29: Account health snapshot (DONE - snapshot scoring + tier updates + stale refresh queueing)
 3. RED-35: Distributed locks + rate limits
 4. RED-39: OpenAI client + prompt templates
 5. RED-40: Draft generation + compliance scoring

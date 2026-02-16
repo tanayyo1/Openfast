@@ -11,12 +11,15 @@ import type { DraftVariant, RiskAssessment } from "@/lib/content/generator";
 import { generateDraftVariantsWithOpenAI } from "@/lib/content/openaiVariants";
 import { validatePostStructure } from "@/lib/content/postStructureValidator";
 import { evaluateToneAlignment } from "@/lib/content/toneClassifier";
+import { evaluateAntiPattern } from "@/lib/content/antiPattern";
 
 type ScoredDraftVariant = DraftVariant &
   RiskAssessment & {
     complianceScore: number;
     structureGrade: string;
     valueScore: number;
+    antiPatternPenalty: number;
+    antiPatternFlags: string[];
     expectedTone: string;
     detectedTone: string;
   };
@@ -156,6 +159,10 @@ export async function processContentGenerateJob(
       title: variant.title,
       body: variant.body,
     });
+    const antiPattern = evaluateAntiPattern({
+      title: variant.title,
+      body: variant.body,
+    });
     const compliance = computeComplianceFromStructure({
       baseRiskScore: baseRisk.riskScore,
       structure: {
@@ -163,6 +170,7 @@ export async function processContentGenerateJob(
         warnings: structure.warnings,
       },
       valuePenalty: valueCheck.penalty,
+      antiPenalty: antiPattern.penalty,
     });
     const adjustedRiskScore = Math.max(
       0,
@@ -174,6 +182,7 @@ export async function processContentGenerateJob(
       ...baseRisk.riskReasons,
       ...valueCheck.reasons,
       ...toneCheck.reasons,
+      ...antiPattern.reasons,
       ...(structure.grade === "A"
         ? []
         : [`Structure grade ${structure.grade} increases compliance risk`]),
@@ -186,6 +195,7 @@ export async function processContentGenerateJob(
       ...baseRisk.suggestedFixes,
       ...valueCheck.fixes,
       ...toneCheck.fixes,
+      ...antiPattern.fixes,
       ...structure.rewriteSuggestions.map((item) => ({
         issue: item.issue,
         fix: item.suggestion,
@@ -201,6 +211,8 @@ export async function processContentGenerateJob(
         suggestedFixes: mergedFixes,
         structureGrade: structure.grade,
         valueScore: valueCheck.valueScore,
+        antiPatternPenalty: antiPattern.penalty,
+        antiPatternFlags: antiPattern.flags,
         expectedTone: toneCheck.expectedTone,
         detectedTone: toneCheck.detectedTone,
       } as ScoredDraftVariant,
@@ -208,6 +220,7 @@ export async function processContentGenerateJob(
       compliance,
       toneCheck,
       valueCheck,
+      antiPattern,
     };
   });
 
@@ -255,7 +268,9 @@ export async function processContentGenerateJob(
           selectedValueScore: primaryVariant.valueScore,
           structurePenalty: primaryScored.compliance.structurePenalty,
           valuePenalty: primaryScored.compliance.valuePenalty,
+          antiPatternPenalty: primaryScored.compliance.antiPenalty,
           tonePenalty: primaryScored.toneCheck.penalty,
+          selectedAntiPatternFlags: primaryVariant.antiPatternFlags,
           selectedExpectedTone: primaryVariant.expectedTone ?? null,
           selectedDetectedTone: primaryVariant.detectedTone ?? null,
         },

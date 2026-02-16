@@ -5,6 +5,7 @@ export type ComplianceComputation = {
   complianceScore: number;
   structurePenalty: number;
   valuePenalty: number;
+  antiPenalty: number;
   gradePenalty: number;
   warningPenalty: number;
 };
@@ -17,6 +18,7 @@ export type ValueCheckResult = {
 };
 
 const MAX_VALUE_PENALTY = 16;
+const MAX_ANTI_PATTERN_PENALTY = 20;
 const VALUE_SCORE_BASE = 40;
 const VALUE_HIT_WEIGHT = 6;
 const MAX_VALUE_HITS_BONUS = 30;
@@ -57,6 +59,7 @@ export function computeComplianceFromStructure(input: {
   baseRiskScore: number;
   structure: Pick<PostStructureResult, "grade" | "warnings">;
   valuePenalty?: number;
+  antiPenalty?: number;
 }): ComplianceComputation {
   const gradeAdj = gradePenalty(input.structure.grade);
   const warningsAdj = warningPenalty(input.structure.warnings);
@@ -64,12 +67,18 @@ export function computeComplianceFromStructure(input: {
     0,
     Math.min(MAX_VALUE_PENALTY, input.valuePenalty ?? 0),
   );
+  const antiPenalty = Math.max(
+    0,
+    Math.min(MAX_ANTI_PATTERN_PENALTY, input.antiPenalty ?? 0),
+  );
   const structurePenalty = gradeAdj + warningsAdj;
   const finalRiskScore = Math.max(
     0,
     Math.min(
       100,
-      Math.round(input.baseRiskScore + structurePenalty + valuePenalty),
+      Math.round(
+        input.baseRiskScore + structurePenalty + valuePenalty + antiPenalty,
+      ),
     ),
   );
   const complianceScore = Math.max(0, Math.min(100, 100 - finalRiskScore));
@@ -79,6 +88,7 @@ export function computeComplianceFromStructure(input: {
     complianceScore,
     structurePenalty,
     valuePenalty,
+    antiPenalty,
     gradePenalty: gradeAdj,
     warningPenalty: warningsAdj,
   };

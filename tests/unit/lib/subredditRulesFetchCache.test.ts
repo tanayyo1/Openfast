@@ -10,10 +10,19 @@ const mockedRedisModule = jest.requireMock("@/lib/redis") as {
 
 describe("subreddit rules fetch cache", () => {
   const originalFetch = global.fetch;
+  const originalTtl = process.env.SUBREDDIT_RULES_CACHE_TTL_SECONDS;
 
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.SUBREDDIT_RULES_CACHE_TTL_SECONDS = "60";
+  });
+
+  afterEach(() => {
+    if (originalTtl === undefined) {
+      delete process.env.SUBREDDIT_RULES_CACHE_TTL_SECONDS;
+      return;
+    }
+    process.env.SUBREDDIT_RULES_CACHE_TTL_SECONDS = originalTtl;
   });
 
   afterAll(() => {
@@ -106,5 +115,86 @@ describe("subreddit rules fetch cache", () => {
     expect(result.data.name).toBe("marketing");
     expect(result.data.rules.length).toBeGreaterThan(0);
     expect(setex).toHaveBeenCalledTimes(1);
+  });
+
+  test("uses in-memory cache when redis is unavailable", async () => {
+    mockedRedisModule.getRedis.mockReturnValue(null);
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: {
+            display_name: "saas",
+            title: "SaaS",
+            public_description: "SaaS makers",
+            subscribers: 180000,
+            active_user_count: 1200,
+            over18: false,
+            subreddit_type: "public",
+            quarantine: false,
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            display_name: "saas",
+            title: "SaaS",
+            public_description: "SaaS makers",
+            subscribers: 180000,
+            active_user_count: 1200,
+            over18: false,
+            subreddit_type: "public",
+            quarantine: false,
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          rules: [{ short_name: "No spam", description: "No self promotion" }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            display_name: "saas",
+            title: "SaaS",
+            public_description: "SaaS makers",
+            subscribers: 180000,
+            active_user_count: 1200,
+            over18: false,
+            subreddit_type: "public",
+            quarantine: false,
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          rules: [{ short_name: "No spam", description: "No self promotion" }],
+        }),
+      });
+
+    global.fetch = fetchMock as unknown as typeof global.fetch;
+
+    const first = await fetchSubredditDataWithCache("saas");
+    expect(first.cacheHit).toBe(false);
+    expect(first.source).toBe("reddit");
+
+    const second = await fetchSubredditDataWithCache("saas");
+    expect(second.cacheHit).toBe(true);
+    expect(second.source).toBe("reddit");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const third = await fetchSubredditDataWithCache("saas", {
+      forceRefresh: true,
+    });
+    expect(third.cacheHit).toBe(false);
+    expect(third.source).toBe("reddit");
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 });

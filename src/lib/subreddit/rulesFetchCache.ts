@@ -177,17 +177,32 @@ function readMemoryCache(key: string): string | null {
 }
 
 function writeMemoryCache(key: string, value: string, ttlSeconds: number) {
+  const now = Date.now();
+  for (const [cachedKey, entry] of memoryCache) {
+    if (now >= entry.expiresAtMs) {
+      memoryCache.delete(cachedKey);
+    }
+  }
+
   memoryCache.set(key, {
     payload: value,
-    expiresAtMs: Date.now() + ttlSeconds * 1000,
+    expiresAtMs: now + ttlSeconds * 1000,
   });
 }
 
 async function readCache(normalizedName: string): Promise<FetchResult | null> {
   const key = cacheKey(normalizedName);
   const redis = getRedis();
-
-  const raw = redis ? await redis.get(key) : readMemoryCache(key);
+  let raw: string | null = null;
+  if (redis) {
+    try {
+      raw = await redis.get(key);
+    } catch {
+      raw = readMemoryCache(key);
+    }
+  } else {
+    raw = readMemoryCache(key);
+  }
   if (!raw) return null;
 
   try {
@@ -220,8 +235,12 @@ async function writeCache(
 
   const redis = getRedis();
   if (redis) {
-    await redis.setex(key, ttlSeconds, serialized);
-    return;
+    try {
+      await redis.setex(key, ttlSeconds, serialized);
+      return;
+    } catch {
+      // Continue with memory cache fallback on Redis write failures.
+    }
   }
   writeMemoryCache(key, serialized, ttlSeconds);
 }
@@ -302,12 +321,14 @@ async function fetchFromReddit(
     : estimateAvgCommentsPerPost(activeUsers, subscribers);
 
   const rulesFromApi = Array.isArray(rulesJson.rules)
-    ? rulesJson.rules.map(formatRule).filter((value): value is string => !!value)
+    ? rulesJson.rules
+        .map(formatRule)
+        .filter((value): value is string => !!value)
     : [];
   const rules = normalizeRules(
     rulesFromApi.length > 0
       ? rulesFromApi
-      : defaults?.rules ?? fallbackSubredditData(normalizedName).rules,
+      : (defaults?.rules ?? fallbackSubredditData(normalizedName).rules),
   );
 
   return {

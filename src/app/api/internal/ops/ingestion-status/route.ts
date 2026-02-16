@@ -1,17 +1,21 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireWorkspaceAdminSession } from "@/lib/server/admin-guards";
+import { requirePlatformAdminSession } from "@/lib/server/admin-guards";
 
 function authError(err: unknown) {
   const code = err instanceof Error ? err.message : "UNAUTHORIZED";
   const status =
-    code === "FORBIDDEN" ? 403 : code === "WORKSPACE_REQUIRED" ? 400 : 401;
+    code === "FORBIDDEN"
+      ? 403
+      : code === "PLATFORM_ADMIN_NOT_CONFIGURED"
+        ? 503
+        : 401;
   return NextResponse.json({ error: "Unauthorized", code }, { status });
 }
 
 export async function GET() {
   try {
-    await requireWorkspaceAdminSession();
+    await requirePlatformAdminSession();
   } catch (err) {
     return authError(err);
   }

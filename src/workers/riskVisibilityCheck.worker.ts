@@ -1,11 +1,7 @@
 import type { Job } from "bullmq";
 import type { RiskVisibilityCheckJobData } from "@/lib/queue/enqueue";
 import { prisma } from "@/lib/prisma";
-
-function normalizePermalink(input: string) {
-  if (input.startsWith("http://") || input.startsWith("https://")) return input;
-  return `https://www.reddit.com${input.startsWith("/") ? "" : "/"}${input}`;
-}
+import { normalizeRedditPermalink } from "@/lib/reddit/permalink";
 
 export async function processRiskVisibilityCheckJob(
   job: Job<RiskVisibilityCheckJobData>,
@@ -32,7 +28,12 @@ export async function processRiskVisibilityCheckJob(
   let visibleLoggedOut: boolean | null = null;
   let fetchStatus: number | null = null;
   try {
-    const res = await fetch(`${normalizePermalink(resolvedPermalink)}.json`, {
+    const normalizedPermalink = normalizeRedditPermalink(resolvedPermalink);
+    if (!normalizedPermalink) {
+      throw new Error("PERMALINK_INVALID");
+    }
+
+    const res = await fetch(`${normalizedPermalink}.json`, {
       headers: {
         "User-Agent": process.env.REDDIT_USER_AGENT ?? "ReditFast/0.1",
       },
@@ -56,7 +57,7 @@ export async function processRiskVisibilityCheckJob(
       workspaceId,
       redditAccountId,
       publishedItemId: publishedItemId ?? null,
-      permalink: normalizePermalink(resolvedPermalink),
+      permalink: normalizeRedditPermalink(resolvedPermalink) ?? resolvedPermalink,
       visibleLoggedIn: null,
       visibleLoggedOut,
       visibleAlt: null,

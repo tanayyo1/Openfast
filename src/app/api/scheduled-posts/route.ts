@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { QuotaExceededError, assertWorkspaceQuota } from "@/lib/billing/quota";
 import { enqueuePublishJob } from "@/lib/queue/enqueue";
 import { prisma } from "@/lib/prisma";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
@@ -188,6 +189,26 @@ export async function POST(req: Request) {
   }
 
   const data = parsed.data;
+
+  try {
+    await assertWorkspaceQuota({
+      workspaceId: session.workspaceId,
+      resource: "scheduled_posts",
+    });
+  } catch (err) {
+    if (err instanceof QuotaExceededError) {
+      return NextResponse.json(
+        {
+          error: err.message,
+          code: err.code,
+          details: { resource: err.resource, used: err.used, limit: err.limit },
+        },
+        { status: 403 },
+      );
+    }
+    throw err;
+  }
+
   const draft = await prisma.draft.findFirst({
     where: { id: data.draftId, workspaceId: session.workspaceId },
     select: { id: true, status: true, subredditId: true },

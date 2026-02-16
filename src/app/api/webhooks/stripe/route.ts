@@ -22,12 +22,39 @@ function safeStatus(value: string | undefined): SubscriptionStatus {
     normalized === "ACTIVE" ||
     normalized === "PAST_DUE" ||
     normalized === "CANCELLED" ||
+    normalized === "CANCELED" ||
     normalized === "UNPAID" ||
     normalized === "PAUSED"
   ) {
-    return normalized;
+    return normalized === "CANCELED" ? "CANCELLED" : normalized;
   }
   return fallback;
+}
+
+async function resolveWorkspaceIdFromSubscriptionEvent(input: {
+  metadataWorkspaceId?: string;
+  stripeSubscriptionId?: string | null;
+  stripeCustomerId?: string | null;
+}) {
+  if (input.metadataWorkspaceId) return input.metadataWorkspaceId;
+
+  const or: Array<
+    | { stripeSubscriptionId: string }
+    | { stripeCustomerId: string }
+  > = [];
+  if (input.stripeSubscriptionId) {
+    or.push({ stripeSubscriptionId: input.stripeSubscriptionId });
+  }
+  if (input.stripeCustomerId) {
+    or.push({ stripeCustomerId: input.stripeCustomerId });
+  }
+  if (!or.length) return null;
+
+  const existing = await prisma.subscription.findFirst({
+    where: { OR: or },
+    select: { workspaceId: true },
+  });
+  return existing?.workspaceId ?? null;
 }
 
 async function applyWorkspacePlan(workspaceId: string, plan: Plan) {
@@ -137,11 +164,19 @@ export async function POST(req: Request) {
     event.type === "customer.subscription.deleted"
   ) {
     const subscription = event.data.object;
-    const workspaceId = subscription.metadata?.workspaceId;
+    const stripeCustomerId =
+      typeof subscription.customer === "string" ? subscription.customer : null;
+    const workspaceId = await resolveWorkspaceIdFromSubscriptionEvent({
+      metadataWorkspaceId: subscription.metadata?.workspaceId,
+      stripeSubscriptionId:
+        typeof subscription.id === "string" ? subscription.id : null,
+      stripeCustomerId,
+    });
     if (workspaceId) {
       await prisma.subscription.updateMany({
         where: { workspaceId },
         data: {
+          ...(stripeCustomerId ? { stripeCustomerId } : {}),
           stripeSubscriptionId: subscription.id,
           stripePriceId: subscription.items.data[0]?.price?.id ?? null,
           status: safeStatus(subscription.status),

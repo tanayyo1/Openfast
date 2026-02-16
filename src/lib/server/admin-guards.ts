@@ -1,6 +1,9 @@
 import type { WorkspaceRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireSession, requireWorkspaceSession } from "@/lib/server/auth-guards";
+import {
+  requireSession,
+  requireWorkspaceSession,
+} from "@/lib/server/auth-guards";
 
 const ADMIN_ROLES: WorkspaceRole[] = ["OWNER", "ADMIN"];
 

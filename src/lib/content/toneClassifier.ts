@@ -36,13 +36,7 @@ const TONE_PATTERNS: Record<ToneLabel, RegExp[]> = {
     /\bcurious\b/g,
     /\bwould love\b/g,
   ],
-  casual: [
-    /\bhey\b/g,
-    /\bgonna\b/g,
-    /\bpretty\b/g,
-    /\bkinda\b/g,
-    /\blol\b/g,
-  ],
+  casual: [/\bhey\b/g, /\bgonna\b/g, /\bpretty\b/g, /\bkinda\b/g, /\blol\b/g],
   direct: [
     /\bhere is\b/g,
     /\bdo this\b/g,
@@ -79,13 +73,18 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
-export function normalizeExpectedTone(input: string | null | undefined): ToneLabel {
+export function normalizeExpectedTone(
+  input: string | null | undefined,
+): ToneLabel {
   if (!input) return "neutral";
   const key = input.trim().toLowerCase();
   return TONE_SYNONYMS[key] ?? "neutral";
 }
 
-export function classifyTone(input: { title: string | null; body: string }): ToneClassification {
+export function classifyTone(input: {
+  title: string | null;
+  body: string;
+}): ToneClassification {
   const text = `${input.title ?? ""}\n${input.body}`.toLowerCase();
   const scores = {
     professional: countMatches(text, TONE_PATTERNS.professional),
@@ -116,7 +115,9 @@ export function evaluateToneAlignment(input: {
   const expectedTone = normalizeExpectedTone(input.expectedTone);
   const detected = classifyTone({ title: input.title, body: input.body });
   const aligned = detected.tone === expectedTone;
-  const alignmentScore = aligned ? detected.confidence : 100 - detected.confidence;
+  const alignmentScore = aligned
+    ? detected.confidence
+    : 100 - detected.confidence;
 
   const reasons: string[] = [];
   const fixes: Array<{ issue: string; fix: string }> = [];
@@ -131,11 +132,7 @@ export function evaluateToneAlignment(input: {
   }
 
   const penalty =
-    expectedTone === "neutral" || aligned
-      ? 0
-      : alignmentScore >= 55
-        ? 4
-        : 8;
+    expectedTone === "neutral" || aligned ? 0 : alignmentScore >= 55 ? 4 : 8;
 
   return {
     expectedTone,

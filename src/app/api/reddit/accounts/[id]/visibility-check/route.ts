@@ -98,7 +98,8 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
   if (!fullPermalink) {
     return NextResponse.json(
       {
-        error: "Permalink must be a valid reddit.com URL or relative Reddit path",
+        error:
+          "Permalink must be a valid reddit.com URL or relative Reddit path",
         code: "VALIDATION_ERROR",
       },
       { status: 400 },

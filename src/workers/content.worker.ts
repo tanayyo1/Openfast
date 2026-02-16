@@ -1,12 +1,25 @@
 import type { Job } from "bullmq";
 import { Prisma } from "@prisma/client";
-import { computeComplianceFromStructure } from "@/lib/content/complianceScoring";
+import {
+  computeComplianceFromStructure,
+  evaluateValueCheck,
+} from "@/lib/content/complianceScoring";
 import type { ContentGenerateJobData } from "@/lib/queue/enqueue";
 import { prisma } from "@/lib/prisma";
 import { assessRisk, buildDraftVariants } from "@/lib/content/generator";
+import type { DraftVariant, RiskAssessment } from "@/lib/content/generator";
 import { generateDraftVariantsWithOpenAI } from "@/lib/content/openaiVariants";
 import { validatePostStructure } from "@/lib/content/postStructureValidator";
 import { evaluateToneAlignment } from "@/lib/content/toneClassifier";
+
+type ScoredDraftVariant = DraftVariant &
+  RiskAssessment & {
+    complianceScore: number;
+    structureGrade: string;
+    valueScore: number;
+    expectedTone: string;
+    detectedTone: string;
+  };
 
 export async function processContentGenerateJob(
   job: Job<ContentGenerateJobData>,
@@ -84,8 +97,9 @@ export async function processContentGenerateJob(
             task.roadmap.project.brandVoice &&
             typeof task.roadmap.project.brandVoice === "object"
           ) {
-            const raw = (task.roadmap.project.brandVoice as Record<string, unknown>)
-              .tone;
+            const raw = (
+              task.roadmap.project.brandVoice as Record<string, unknown>
+            ).tone;
             if (typeof raw === "string" && raw.trim().length > 0) return raw;
           }
           return "neutral";
@@ -133,6 +147,10 @@ export async function processContentGenerateJob(
       rule?.rawRules ?? null,
     );
     const structure = validatePostStructure(variant.title, variant.body);
+    const valueCheck = evaluateValueCheck({
+      title: variant.title,
+      body: variant.body,
+    });
     const toneCheck = evaluateToneAlignment({
       expectedTone,
       title: variant.title,
@@ -144,6 +162,7 @@ export async function processContentGenerateJob(
         grade: structure.grade,
         warnings: structure.warnings,
       },
+      valuePenalty: valueCheck.penalty,
     });
     const adjustedRiskScore = Math.max(
       0,
@@ -153,6 +172,7 @@ export async function processContentGenerateJob(
 
     const mergedRiskReasons = [
       ...baseRisk.riskReasons,
+      ...valueCheck.reasons,
       ...toneCheck.reasons,
       ...(structure.grade === "A"
         ? []
@@ -164,6 +184,7 @@ export async function processContentGenerateJob(
     ];
     const mergedFixes = [
       ...baseRisk.suggestedFixes,
+      ...valueCheck.fixes,
       ...toneCheck.fixes,
       ...structure.rewriteSuggestions.map((item) => ({
         issue: item.issue,
@@ -179,16 +200,19 @@ export async function processContentGenerateJob(
         riskReasons: mergedRiskReasons,
         suggestedFixes: mergedFixes,
         structureGrade: structure.grade,
+        valueScore: valueCheck.valueScore,
         expectedTone: toneCheck.expectedTone,
         detectedTone: toneCheck.detectedTone,
-      },
+      } as ScoredDraftVariant,
+      structure,
       compliance,
       toneCheck,
+      valueCheck,
     };
   });
 
   const primaryScored =
-    scoredVariants.sort((a, b) => {
+    scoredVariants.slice().sort((a, b) => {
       if (a.variant.riskScore !== b.variant.riskScore) {
         return a.variant.riskScore - b.variant.riskScore;
       }
@@ -199,15 +223,11 @@ export async function processContentGenerateJob(
   }
 
   const primaryVariant = primaryScored.variant;
-  const structureResult = validatePostStructure(
-    primaryVariant.title,
-    primaryVariant.body,
-  );
   const structureValidation = {
-    grade: structureResult.grade,
-    score: structureResult.score,
-    warnings: structureResult.warnings,
-    rewriteSuggestions: structureResult.rewriteSuggestions,
+    grade: primaryScored.structure.grade,
+    score: primaryScored.structure.score,
+    warnings: primaryScored.structure.warnings,
+    rewriteSuggestions: primaryScored.structure.rewriteSuggestions,
   } as unknown as Prisma.InputJsonValue;
 
   await prisma.draft.update({
@@ -232,7 +252,9 @@ export async function processContentGenerateJob(
           selectedRiskScore: primaryVariant.riskScore,
           selectedComplianceScore: primaryVariant.complianceScore,
           selectedStructureGrade: primaryVariant.structureGrade,
+          selectedValueScore: primaryVariant.valueScore,
           structurePenalty: primaryScored.compliance.structurePenalty,
+          valuePenalty: primaryScored.compliance.valuePenalty,
           tonePenalty: primaryScored.toneCheck.penalty,
           selectedExpectedTone: primaryVariant.expectedTone ?? null,
           selectedDetectedTone: primaryVariant.detectedTone ?? null,

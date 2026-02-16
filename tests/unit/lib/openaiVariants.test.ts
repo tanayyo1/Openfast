@@ -19,14 +19,26 @@ import { findActivePromptTemplateByKey } from "@/lib/prompts/templates";
 
 const mockedOpenAI = generateChatText as jest.Mock;
 const mockedFindTemplate = findActivePromptTemplateByKey as jest.Mock;
+const originalOpenAIKey = process.env.OPENAI_API_KEY;
 
 describe("openai variants", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    const mutableEnv = process.env as Record<string, string | undefined>;
+    mutableEnv.OPENAI_API_KEY = "test-openai-key";
     mockedFindTemplate.mockResolvedValue({
       key: "content.generate",
       body: "template body",
     });
+  });
+
+  afterAll(() => {
+    const mutableEnv = process.env as Record<string, string | undefined>;
+    if (originalOpenAIKey === undefined) {
+      delete mutableEnv.OPENAI_API_KEY;
+    } else {
+      mutableEnv.OPENAI_API_KEY = originalOpenAIKey;
+    }
   });
 
   test("returns parsed variants when LLM returns valid JSON", async () => {

@@ -279,6 +279,12 @@ describe("task content APIs + worker", () => {
             warnings: expect.any(Array),
             rewriteSuggestions: expect.any(Array),
           }),
+          generationParams: expect.objectContaining({
+            compliance: expect.objectContaining({
+              antiPatternPenalty: expect.any(Number),
+              selectedAntiPatternFlags: expect.any(Array),
+            }),
+          }),
         }),
       }),
     );

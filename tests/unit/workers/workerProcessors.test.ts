@@ -25,6 +25,11 @@ jest.mock("@/lib/prisma", () => ({
 
 jest.mock("@/lib/reddit/client", () => ({
   redditFetch: jest.fn(),
+  enforceRedditAccountRateLimit: jest.fn(),
+}));
+
+jest.mock("@/lib/locks/distributed", () => ({
+  acquireDistributedLock: jest.fn(),
 }));
 
 jest.mock("@/lib/security/tokenCrypto", () => ({
@@ -57,6 +62,7 @@ const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
 
 const mockedRedditClient = jest.requireMock("@/lib/reddit/client") as {
   redditFetch: jest.Mock;
+  enforceRedditAccountRateLimit: jest.Mock;
 };
 
 const mockedTokenCrypto = jest.requireMock("@/lib/security/tokenCrypto") as {
@@ -65,6 +71,9 @@ const mockedTokenCrypto = jest.requireMock("@/lib/security/tokenCrypto") as {
 
 const mockedQueue = jest.requireMock("@/lib/queue/enqueue") as {
   enqueueMetricsFetchJob: jest.Mock;
+};
+const mockedLocks = jest.requireMock("@/lib/locks/distributed") as {
+  acquireDistributedLock: jest.Mock;
 };
 
 const baseScheduledPost = {
@@ -113,6 +122,18 @@ describe("worker processors", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedPrisma.accountHealthSnapshot.findFirst.mockResolvedValue(null);
+    mockedRedditClient.enforceRedditAccountRateLimit.mockResolvedValue({
+      remaining: 42,
+    });
+    mockedLocks.acquireDistributedLock
+      .mockResolvedValueOnce({
+        acquired: true,
+        release: jest.fn().mockResolvedValue(undefined),
+      })
+      .mockResolvedValue({
+        acquired: true,
+        release: jest.fn().mockResolvedValue(undefined),
+      });
   });
 
   test("processPublishJob success path publishes and enqueues metrics", async () => {
@@ -201,6 +222,25 @@ describe("worker processors", () => {
         data: expect.objectContaining({ status: "FAILED_PERMANENT" }),
       }),
     );
+  });
+
+  test("processPublishJob returns retryable when scheduled lock not acquired", async () => {
+    mockedLocks.acquireDistributedLock.mockReset();
+    mockedLocks.acquireDistributedLock.mockResolvedValueOnce({
+      acquired: false,
+      release: jest.fn().mockResolvedValue(undefined),
+    });
+
+    const job = {
+      id: "job_p_lock_busy",
+      attemptsStarted: 1,
+      data: { scheduledPostId: "sp_1" },
+    } as unknown as Job<{ scheduledPostId: string }>;
+
+    await expect(processPublishJob(job)).rejects.toThrow(
+      "DISTRIBUTED_LOCK_NOT_ACQUIRED",
+    );
+    expect(mockedPrisma.scheduledPost.findUnique).not.toHaveBeenCalled();
   });
 
   test("processPublishJob is idempotent when already published", async () => {

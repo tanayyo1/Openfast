@@ -140,7 +140,7 @@
 ## 4) Sprint Priority (Updated 2026-02-15)
 
 ### Tier 1 - Must Ship First (In Todo on Linear)
-1. RED-30: Subreddit rules fetch + cache (IN PROGRESS)
+1. RED-30: Subreddit rules fetch + cache (DONE - Reddit fetch + Redis/memory cache + fallback)
 2. RED-29: Account health snapshot
 3. RED-35: Distributed locks + rate limits
 4. RED-39: OpenAI client + prompt templates

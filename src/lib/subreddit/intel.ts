@@ -1,85 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { parseSubredditRules } from "@/lib/subreddit/rulesParser";
-
-type IngestedSubreddit = {
-  name: string;
-  title: string;
-  description: string;
-  subscribers: number;
-  activeUsers: number;
-  avgPostsPerDay: number;
-  avgCommentsPerPost: number;
-  rules: string[];
-};
-
-const KNOWN_SUBREDDITS: IngestedSubreddit[] = [
-  {
-    name: "startups",
-    title: "Startups",
-    description: "Discuss startup strategy, growth, and fundraising",
-    subscribers: 1_400_000,
-    activeUsers: 5_200,
-    avgPostsPerDay: 88,
-    avgCommentsPerPost: 16,
-    rules: [
-      "No blatant self-promo",
-      "Share lessons and context",
-      "Use correct post flair",
-    ],
-  },
-  {
-    name: "entrepreneur",
-    title: "Entrepreneur",
-    description: "Entrepreneurship stories, validation, and execution",
-    subscribers: 2_200_000,
-    activeUsers: 9_500,
-    avgPostsPerDay: 120,
-    avgCommentsPerPost: 11,
-    rules: [
-      "No affiliate links",
-      "Promotional posts must add value",
-      "Low-effort posts removed",
-    ],
-  },
-  {
-    name: "smallbusiness",
-    title: "Small Business",
-    description: "Advice and tactics for operating small businesses",
-    subscribers: 1_100_000,
-    activeUsers: 4_200,
-    avgPostsPerDay: 73,
-    avgCommentsPerPost: 8,
-    rules: [
-      "No direct advertising",
-      "Be specific and helpful",
-      "No misleading claims",
-    ],
-  },
-  {
-    name: "saas",
-    title: "SaaS",
-    description: "Software-as-a-service product and growth discussions",
-    subscribers: 180_000,
-    activeUsers: 900,
-    avgPostsPerDay: 36,
-    avgCommentsPerPost: 9,
-    rules: [
-      "No links in comments when promoting",
-      "Must provide context for case studies",
-    ],
-  },
-  {
-    name: "marketing",
-    title: "Marketing",
-    description: "Marketing channels, strategy, and experiments",
-    subscribers: 950_000,
-    activeUsers: 3_700,
-    avgPostsPerDay: 68,
-    avgCommentsPerPost: 10,
-    rules: ["No spam", "No duplicate posts", "No low-value self promotion"],
-  },
-];
+import { fetchSubredditDataWithCache } from "@/lib/subreddit/rulesFetchCache";
 
 function seededStats(name: string) {
   const key = name
@@ -100,27 +22,8 @@ function seededStats(name: string) {
   });
 }
 
-function pickCatalogData(subredditName: string): IngestedSubreddit {
-  const known = KNOWN_SUBREDDITS.find(
-    (s) => s.name.toLowerCase() === subredditName.toLowerCase(),
-  );
-  if (known) return known;
-
-  const normalized = subredditName.replace(/^r\//i, "").toLowerCase();
-  return {
-    name: normalized,
-    title: normalized,
-    description: `Community discussions in r/${normalized}`,
-    subscribers: 20_000,
-    activeUsers: 120,
-    avgPostsPerDay: 14,
-    avgCommentsPerPost: 4,
-    rules: ["No spam", "Be respectful", "Self-promo only if relevant"],
-  };
-}
-
 export async function ingestSubreddit(subredditName: string) {
-  const data = pickCatalogData(subredditName);
+  const { data } = await fetchSubredditDataWithCache(subredditName);
   const parsed = parseSubredditRules(data.rules);
   const now = new Date();
 
@@ -133,6 +36,9 @@ export async function ingestSubreddit(subredditName: string) {
         description: data.description,
         subscribers: data.subscribers,
         activeUsers: data.activeUsers,
+        nsfw: data.nsfw,
+        isRestricted: data.isRestricted,
+        isQuarantined: data.isQuarantined,
         avgPostsPerDay: data.avgPostsPerDay,
         avgCommentsPerPost: data.avgCommentsPerPost,
         lastFetchedAt: now,
@@ -142,6 +48,9 @@ export async function ingestSubreddit(subredditName: string) {
         description: data.description,
         subscribers: data.subscribers,
         activeUsers: data.activeUsers,
+        nsfw: data.nsfw,
+        isRestricted: data.isRestricted,
+        isQuarantined: data.isQuarantined,
         avgPostsPerDay: data.avgPostsPerDay,
         avgCommentsPerPost: data.avgCommentsPerPost,
         lastFetchedAt: now,

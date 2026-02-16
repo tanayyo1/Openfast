@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import type { ContentGenerateJobData } from "@/lib/queue/enqueue";
 import { prisma } from "@/lib/prisma";
 import { assessRisk, buildDraftVariants } from "@/lib/content/generator";
+import { validatePostStructure } from "@/lib/content/postStructureValidator";
 
 export async function processContentGenerateJob(
   job: Job<ContentGenerateJobData>,
@@ -89,6 +90,13 @@ export async function processContentGenerateJob(
   );
 
   const risk = assessRisk(primary.title, primary.body, rule?.rawRules ?? null);
+  const structureResult = validatePostStructure(primary.title, primary.body);
+  const structureValidation = {
+    grade: structureResult.grade,
+    score: structureResult.score,
+    warnings: structureResult.warnings,
+    rewriteSuggestions: structureResult.rewriteSuggestions,
+  } as unknown as Prisma.InputJsonValue;
 
   await prisma.draft.update({
     where: { id: draft.id },
@@ -99,6 +107,7 @@ export async function processContentGenerateJob(
       riskScore: risk.riskScore,
       riskReasons: risk.riskReasons,
       suggestedFixes: risk.suggestedFixes as unknown as Prisma.InputJsonValue,
+      structureValidation,
       generationParams: {
         mode,
         variantCount: variants.length,

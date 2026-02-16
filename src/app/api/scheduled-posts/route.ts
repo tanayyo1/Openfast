@@ -6,6 +6,7 @@ import { QuotaExceededError, assertWorkspaceQuota } from "@/lib/billing/quota";
 import { enqueuePublishJob } from "@/lib/queue/enqueue";
 import { prisma } from "@/lib/prisma";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+import { validatePostStructure } from "@/lib/content/postStructureValidator";
 
 const listQuerySchema = z.object({
   projectId: z.string().optional(),
@@ -48,7 +49,11 @@ function isUniqueViolationFor(
   if (!(err instanceof Prisma.PrismaClientKnownRequestError)) return false;
   if (err.code !== "P2002") return false;
   const target = (err.meta?.target as string[] | undefined) ?? [];
-  return target.includes(field);
+  const fieldAliases: Record<typeof field, string[]> = {
+    idempotencyKey: ["idempotencyKey", "idempotency_key"],
+    draftId: ["draftId", "draft_id"],
+  };
+  return fieldAliases[field].some((alias) => target.includes(alias));
 }
 
 function defaultIdempotencyKey(input: {
@@ -211,7 +216,13 @@ export async function POST(req: Request) {
 
   const draft = await prisma.draft.findFirst({
     where: { id: data.draftId, workspaceId: session.workspaceId },
-    select: { id: true, status: true, subredditId: true },
+    select: {
+      id: true,
+      status: true,
+      subredditId: true,
+      title: true,
+      body: true,
+    },
   });
   if (!draft) {
     return NextResponse.json(
@@ -228,6 +239,8 @@ export async function POST(req: Request) {
       { status: 409 },
     );
   }
+
+  const structureResult = validatePostStructure(draft.title, draft.body);
 
   const redditAccount = await prisma.redditAccount.findFirst({
     where: {
@@ -368,7 +381,16 @@ export async function POST(req: Request) {
       { delay: delayMs },
     );
     return NextResponse.json(
-      { scheduledPost: created, queue: { id: job.id, delayMs } },
+      {
+        scheduledPost: created,
+        queue: { id: job.id, delayMs },
+        structure: {
+          grade: structureResult.grade,
+          score: structureResult.score,
+          warnings: structureResult.warnings,
+          rewriteSuggestions: structureResult.rewriteSuggestions,
+        },
+      },
       { status: 201 },
     );
   } catch (err) {

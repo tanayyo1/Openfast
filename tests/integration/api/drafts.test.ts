@@ -149,15 +149,37 @@ describe("Drafts APIs (variants + approval status)", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body: "New body" }),
       }),
-      { params: { id: draftId } },
+      { params: Promise.resolve({ id: draftId }) },
     );
     expect(patchRes.status).toBe(409);
 
     const getRes = await getDraft(
       new Request(`http://test.local/api/drafts/${draftId}`),
-      { params: { id: draftId } },
+      { params: Promise.resolve({ id: draftId }) },
     );
     expect(getRes.status).toBe(200);
+
+    const getWithStructureRes = await getDraft(
+      new Request(`http://test.local/api/drafts/${draftId}?includeStructure=1`),
+      { params: Promise.resolve({ id: draftId }) },
+    );
+    expect(getWithStructureRes.status).toBe(200);
+    const getWithStructureJson = (await readJson(getWithStructureRes)) as {
+      draft: { id: string };
+      structure: {
+        grade: string;
+        score: number;
+        warnings: unknown[];
+        rewriteSuggestions: unknown[];
+      };
+    };
+    expect(getWithStructureJson.structure).toBeDefined();
+    expect(getWithStructureJson.structure.grade).toMatch(/^[A-F]$/);
+    expect(typeof getWithStructureJson.structure.score).toBe("number");
+    expect(Array.isArray(getWithStructureJson.structure.warnings)).toBe(true);
+    expect(
+      Array.isArray(getWithStructureJson.structure.rewriteSuggestions),
+    ).toBe(true);
 
     await prisma.draft.deleteMany({ where: { id: draftId } });
     await prisma.roadmap.deleteMany({ where: { id: roadmap.id } });

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+import { validatePostStructure } from "@/lib/content/postStructureValidator";
 
 const updateDraftSchema = z.object({
   title: z.string().min(1).max(300).optional().nullable(),
@@ -23,7 +24,10 @@ const updateDraftSchema = z.object({
   suggestedFixes: z.unknown().optional().nullable(),
 });
 
-export async function GET(_req: Request, ctx: { params: { id: string } }) {
+export async function GET(
+  req: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
   let session;
   try {
     session = await requireWorkspaceSession();
@@ -33,7 +37,10 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
     return NextResponse.json({ error: "Unauthorized", code }, { status });
   }
 
-  const id = ctx.params.id;
+  const { id } = await ctx.params;
+  const includeStructure =
+    new URL(req.url).searchParams.get("includeStructure") === "1";
+
   const draft = await prisma.draft.findFirst({
     where: { id, workspaceId: session.workspaceId },
     select: {
@@ -51,6 +58,7 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
       riskScore: true,
       riskReasons: true,
       suggestedFixes: true,
+      structureValidation: true,
       approvedAt: true,
       approvedBy: true,
       createdAt: true,
@@ -65,10 +73,20 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
     );
   }
 
-  return NextResponse.json({ draft });
+  const response: {
+    draft: typeof draft;
+    structure?: ReturnType<typeof validatePostStructure>;
+  } = { draft };
+  if (includeStructure) {
+    response.structure = validatePostStructure(draft.title, draft.body);
+  }
+  return NextResponse.json(response);
 }
 
-export async function PATCH(req: Request, ctx: { params: { id: string } }) {
+export async function PATCH(
+  req: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
   let session;
   try {
     session = await requireWorkspaceSession();
@@ -78,10 +96,10 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     return NextResponse.json({ error: "Unauthorized", code }, { status });
   }
 
-  const id = ctx.params.id;
+  const { id } = await ctx.params;
   const existing = await prisma.draft.findFirst({
     where: { id, workspaceId: session.workspaceId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, title: true, body: true },
   });
 
   if (!existing) {
@@ -121,6 +139,13 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     );
   }
 
+  const nextTitle =
+    parsed.data.title !== undefined ? parsed.data.title : existing.title;
+  const nextBody =
+    parsed.data.body !== undefined ? parsed.data.body : existing.body;
+  const contentChanged =
+    parsed.data.title !== undefined || parsed.data.body !== undefined;
+
   const updateData: Prisma.DraftUpdateInput = {
     ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
     ...(parsed.data.body !== undefined ? { body: parsed.data.body } : {}),
@@ -141,6 +166,16 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
       : {}),
   };
 
+  if (contentChanged && nextBody) {
+    const structureResult = validatePostStructure(nextTitle ?? null, nextBody);
+    (updateData as Prisma.DraftUpdateInput).structureValidation = {
+      grade: structureResult.grade,
+      score: structureResult.score,
+      warnings: structureResult.warnings,
+      rewriteSuggestions: structureResult.rewriteSuggestions,
+    } as unknown as Prisma.InputJsonValue;
+  }
+
   const updated = await prisma.draft.update({
     where: { id },
     data: updateData,
@@ -158,7 +193,10 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   return NextResponse.json({ draft: updated });
 }
 
-export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
+export async function DELETE(
+  _req: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
   let session;
   try {
     session = await requireWorkspaceSession();
@@ -168,7 +206,7 @@ export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
     return NextResponse.json({ error: "Unauthorized", code }, { status });
   }
 
-  const id = ctx.params.id;
+  const { id } = await ctx.params;
   const existing = await prisma.draft.findFirst({
     where: { id, workspaceId: session.workspaceId },
     select: { id: true },

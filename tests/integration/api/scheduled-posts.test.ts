@@ -171,8 +171,19 @@ describe("Scheduled posts API", () => {
       expect(createRes.status).toBe(201);
       const created = (await readJson(createRes)) as {
         scheduledPost: { id: string; status: string };
+        structure: {
+          grade: string;
+          score: number;
+          warnings: unknown[];
+          rewriteSuggestions: unknown[];
+        };
       };
       expect(created.scheduledPost.status).toBe("SCHEDULED");
+      expect(created.structure).toBeDefined();
+      expect(created.structure.grade).toMatch(/^[A-F]$/);
+      expect(typeof created.structure.score).toBe("number");
+      expect(Array.isArray(created.structure.warnings)).toBe(true);
+      expect(Array.isArray(created.structure.rewriteSuggestions)).toBe(true);
 
       const listRes = await listScheduledPosts(
         new Request(
@@ -236,27 +247,29 @@ describe("Scheduled posts API", () => {
     }
   });
 
-  test("supports idempotent create by idempotency key", async () => {
+  test("rejects duplicate scheduling for the same draft", async () => {
     const ids = await makeFixture("APPROVED");
     const idempotencyKey = `sched_test_${Date.now()}_${counter}`;
     try {
-      const req = new Request("http://test.local/api/scheduled-posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          draftId: ids.draftId,
-          redditAccountId: ids.redditAccountId,
-          scheduledAt: new Date(Date.now() + 5 * 60_000).toISOString(),
-          timezone: "UTC",
-          idempotencyKey,
-        }),
-      });
-      const first = await createScheduledPost(req);
+      const makeRequest = () =>
+        new Request("http://test.local/api/scheduled-posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            draftId: ids.draftId,
+            redditAccountId: ids.redditAccountId,
+            scheduledAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+            timezone: "UTC",
+            idempotencyKey,
+          }),
+        });
+
+      const first = await createScheduledPost(makeRequest());
       expect(first.status).toBe(201);
-      const second = await createScheduledPost(req);
-      expect(second.status).toBe(200);
-      const json = (await readJson(second)) as { idempotent: boolean };
-      expect(json.idempotent).toBe(true);
+      const second = await createScheduledPost(makeRequest());
+      expect(second.status).toBe(409);
+      const json = (await readJson(second)) as { code: string };
+      expect(json.code).toBe("ALREADY_SCHEDULED");
     } finally {
       await cleanupFixture(ids);
     }

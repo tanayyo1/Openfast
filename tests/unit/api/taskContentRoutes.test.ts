@@ -273,6 +273,12 @@ describe("task content APIs + worker", () => {
           riskReasons: expect.arrayContaining([expect.any(String)]),
           suggestedFixes: expect.anything(),
           variants: expect.anything(),
+          structureValidation: expect.objectContaining({
+            grade: expect.stringMatching(/^[A-F]$/),
+            score: expect.any(Number),
+            warnings: expect.any(Array),
+            rewriteSuggestions: expect.any(Array),
+          }),
         }),
       }),
     );

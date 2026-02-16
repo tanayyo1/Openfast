@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PostStructurePanel } from "./PostStructurePanel";
 
 type Variant = {
   title: string;
@@ -94,6 +95,10 @@ export function DraftEditor({
               <li key={note}>{note}</li>
             ))}
           </ul>
+        </div>
+
+        <div className="mt-6">
+          <PostStructurePanel title={title} body={body} />
         </div>
       </div>
 

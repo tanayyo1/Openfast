@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import {
+  activatePromptTemplate,
+  findPromptTemplateById,
+} from "@/lib/prompts/templates";
 import { requireWorkspaceAdminSession } from "@/lib/server/admin-guards";
 
 function authError(err: unknown) {
@@ -17,10 +20,7 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
   }
 
   const id = ctx.params.id;
-  const template = await prisma.promptTemplate.findUnique({
-    where: { id },
-    select: { id: true, key: true },
-  });
+  const template = await findPromptTemplateById(id);
   if (!template) {
     return NextResponse.json(
       { error: "Prompt template not found", code: "PROMPT_TEMPLATE_NOT_FOUND" },
@@ -28,16 +28,7 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
     );
   }
 
-  await prisma.$transaction([
-    prisma.promptTemplate.updateMany({
-      where: { key: template.key, isActive: true },
-      data: { isActive: false },
-    }),
-    prisma.promptTemplate.update({
-      where: { id: template.id },
-      data: { isActive: true },
-    }),
-  ]);
+  await activatePromptTemplate(template.id);
 
   return NextResponse.json({ ok: true, id: template.id, key: template.key });
 }

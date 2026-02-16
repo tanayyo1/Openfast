@@ -143,7 +143,7 @@
 1. RED-30: Subreddit rules fetch + cache (DONE - Reddit fetch + Redis/memory cache + fallback)
 2. RED-29: Account health snapshot (DONE - snapshot scoring + tier updates + stale refresh queueing)
 3. RED-35: Distributed locks + rate limits
-4. RED-39: OpenAI client + prompt templates
+4. RED-39: OpenAI client + prompt templates (DONE - OpenAI wrapper + DB-backed prompt template service + content worker LLM path)
 5. RED-40: Draft generation + compliance scoring
 6. RED-48: Value-check scoring
 7. RED-63: Post structure validator

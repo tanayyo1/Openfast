@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import type { ContentGenerateJobData } from "@/lib/queue/enqueue";
 import { prisma } from "@/lib/prisma";
 import { assessRisk, buildDraftVariants } from "@/lib/content/generator";
+import { generateDraftVariantsWithOpenAI } from "@/lib/content/openaiVariants";
 import { validatePostStructure } from "@/lib/content/postStructureValidator";
 
 export async function processContentGenerateJob(
@@ -73,21 +74,40 @@ export async function processContentGenerateJob(
 
   const preferredLength =
     length === "short" || length === "long" ? length : "medium";
-  const { variants, primary } = buildDraftVariants(
-    {
-      mode,
-      baseTitle: draft.title,
-      baseBody: draft.body,
-      taskTitle: task.title,
-      taskInstructions: task.instructions,
-      projectName: task.roadmap.project.name,
-      brandVoice: task.roadmap.project.brandVoice,
-      subredditName: task.subreddit?.name ?? null,
-      subredditRulesText: rule?.rawRules ?? null,
-      variantCount: Math.max(3, variantCount),
-    },
+  const commonInput = {
+    mode,
+    baseTitle: draft.title,
+    baseBody: draft.body,
+    taskTitle: task.title,
+    taskInstructions: task.instructions,
+    projectName: task.roadmap.project.name,
+    brandVoice: task.roadmap.project.brandVoice,
+    subredditName: task.subreddit?.name ?? null,
+    subredditRulesText: rule?.rawRules ?? null,
+    variantCount: Math.max(3, variantCount),
+  };
+
+  const llmOutput = await generateDraftVariantsWithOpenAI({
+    mode,
+    projectName: commonInput.projectName,
+    subredditName: commonInput.subredditName,
+    subredditRulesText: commonInput.subredditRulesText,
+    taskTitle: commonInput.taskTitle,
+    taskInstructions: commonInput.taskInstructions,
+    baseTitle: commonInput.baseTitle,
+    baseBody: commonInput.baseBody,
+    variantCount: commonInput.variantCount,
     preferredLength,
-  );
+  }).catch(() => null);
+
+  const { variants, primary } =
+    llmOutput ??
+    buildDraftVariants(
+      {
+        ...commonInput,
+      },
+      preferredLength,
+    );
 
   const risk = assessRisk(primary.title, primary.body, rule?.rawRules ?? null);
   const structureResult = validatePostStructure(primary.title, primary.body);

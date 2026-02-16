@@ -151,7 +151,7 @@
 
 ### Tier 2 - Differentiation (Backlog, High priority)
 - RED-62: Subreddit discovery tool (DONE - `GET /api/projects/:id/discover-subreddits` with ranking + ingest queue backfill)
-- RED-53: Tone classifier
+- RED-53: Tone classifier (DONE - tone detection + expected-vs-detected alignment penalties in content generation)
 - RED-41: Draft rewrite
 - RED-49: Subreddit fit score
 - RED-51: Anti-pattern detector

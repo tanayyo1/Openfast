@@ -515,6 +515,8 @@ model PublishedItem {
   visibilityChecks VisibilityCheck[]
 
   @@index([workspaceId, createdAt])
+  @@index([workspaceId, redditAccountId, type])
+  @@index([workspaceId, redditAccountId, subredditId, type])
   @@map("published_items")
 }
 

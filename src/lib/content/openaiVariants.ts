@@ -45,9 +45,34 @@ function trimBody(body: string, length: "short" | "medium" | "long") {
 
 function extractJsonObject(input: string) {
   const first = input.indexOf("{");
-  const last = input.lastIndexOf("}");
-  if (first < 0 || last <= first) return null;
-  return input.slice(first, last + 1);
+  if (first < 0) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = first; i < input.length; i += 1) {
+    const ch = input[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (ch === "\"") {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === "{") depth += 1;
+    if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return input.slice(first, i + 1);
+      if (depth < 0) return null;
+    }
+  }
+  return null;
 }
 
 export async function generateDraftVariantsWithOpenAI(

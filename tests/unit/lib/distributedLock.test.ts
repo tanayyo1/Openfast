@@ -2,7 +2,10 @@ jest.mock("@/lib/redis", () => ({
   getRedis: jest.fn(),
 }));
 
-import { acquireDistributedLock } from "@/lib/locks/distributed";
+import {
+  acquireDistributedLock,
+  LockBackendUnavailableError,
+} from "@/lib/locks/distributed";
 
 const mockedRedisModule = jest.requireMock("@/lib/redis") as {
   getRedis: jest.Mock;
@@ -61,6 +64,37 @@ describe("distributed lock", () => {
 
       expect(lock.acquired).toBe(true);
       await expect(lock.release()).resolves.toBeUndefined();
+    } finally {
+      if (originalNodeEnv === undefined) {
+        delete mutableEnv.NODE_ENV;
+      } else {
+        mutableEnv.NODE_ENV = originalNodeEnv;
+      }
+    }
+  });
+
+  test("throws classified error when redis is unavailable in production", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    const mutableEnv = process.env as Record<string, string | undefined>;
+    mutableEnv.NODE_ENV = "production";
+    mockedRedisModule.getRedis.mockReturnValue(null);
+
+    try {
+      await expect(
+        acquireDistributedLock({
+          key: "publish:scheduled:sp_1",
+          ttlMs: 10_000,
+        }),
+      ).rejects.toMatchObject({
+        code: "LOCK_BACKEND_UNAVAILABLE",
+        isRetryable: true,
+      });
+      await expect(
+        acquireDistributedLock({
+          key: "publish:scheduled:sp_2",
+          ttlMs: 10_000,
+        }),
+      ).rejects.toBeInstanceOf(LockBackendUnavailableError);
     } finally {
       if (originalNodeEnv === undefined) {
         delete mutableEnv.NODE_ENV;

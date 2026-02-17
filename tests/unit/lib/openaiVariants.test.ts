@@ -87,4 +87,32 @@ describe("openai variants", () => {
 
     expect(out).toBeNull();
   });
+
+  test("parses first balanced JSON object from wrapped output", async () => {
+    mockedOpenAI.mockResolvedValue(
+      [
+        "```json",
+        '{"variants":[{"title":"A","body":"Body with \\"quoted {braces}\\" text","score":0.91}]}',
+        "```",
+        "extra } trailing garbage",
+      ].join("\n"),
+    );
+
+    const out = await generateDraftVariantsWithOpenAI({
+      mode: "REWRITE",
+      projectName: "ReditFast",
+      subredditName: "startups",
+      subredditRulesText: "No spam",
+      taskTitle: "Task",
+      taskInstructions: "Give value",
+      baseTitle: "Base",
+      baseBody: "Base body",
+      variantCount: 3,
+      preferredLength: "medium",
+    });
+
+    expect(out).not.toBeNull();
+    expect(out?.variants).toHaveLength(1);
+    expect(out?.variants[0]?.body).toContain("quoted {braces}");
+  });
 });

@@ -3,6 +3,9 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { enforcePublicToolRateLimit } from "@/lib/rateLimit/publicTools";
 import { requireSession } from "@/lib/server/auth-guards";
+import { assessRisk, buildDraftVariants } from "@/lib/content/generator";
+import { fetchSubredditDataWithCache } from "@/lib/subreddit/rulesFetchCache";
+import { parseSubredditRules } from "@/lib/subreddit/rulesParser";
 
 const schema = z.object({
   topic: z.string().min(3).max(200),
@@ -51,10 +54,13 @@ export async function POST(req: Request) {
   }
 
   const input = parsed.data;
+  const normalizedSubreddit = input.subreddit?.toLowerCase().replace(/^r\//, "");
   let policyHints: Record<string, unknown> | null = null;
-  if (input.subreddit) {
+  let rulesText: string | null = null;
+
+  if (normalizedSubreddit) {
     const subreddit = await prisma.subredditCatalog.findFirst({
-      where: { name: input.subreddit.toLowerCase() },
+      where: { name: normalizedSubreddit },
       include: { policy: true },
     });
     policyHints = subreddit?.policy
@@ -62,27 +68,65 @@ export async function POST(req: Request) {
           promoAllowed: subreddit.policy.promoAllowed,
           linkPolicy: subreddit.policy.linkPolicy,
           flairRequired: subreddit.policy.flairRequired,
+          noLinksInPosts: subreddit.policy.noLinksInPosts,
+          textOnly: subreddit.policy.textOnly,
         }
       : null;
+
+    try {
+      const fetched = await fetchSubredditDataWithCache(normalizedSubreddit);
+      const parsedRules = parseSubredditRules(fetched.data.rules);
+      rulesText = parsedRules.rawRules;
+      // Prefer fresh parser output when available; DB can be stale.
+      policyHints = {
+        promoAllowed: parsedRules.promoAllowed,
+        linkPolicy: parsedRules.linkPolicy,
+        flairRequired: parsedRules.flairRequired,
+        noLinksInPosts: parsedRules.noLinksInPosts,
+        textOnly: parsedRules.textOnly,
+      };
+    } catch {
+      // Fall back to DB policy hints only.
+    }
   }
 
-  const title = `How ${input.audience} are handling ${input.topic} in 2026`;
-  const bodyLines = [
-    `I'm building ${input.product} for ${input.audience} and testing a ${input.tone} approach to ${input.topic}.`,
-    "What’s one tactic that worked for you recently?",
-    "Happy to share what we tested if that helps others here.",
-  ];
-
-  if (policyHints && policyHints.linkPolicy !== "ALLOWED") {
-    bodyLines.push("I will avoid links unless mods confirm they're allowed.");
-  }
+  const taskInstructions = [
+    `Share practical lessons about ${input.topic} for ${input.audience}.`,
+    "Use a discussion-first tone and avoid hard CTA language.",
+  ].join(" ");
+  const generated = buildDraftVariants(
+    {
+      mode: "GENERATE",
+      baseTitle: null,
+      baseBody: "",
+      taskTitle: input.topic,
+      taskInstructions,
+      projectName: input.product,
+      brandVoice: { tone: input.tone },
+      subredditName: normalizedSubreddit ?? null,
+      subredditRulesText: rulesText,
+      variantCount: 3,
+    },
+    "medium",
+  );
+  const risk = assessRisk(
+    generated.primary.title,
+    generated.primary.body,
+    rulesText,
+  );
 
   return NextResponse.json({
     draft: {
-      title,
-      body: bodyLines.join("\n\n"),
+      title: generated.primary.title,
+      body: generated.primary.body,
     },
+    variants: generated.variants,
+    risk,
     policyHints,
+    subredditRulesPreview: rulesText
+      ?.split(/\r?\n/)
+      .filter(Boolean)
+      .slice(0, 5),
     meta: {
       limitedBy: {
         limit: rl.limit,

@@ -647,6 +647,12 @@ git checkout -b feature/LIN-XXX-description
 npm run lint && npm run typecheck && npm run test:unit
 ```
 
+**Local CI (required before PR):**
+
+```bash
+npm run ci:local
+```
+
 **Commit:**
 
 ```bash

@@ -132,5 +132,22 @@ describe("project pain-points route (RED-56)", () => {
       perSubredditLimit: 6,
     });
   });
-});
 
+  test("POST returns 404 when project disappears before extraction", async () => {
+    mockedPrisma.project.findFirst.mockResolvedValue({ id: "p_1" });
+    mockedGenerate.generateProjectPainPoints.mockRejectedValue(
+      new Error("PROJECT_NOT_FOUND"),
+    );
+
+    const res = await extractPainPoints(
+      new Request("http://test.local/api/projects/p_1/pain-points", {
+        method: "POST",
+      }),
+      { params: { id: "p_1" } },
+    );
+
+    expect(res.status).toBe(404);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("PROJECT_NOT_FOUND");
+  });
+});

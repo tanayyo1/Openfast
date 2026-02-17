@@ -133,11 +133,22 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
     );
   }
 
-  const generated = await generateProjectPainPoints({
-    workspaceId: session.workspaceId,
-    projectId,
-    perSubredditLimit: parsed.data.perSubredditLimit,
-  });
+  let generated;
+  try {
+    generated = await generateProjectPainPoints({
+      workspaceId: session.workspaceId,
+      projectId,
+      perSubredditLimit: parsed.data.perSubredditLimit,
+    });
+  } catch (err) {
+    if (err instanceof Error && err.message === "PROJECT_NOT_FOUND") {
+      return NextResponse.json(
+        { error: "Project not found", code: "PROJECT_NOT_FOUND" },
+        { status: 404 },
+      );
+    }
+    throw err;
+  }
 
   return NextResponse.json({
     projectId,

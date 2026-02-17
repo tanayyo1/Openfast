@@ -2,7 +2,28 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-export async function POST(request: Request) {
+const safeUserSelect = {
+  id: true,
+  authId: true,
+  email: true,
+  name: true,
+  image: true,
+  emailVerified: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+const safeWorkspaceSelect = {
+  id: true,
+  name: true,
+  ownerId: true,
+  plan: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+export async function POST(_request: Request) {
   try {
     const supabase = createClient();
 
@@ -19,6 +40,7 @@ export async function POST(request: Request) {
     // Check if user already exists in our database
     const existingUser = await prisma.user.findUnique({
       where: { email: user.email! },
+      select: safeUserSelect,
     });
 
     if (existingUser) {
@@ -34,7 +56,11 @@ export async function POST(request: Request) {
       const membership = await prisma.workspaceMember.findFirst({
         where: { userId: existingUser.id },
         orderBy: { createdAt: "asc" },
-        include: { workspace: true },
+        select: {
+          workspace: {
+            select: safeWorkspaceSelect,
+          },
+        },
       });
 
       return NextResponse.json({
@@ -57,6 +83,7 @@ export async function POST(request: Request) {
           ? new Date(user.email_confirmed_at)
           : null,
       },
+      select: safeUserSelect,
     });
 
     // Create default workspace
@@ -86,11 +113,13 @@ export async function POST(request: Request) {
           },
         },
       },
+      select: safeWorkspaceSelect,
     });
 
     return NextResponse.json({ user: newUser, workspace }, { status: 201 });
   } catch (error) {
-    console.error("User sync error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("User sync error:", message);
     return NextResponse.json({ error: "Failed to sync user" }, { status: 500 });
   }
 }

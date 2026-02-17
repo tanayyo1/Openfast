@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BarMeter } from "@/components/app/charts/BarMeter";
+import { getHealthGuardrailThresholds } from "@/lib/health/guardrails";
 import { prisma } from "@/lib/prisma";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 
@@ -10,15 +11,20 @@ function cadenceForTier(tier: "NEW" | "ESTABLISHED" | "TRUSTED" | "RESTRICTED") 
   return "Comments only until account recovers";
 }
 
-function scorePillTone(score: number | null) {
+function scorePillTone(
+  score: number | null,
+  blockThreshold: number,
+  cautionThreshold: number,
+) {
   if (score == null) return "border-slate-300 bg-slate-50 text-slate-700";
-  if (score < 30) return "border-red-300 bg-red-50 text-red-700";
-  if (score < 45) return "border-amber-300 bg-amber-50 text-amber-700";
+  if (score < blockThreshold) return "border-red-300 bg-red-50 text-red-700";
+  if (score < cautionThreshold) return "border-amber-300 bg-amber-50 text-amber-700";
   return "border-emerald-300 bg-emerald-50 text-emerald-700";
 }
 
 export default async function HealthPage() {
   const session = await requireWorkspaceSession();
+  const healthThresholds = getHealthGuardrailThresholds();
 
   const accounts = await prisma.redditAccount.findMany({
     where: { workspaceId: session.workspaceId, isActive: true },
@@ -88,11 +94,14 @@ export default async function HealthPage() {
                 "Publishing should stay blocked until account restrictions recover.",
               );
             }
-            if (healthScore != null && healthScore < 30) {
+            if (healthScore != null && healthScore < healthThresholds.blockPublishing) {
               warnings.push(
                 "High risk detected. Do not schedule posts until health improves.",
               );
-            } else if (healthScore != null && healthScore < 45) {
+            } else if (
+              healthScore != null &&
+              healthScore < healthThresholds.caution
+            ) {
               warnings.push(
                 "Health score is low. Prioritize comments and reduce posting pace.",
               );
@@ -125,7 +134,11 @@ export default async function HealthPage() {
                     </p>
                   </div>
                   <span
-                    className={`rounded-full border px-3 py-1 text-xs ${scorePillTone(healthScore)}`}
+                    className={`rounded-full border px-3 py-1 text-xs ${scorePillTone(
+                      healthScore,
+                      healthThresholds.blockPublishing,
+                      healthThresholds.caution,
+                    )}`}
                   >
                     {healthScore == null ? "Score unavailable" : `Score ${healthScore}`}
                   </span>
@@ -197,7 +210,7 @@ export default async function HealthPage() {
             {
               title: "Health block",
               detail:
-                "Scheduling posts is blocked when latest health score is below 30.",
+                `Scheduling posts is blocked when latest health score is below ${healthThresholds.blockPublishing}.`,
             },
             {
               title: "Comments-first fallback",

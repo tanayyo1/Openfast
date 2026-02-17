@@ -1,6 +1,7 @@
 import type { Job } from "bullmq";
 import type { SafetyTier } from "@prisma/client";
 import { acquireDistributedLock } from "@/lib/locks/distributed";
+import { getHealthGuardrailThresholds } from "@/lib/health/guardrails";
 import type { PublishJobData } from "@/lib/queue/enqueue";
 import { enqueueMetricsFetchJob } from "@/lib/queue/enqueue";
 import { prisma } from "@/lib/prisma";
@@ -98,6 +99,7 @@ export async function processPublishJob(job: Job<PublishJobData>) {
   }
 
   const jobId = typeof job.id === "string" ? job.id : null;
+  const healthThresholds = getHealthGuardrailThresholds();
   const scheduledLockTtlMs = parsePositiveEnvInt(
     "PUBLISH_SCHEDULED_LOCK_TTL_MS",
     DEFAULT_SCHEDULED_LOCK_TTL_MS,
@@ -332,7 +334,7 @@ export async function processPublishJob(job: Job<PublishJobData>) {
               select: { healthScore: true },
             })
           : null;
-      if (latestHealth && latestHealth.healthScore < 30) {
+      if (latestHealth && latestHealth.healthScore < healthThresholds.blockPublishing) {
         throw permanentWorkerError(
           "ACCOUNT_HEALTH_BLOCKED",
           "Account health score is below safe publish threshold",

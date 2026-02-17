@@ -128,6 +128,7 @@ function scoreSeverity(input: { title: string; score: number; relevance: number 
 }
 
 export function extractPainPointCandidates(threads: SourceThread[]) {
+  const seenThreadIds = new Set<string>();
   const grouped = new Map<
     string,
     {
@@ -142,6 +143,9 @@ export function extractPainPointCandidates(threads: SourceThread[]) {
   >();
 
   for (const thread of threads) {
+    if (seenThreadIds.has(thread.redditId)) continue;
+    seenThreadIds.add(thread.redditId);
+
     const title = thread.title.trim();
     if (!title) continue;
 

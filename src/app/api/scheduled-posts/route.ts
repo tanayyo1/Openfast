@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { QuotaExceededError, assertWorkspaceQuota } from "@/lib/billing/quota";
+import { getHealthGuardrailThresholds } from "@/lib/health/guardrails";
 import { enqueuePublishJob } from "@/lib/queue/enqueue";
 import { prisma } from "@/lib/prisma";
 import { evaluateCommunityEngagementThreshold } from "@/lib/reddit/communityEngagement";
@@ -38,7 +39,6 @@ const createScheduledPostSchema = z.object({
 });
 
 const DEFAULT_COMMENT_FIRST_MIN_COMMENTS = 3;
-const HEALTH_BLOCK_THRESHOLD = 30;
 
 function authError(err: unknown) {
   const code = err instanceof Error ? err.message : "UNAUTHORIZED";
@@ -204,6 +204,7 @@ export async function POST(req: Request) {
   }
 
   const data = parsed.data;
+  const healthThresholds = getHealthGuardrailThresholds();
 
   try {
     await assertWorkspaceQuota({
@@ -305,7 +306,7 @@ export async function POST(req: Request) {
       orderBy: { capturedAt: "desc" },
       select: { healthScore: true, capturedAt: true },
     });
-    if (latestHealth && latestHealth.healthScore < HEALTH_BLOCK_THRESHOLD) {
+    if (latestHealth && latestHealth.healthScore < healthThresholds.blockPublishing) {
       return NextResponse.json(
         {
           error:
@@ -313,7 +314,7 @@ export async function POST(req: Request) {
           code: "ACCOUNT_HEALTH_BLOCKED",
           details: {
             healthScore: latestHealth.healthScore,
-            threshold: HEALTH_BLOCK_THRESHOLD,
+            threshold: healthThresholds.blockPublishing,
             capturedAt: latestHealth.capturedAt.toISOString(),
           },
         },

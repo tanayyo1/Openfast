@@ -49,6 +49,16 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
     );
   }
 
+  const selectedRows = await prisma.projectSubredditRecommendation.findMany({
+    where: {
+      workspaceId: session.workspaceId,
+      projectId,
+      status: "SELECTED",
+    },
+    select: { subredditId: true },
+  });
+  const selectedSubredditIds = new Set(selectedRows.map((row) => row.subredditId));
+
   const names = candidateSubredditNamesForProject({
     projectName: project.name,
     niche: project.niche,
@@ -109,15 +119,44 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
     5,
   );
 
-  const byId = new Map(ranked.map((r) => [r.subredditId, r]));
+  const selectedRanked = ranked.filter((rec) =>
+    selectedSubredditIds.has(rec.subredditId),
+  );
+  const candidateLimit = Math.max(0, 5 - selectedSubredditIds.size);
+  const candidateRanked = ranked
+    .filter((rec) => !selectedSubredditIds.has(rec.subredditId))
+    .slice(0, candidateLimit);
+
   await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.projectSubredditRecommendation.deleteMany({
-      where: { workspaceId: session.workspaceId, projectId },
+      where: {
+        workspaceId: session.workspaceId,
+        projectId,
+        status: { not: "SELECTED" },
+      },
     });
-    if (ranked.length === 0) return;
+    for (const rec of selectedRanked) {
+      await tx.projectSubredditRecommendation.updateMany({
+        where: {
+          workspaceId: session.workspaceId,
+          projectId,
+          subredditId: rec.subredditId,
+          status: "SELECTED",
+        },
+        data: {
+          fitScore: rec.fitScore,
+          riskScore: rec.riskScore,
+          timeWindowScore: rec.timeScore,
+          compositeScore: rec.totalScore,
+          reasons: rec.reasons as Prisma.InputJsonValue,
+          dismissedAt: null,
+        },
+      });
+    }
+    if (candidateRanked.length === 0) return;
 
     await tx.projectSubredditRecommendation.createMany({
-      data: ranked.map((rec) => ({
+      data: candidateRanked.map((rec) => ({
         workspaceId: session.workspaceId,
         projectId,
         subredditId: rec.subredditId,
@@ -131,22 +170,33 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
     });
   });
 
-  const items = subredditRows
-    .filter((s) => byId.has(s.id))
-    .map((s) => {
-      const rec = byId.get(s.id)!;
-      return {
-        subredditId: s.id,
-        subredditName: s.name,
-        subredditTitle: s.title,
-        fitScore: rec.fitScore,
-        riskScore: rec.riskScore,
-        timeScore: rec.timeScore,
-        totalScore: rec.totalScore,
-        reasons: rec.reasons,
-      };
-    })
-    .sort((a, b) => b.totalScore - a.totalScore);
+  const persisted = await prisma.projectSubredditRecommendation.findMany({
+    where: { workspaceId: session.workspaceId, projectId },
+    select: {
+      subredditId: true,
+      fitScore: true,
+      riskScore: true,
+      timeWindowScore: true,
+      compositeScore: true,
+      reasons: true,
+      subreddit: {
+        select: { name: true, title: true },
+      },
+    },
+    orderBy: [{ compositeScore: "desc" }],
+    take: 5,
+  });
+
+  const items = persisted.map((item) => ({
+    subredditId: item.subredditId,
+    subredditName: item.subreddit.name,
+    subredditTitle: item.subreddit.title,
+    fitScore: item.fitScore,
+    riskScore: item.riskScore,
+    timeScore: item.timeWindowScore,
+    totalScore: item.compositeScore,
+    reasons: item.reasons,
+  }));
 
   return NextResponse.json({
     projectId,

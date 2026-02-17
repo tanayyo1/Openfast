@@ -154,6 +154,12 @@ export async function generateProjectRecommendations(input: {
   });
 
   if (subreddits.length === 0) {
+    await prisma.projectSubredditRecommendation.deleteMany({
+      where: {
+        workspaceId: input.workspaceId,
+        projectId: input.projectId,
+      },
+    });
     return { project, recommendations: [] as RecommendationOutput[] };
   }
 

@@ -22,6 +22,7 @@ jest.mock("@/lib/prisma", () => ({
     project: { findFirst: jest.fn() },
     projectSubredditRecommendation: { findMany: jest.fn() },
     subredditCatalog: { findMany: jest.fn() },
+    workspaceEntitlement: { findUnique: jest.fn() },
     $transaction: jest.fn(),
   },
 }));
@@ -45,6 +46,7 @@ const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
   project: { findFirst: jest.Mock };
   projectSubredditRecommendation: { findMany: jest.Mock };
   subredditCatalog: { findMany: jest.Mock };
+  workspaceEntitlement: { findUnique: jest.Mock };
   $transaction: jest.Mock;
 };
 const mockedRanking = rankSubreddits as jest.Mock;
@@ -72,6 +74,16 @@ describe("recommend subreddits route", () => {
     mockedPrisma.$transaction.mockImplementation(async (handler: Function) =>
       handler(tx),
     );
+    mockedPrisma.workspaceEntitlement.findUnique.mockResolvedValue({
+      maxProjects: 1,
+      maxRedditAccounts: 1,
+      maxScheduledPosts: 10,
+      maxDraftsPerMonth: 10,
+      roadmapDays: 7,
+      hasAdvancedAnalytics: false,
+      hasSmartFinder: true,
+      hasTeamFeatures: false,
+    });
     mockedQueue.enqueueSubredditIngestJob.mockResolvedValue({ id: "job_ing_1" });
     mockedQueue.enqueueSubredditComputeTimeWindowsJob.mockResolvedValue({
       id: "job_slot_1",
@@ -183,6 +195,30 @@ describe("recommend subreddits route", () => {
     };
     expect(json.count).toBe(1);
     expect(json.items[0]?.subredditId).toBe("sub_1");
+  });
+
+  test("returns 403 when smart finder entitlement is disabled", async () => {
+    mockedPrisma.workspaceEntitlement.findUnique.mockResolvedValueOnce({
+      maxProjects: 1,
+      maxRedditAccounts: 1,
+      maxScheduledPosts: 10,
+      maxDraftsPerMonth: 10,
+      roadmapDays: 7,
+      hasAdvancedAnalytics: false,
+      hasSmartFinder: false,
+      hasTeamFeatures: false,
+    });
+
+    const res = await recommendSubreddits(
+      new Request("http://test.local/api/projects/p_1/recommend-subreddits", {
+        method: "POST",
+      }),
+      { params: { id: "p_1" } },
+    );
+
+    expect(res.status).toBe(403);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("SMART_FINDER_REQUIRED");
   });
 
   test("preserves selected recommendations and updates their scores", async () => {

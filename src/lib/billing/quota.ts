@@ -26,7 +26,31 @@ export class QuotaExceededError extends Error {
   }
 }
 
-async function getWorkspaceEntitlement(workspaceId: string) {
+export type WorkspaceEntitlements = {
+  maxProjects: number;
+  maxRedditAccounts: number;
+  maxScheduledPosts: number;
+  maxDraftsPerMonth: number;
+  roadmapDays: number;
+  hasAdvancedAnalytics: boolean;
+  hasSmartFinder: boolean;
+  hasTeamFeatures: boolean;
+};
+
+const DEFAULT_ENTITLEMENTS: WorkspaceEntitlements = {
+  maxProjects: 1,
+  maxRedditAccounts: 1,
+  maxScheduledPosts: 10,
+  maxDraftsPerMonth: 10,
+  roadmapDays: 7,
+  hasAdvancedAnalytics: false,
+  hasSmartFinder: false,
+  hasTeamFeatures: false,
+};
+
+export async function getWorkspaceEntitlements(
+  workspaceId: string,
+): Promise<WorkspaceEntitlements> {
   const ent = await prisma.workspaceEntitlement.findUnique({
     where: { workspaceId },
     select: {
@@ -34,23 +58,20 @@ async function getWorkspaceEntitlement(workspaceId: string) {
       maxRedditAccounts: true,
       maxScheduledPosts: true,
       maxDraftsPerMonth: true,
+      roadmapDays: true,
+      hasAdvancedAnalytics: true,
+      hasSmartFinder: true,
+      hasTeamFeatures: true,
     },
   });
-  return (
-    ent ?? {
-      maxProjects: 1,
-      maxRedditAccounts: 1,
-      maxScheduledPosts: 10,
-      maxDraftsPerMonth: 10,
-    }
-  );
+  return ent ?? DEFAULT_ENTITLEMENTS;
 }
 
 export async function assertWorkspaceQuota(opts: {
   workspaceId: string;
   resource: QuotaResource;
 }) {
-  const ent = await getWorkspaceEntitlement(opts.workspaceId);
+  const ent = await getWorkspaceEntitlements(opts.workspaceId);
 
   if (opts.resource === "projects") {
     const used = await prisma.project.count({

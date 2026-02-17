@@ -4,6 +4,7 @@ import type { Prisma, TaskType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { generateProjectRecommendations } from "@/lib/recommendations/generate";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+import { getWorkspaceEntitlements } from "@/lib/billing/quota";
 
 const listQuerySchema = z.object({
   cursor: z.string().optional(),
@@ -154,6 +155,20 @@ export async function POST(req: Request) {
   }
 
   const { projectId, startDate, horizonDays } = parsed.data;
+  const entitlements = await getWorkspaceEntitlements(session.workspaceId);
+  if (horizonDays > entitlements.roadmapDays) {
+    return NextResponse.json(
+      {
+        error: "Roadmap horizon exceeds plan allowance",
+        code: "ROADMAP_HORIZON_LIMIT",
+        details: {
+          requested: horizonDays,
+          maxAllowed: entitlements.roadmapDays,
+        },
+      },
+      { status: 403 },
+    );
+  }
 
   const project = await prisma.project.findFirst({
     where: {

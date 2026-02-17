@@ -38,6 +38,21 @@ describe("Analytics APIs", () => {
 
     userId = user.id;
     workspaceId = ws.workspaceId;
+    await prisma.workspaceEntitlement.upsert({
+      where: { workspaceId },
+      update: { hasAdvancedAnalytics: true },
+      create: {
+        workspaceId,
+        maxProjects: 1,
+        maxRedditAccounts: 1,
+        maxScheduledPosts: 10,
+        maxDraftsPerMonth: 10,
+        roadmapDays: 7,
+        hasAdvancedAnalytics: true,
+        hasSmartFinder: false,
+        hasTeamFeatures: false,
+      },
+    });
   });
 
   beforeEach(() => {

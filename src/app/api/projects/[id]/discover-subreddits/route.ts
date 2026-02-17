@@ -5,6 +5,7 @@ import { enqueueSubredditIngestJob } from "@/lib/queue/enqueue";
 import { rankSubreddits } from "@/lib/recommendations/ranking";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 import { candidateSubredditNamesForProject } from "@/lib/subreddit/intel";
+import { getWorkspaceEntitlements } from "@/lib/billing/quota";
 
 const querySchema = z.object({
   q: z.string().trim().min(2).max(80).optional(),
@@ -34,6 +35,16 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
     session = await requireWorkspaceSession();
   } catch (err) {
     return authError(err);
+  }
+  const entitlements = await getWorkspaceEntitlements(session.workspaceId);
+  if (!entitlements.hasSmartFinder) {
+    return NextResponse.json(
+      {
+        error: "Smart Finder is available on paid plans",
+        code: "SMART_FINDER_REQUIRED",
+      },
+      { status: 403 },
+    );
   }
 
   const parsed = querySchema.safeParse(

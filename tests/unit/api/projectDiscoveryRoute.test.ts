@@ -6,6 +6,7 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     project: { findFirst: jest.fn() },
     subredditCatalog: { findMany: jest.fn() },
+    workspaceEntitlement: { findUnique: jest.fn() },
   },
 }));
 
@@ -27,6 +28,7 @@ const mockedGuards = jest.requireMock("@/lib/server/auth-guards") as {
 const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
   project: { findFirst: jest.Mock };
   subredditCatalog: { findMany: jest.Mock };
+  workspaceEntitlement: { findUnique: jest.Mock };
 };
 const mockedQueue = jest.requireMock("@/lib/queue/enqueue") as {
   enqueueSubredditIngestJob: jest.Mock;
@@ -43,6 +45,16 @@ describe("project subreddit discovery route (RED-62)", () => {
     mockedGuards.requireWorkspaceSession.mockResolvedValue({
       user: { id: "u_1" },
       workspaceId: "ws_1",
+    });
+    mockedPrisma.workspaceEntitlement.findUnique.mockResolvedValue({
+      maxProjects: 1,
+      maxRedditAccounts: 1,
+      maxScheduledPosts: 10,
+      maxDraftsPerMonth: 10,
+      roadmapDays: 7,
+      hasAdvancedAnalytics: false,
+      hasSmartFinder: true,
+      hasTeamFeatures: false,
     });
   });
 
@@ -74,6 +86,28 @@ describe("project subreddit discovery route (RED-62)", () => {
     expect(res.status).toBe(404);
     const json = (await readJson(res)) as { code: string };
     expect(json.code).toBe("PROJECT_NOT_FOUND");
+  });
+
+  test("returns 403 when smart finder entitlement is disabled", async () => {
+    mockedPrisma.workspaceEntitlement.findUnique.mockResolvedValueOnce({
+      maxProjects: 1,
+      maxRedditAccounts: 1,
+      maxScheduledPosts: 10,
+      maxDraftsPerMonth: 10,
+      roadmapDays: 7,
+      hasAdvancedAnalytics: false,
+      hasSmartFinder: false,
+      hasTeamFeatures: false,
+    });
+
+    const res = await discoverSubreddits(
+      new Request("http://test.local/api/projects/p_1/discover-subreddits"),
+      { params: { id: "p_1" } },
+    );
+
+    expect(res.status).toBe(403);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("SMART_FINDER_REQUIRED");
   });
 
   test("returns ranked discovery results and queues missing names for ingest", async () => {

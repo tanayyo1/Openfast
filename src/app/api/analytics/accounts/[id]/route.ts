@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+import { getWorkspaceEntitlements } from "@/lib/billing/quota";
 
 function authError(err: unknown) {
   const code = err instanceof Error ? err.message : "UNAUTHORIZED";
@@ -14,6 +15,16 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
     session = await requireWorkspaceSession();
   } catch (err) {
     return authError(err);
+  }
+  const entitlements = await getWorkspaceEntitlements(session.workspaceId);
+  if (!entitlements.hasAdvancedAnalytics) {
+    return NextResponse.json(
+      {
+        error: "Advanced analytics is available on paid plans",
+        code: "ADVANCED_ANALYTICS_REQUIRED",
+      },
+      { status: 403 },
+    );
   }
 
   const accountId = ctx.params.id;

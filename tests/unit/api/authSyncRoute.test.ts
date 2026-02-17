@@ -5,7 +5,7 @@ jest.mock("@/lib/supabase/server", () => ({
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     user: {
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(),
       create: jest.fn(),
     },
@@ -24,7 +24,7 @@ import { createClient } from "@/lib/supabase/server";
 const mockedCreateClient = createClient as jest.Mock;
 const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
   user: {
-    findUnique: jest.Mock;
+    findFirst: jest.Mock;
     update: jest.Mock;
     create: jest.Mock;
   };
@@ -58,7 +58,7 @@ describe("auth sync route", () => {
         }),
       },
     });
-    mockedPrisma.user.findUnique.mockResolvedValue({
+    mockedPrisma.user.findFirst.mockResolvedValue({
       id: "u_member",
       authId: "auth_1",
       email: "member@reditfast.local",
@@ -83,9 +83,11 @@ describe("auth sync route", () => {
         orderBy: { createdAt: "asc" },
       }),
     );
-    expect(mockedPrisma.user.findUnique).toHaveBeenCalledWith(
+    expect(mockedPrisma.user.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { email: "member@reditfast.local" },
+        where: {
+          email: { equals: "member@reditfast.local", mode: "insensitive" },
+        },
         select: expect.objectContaining({
           id: true,
           authId: true,
@@ -126,7 +128,7 @@ describe("auth sync route", () => {
     expect(res.status).toBe(400);
     const json = (await readJson(res)) as { code: string };
     expect(json.code).toBe("EMAIL_REQUIRED");
-    expect(mockedPrisma.user.findUnique).not.toHaveBeenCalled();
+    expect(mockedPrisma.user.findFirst).not.toHaveBeenCalled();
   });
 
   test("creates user/workspace with safe field selection only", async () => {
@@ -145,7 +147,7 @@ describe("auth sync route", () => {
         }),
       },
     });
-    mockedPrisma.user.findUnique.mockResolvedValue(null);
+    mockedPrisma.user.findFirst.mockResolvedValue(null);
     mockedPrisma.user.create.mockResolvedValue({
       id: "u_new",
       authId: "auth_new_1",

@@ -5,7 +5,7 @@ jest.mock("@/lib/password", () => ({
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     user: {
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
     $transaction: jest.fn(),
   },
@@ -16,7 +16,7 @@ import { hashPassword } from "@/lib/password";
 
 const mockedHashPassword = hashPassword as jest.Mock;
 const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
-  user: { findUnique: jest.Mock };
+  user: { findFirst: jest.Mock };
   $transaction: jest.Mock;
 };
 
@@ -48,7 +48,7 @@ describe("auth register route", () => {
   });
 
   test("normalizes email to lowercase for lookup and create", async () => {
-    mockedPrisma.user.findUnique.mockResolvedValue(null);
+    mockedPrisma.user.findFirst.mockResolvedValue(null);
 
     const res = await register(
       new Request("http://test.local/api/auth/register", {
@@ -63,8 +63,10 @@ describe("auth register route", () => {
     );
 
     expect(res.status).toBe(201);
-    expect(mockedPrisma.user.findUnique).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { email: "user@example.com" } }),
+    expect(mockedPrisma.user.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { email: { equals: "user@example.com", mode: "insensitive" } },
+      }),
     );
     expect(tx.user.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -74,7 +76,7 @@ describe("auth register route", () => {
   });
 
   test("returns 409 when normalized email already exists", async () => {
-    mockedPrisma.user.findUnique.mockResolvedValue({ id: "u_existing" });
+    mockedPrisma.user.findFirst.mockResolvedValue({ id: "u_existing" });
 
     const res = await register(
       new Request("http://test.local/api/auth/register", {
@@ -94,7 +96,7 @@ describe("auth register route", () => {
   });
 
   test("returns 409 on concurrent unique violation during create", async () => {
-    mockedPrisma.user.findUnique.mockResolvedValue(null);
+    mockedPrisma.user.findFirst.mockResolvedValue(null);
     mockedPrisma.$transaction.mockRejectedValueOnce({
       code: "P2002",
       meta: { target: ["email"] },

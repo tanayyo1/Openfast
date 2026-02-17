@@ -83,7 +83,8 @@ describe("generateProjectRecommendations", () => {
   test("preserves selected recommendations when no subreddits are discovered", async () => {
     mockedPrisma.projectSubredditRecommendation.findMany
       .mockResolvedValueOnce([{ subredditId: "sub_selected" }])
-      .mockResolvedValueOnce([recommendation("sub_selected", "SELECTED")]);
+      .mockResolvedValueOnce([recommendation("sub_selected", "SELECTED")])
+      .mockResolvedValueOnce([]);
 
     const out = await generateProjectRecommendations({
       workspaceId: "ws_1",
@@ -149,6 +150,8 @@ describe("generateProjectRecommendations", () => {
       .mockResolvedValueOnce([{ subredditId: "sub_selected" }])
       .mockResolvedValueOnce([
         recommendation("sub_selected", "SELECTED"),
+      ])
+      .mockResolvedValueOnce([
         recommendation("sub_candidate", "CANDIDATE"),
       ]);
 
@@ -178,7 +181,56 @@ describe("generateProjectRecommendations", () => {
             status: "CANDIDATE",
           }),
         ],
+        skipDuplicates: true,
       }),
     );
+  });
+
+  test("caps inserted candidates so selected + candidates stay within top 5", async () => {
+    mockedPrisma.subredditCatalog.findMany.mockResolvedValue(
+      Array.from({ length: 5 }).map((_, idx) => ({
+        id: `sub_candidate_${idx + 1}`,
+        name: `candidate_${idx + 1}`,
+        title: `Candidate ${idx + 1}`,
+        description: "desc",
+        nsfw: false,
+        isRestricted: false,
+        isQuarantined: false,
+        policy: null,
+        timeSlots: [{ score: 0.6 }],
+      })),
+    );
+    mockedRanking.mockReturnValue(
+      Array.from({ length: 5 }).map((_, idx) => ({
+        subredditId: `sub_candidate_${idx + 1}`,
+        fitScore: 0.7,
+        riskScore: 0.2,
+        timeWindowScore: 0.6,
+        compositeScore: 0.75 - idx * 0.01,
+      })),
+    );
+    mockedPrisma.projectSubredditRecommendation.findMany
+      .mockResolvedValueOnce([
+        { subredditId: "sub_selected_1" },
+        { subredditId: "sub_selected_2" },
+      ])
+      .mockResolvedValueOnce([
+        recommendation("sub_selected_1", "SELECTED"),
+        recommendation("sub_selected_2", "SELECTED"),
+      ])
+      .mockResolvedValueOnce([
+        recommendation("sub_candidate_1", "CANDIDATE"),
+        recommendation("sub_candidate_2", "CANDIDATE"),
+        recommendation("sub_candidate_3", "CANDIDATE"),
+      ]);
+
+    const out = await generateProjectRecommendations({
+      workspaceId: "ws_1",
+      projectId: "p_1",
+    });
+
+    const createManyArg = tx.projectSubredditRecommendation.createMany.mock.calls[0]?.[0];
+    expect(createManyArg?.data).toHaveLength(3);
+    expect(out.recommendations).toHaveLength(5);
   });
 });

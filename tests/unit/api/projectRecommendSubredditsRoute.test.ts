@@ -167,6 +167,15 @@ describe("recommend subreddits route", () => {
     const first = createManyArg?.data?.[0] as Record<string, unknown>;
     expect(first).toBeDefined();
     expect(Object.prototype.hasOwnProperty.call(first, "rank")).toBe(false);
+    expect(createManyArg?.skipDuplicates).toBe(true);
+    expect(mockedPrisma.projectSubredditRecommendation.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { in: ["SELECTED", "CANDIDATE"] },
+        }),
+      }),
+    );
 
     const json = (await readJson(res)) as {
       count: number;
@@ -253,5 +262,117 @@ describe("recommend subreddits route", () => {
       }),
     );
     expect(tx.projectSubredditRecommendation.createMany).not.toHaveBeenCalled();
+  });
+
+  test("caps candidate inserts to keep total recommendations within top 5", async () => {
+    mockedPrisma.projectSubredditRecommendation.findMany.mockReset();
+    mockedPrisma.projectSubredditRecommendation.findMany
+      .mockResolvedValueOnce([
+        { subredditId: "sub_selected_1" },
+        { subredditId: "sub_selected_2" },
+        { subredditId: "sub_selected_3" },
+        { subredditId: "sub_selected_4" },
+      ])
+      .mockResolvedValueOnce([
+        {
+          subredditId: "sub_selected_1",
+          fitScore: 0.91,
+          riskScore: 0.2,
+          timeWindowScore: 0.75,
+          compositeScore: 0.81,
+          reasons: { summary: "selected 1" },
+          subreddit: { name: "selected1", title: "Selected 1" },
+        },
+        {
+          subredditId: "sub_selected_2",
+          fitScore: 0.9,
+          riskScore: 0.2,
+          timeWindowScore: 0.75,
+          compositeScore: 0.8,
+          reasons: { summary: "selected 2" },
+          subreddit: { name: "selected2", title: "Selected 2" },
+        },
+        {
+          subredditId: "sub_selected_3",
+          fitScore: 0.89,
+          riskScore: 0.2,
+          timeWindowScore: 0.75,
+          compositeScore: 0.79,
+          reasons: { summary: "selected 3" },
+          subreddit: { name: "selected3", title: "Selected 3" },
+        },
+        {
+          subredditId: "sub_selected_4",
+          fitScore: 0.88,
+          riskScore: 0.2,
+          timeWindowScore: 0.75,
+          compositeScore: 0.78,
+          reasons: { summary: "selected 4" },
+          subreddit: { name: "selected4", title: "Selected 4" },
+        },
+        {
+          subredditId: "sub_candidate_1",
+          fitScore: 0.7,
+          riskScore: 0.25,
+          timeWindowScore: 0.65,
+          compositeScore: 0.67,
+          reasons: { summary: "candidate 1" },
+          subreddit: { name: "candidate1", title: "Candidate 1" },
+        },
+      ]);
+
+    mockedPrisma.project.findFirst.mockResolvedValue({
+      id: "p_1",
+      name: "Acme",
+      niche: "saas",
+      goals: {},
+      constraints: null,
+    });
+    mockedIntel.candidateSubredditNamesForProject.mockReturnValue(["startups"]);
+    mockedIntel.ingestSubreddit.mockResolvedValue({ id: "sub_candidate_1" });
+    mockedIntel.computeSubredditTimeWindows.mockResolvedValue(undefined);
+    mockedPrisma.subredditCatalog.findMany.mockResolvedValue([
+      {
+        id: "sub_candidate_1",
+        name: "candidate1",
+        title: "Candidate 1",
+        description: "startup talk",
+        subscribers: 100000,
+        activeUsers: 5000,
+        avgPostsPerDay: 10,
+        avgCommentsPerPost: 7,
+        policy: {
+          promoAllowed: "ALLOWED",
+          linkPolicy: "ALLOWED",
+          selfPromoAllowed: true,
+          affiliateAllowed: true,
+        },
+        timeSlots: [{ score: 0.8 }],
+      },
+    ]);
+    mockedRanking.mockReturnValue([
+      {
+        subredditId: "sub_candidate_1",
+        fitScore: 0.7,
+        riskScore: 0.25,
+        timeScore: 0.65,
+        totalScore: 0.67,
+        reasons: { summary: "candidate 1" },
+      },
+    ]);
+
+    const res = await recommendSubreddits(
+      new Request("http://test.local/api/projects/p_1/recommend-subreddits", {
+        method: "POST",
+      }),
+      { params: { id: "p_1" } },
+    );
+
+    expect(res.status).toBe(200);
+    const createManyArg = tx.projectSubredditRecommendation.createMany.mock.calls[0]?.[0];
+    expect(createManyArg?.data).toHaveLength(1);
+    expect(createManyArg?.skipDuplicates).toBe(true);
+    const json = (await readJson(res)) as { count: number };
+    expect(json.count).toBe(5);
   });
 });

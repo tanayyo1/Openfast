@@ -32,6 +32,8 @@ type RecommendationOutput = {
   } | null;
 };
 
+const MAX_RECOMMENDATIONS = 5;
+
 function tokenize(input: string) {
   return input
     .toLowerCase()
@@ -136,11 +138,12 @@ export async function generateProjectRecommendations(input: {
     existingSelected.map((item) => item.subredditId),
   );
 
-  const fetchCurrentRecommendations = async () =>
-    prisma.projectSubredditRecommendation.findMany({
+  const fetchCurrentRecommendations = async () => {
+    const selected = await prisma.projectSubredditRecommendation.findMany({
       where: {
         workspaceId: input.workspaceId,
         projectId: input.projectId,
+        status: "SELECTED",
       },
       include: {
         subreddit: {
@@ -153,8 +156,32 @@ export async function generateProjectRecommendations(input: {
         },
       },
       orderBy: [{ compositeScore: "desc" }, { id: "asc" }],
-      take: 5,
+      take: MAX_RECOMMENDATIONS,
     });
+    if (selected.length >= MAX_RECOMMENDATIONS) return selected;
+
+    const candidates = await prisma.projectSubredditRecommendation.findMany({
+      where: {
+        workspaceId: input.workspaceId,
+        projectId: input.projectId,
+        status: "CANDIDATE",
+      },
+      include: {
+        subreddit: {
+          select: {
+            id: true,
+            name: true,
+            title: true,
+            subscribers: true,
+          },
+        },
+      },
+      orderBy: [{ compositeScore: "desc" }, { id: "asc" }],
+      take: MAX_RECOMMENDATIONS - selected.length,
+    });
+
+    return [...selected, ...candidates];
+  };
 
   const subreddits = await prisma.subredditCatalog.findMany({
     where: primaryKeyword
@@ -225,7 +252,7 @@ export async function generateProjectRecommendations(input: {
         subreddit.timeSlots.map((slot) => slot.score),
       ),
     })),
-    { limit: 5 },
+    { limit: MAX_RECOMMENDATIONS },
   );
 
   const scoreMap = new Map<string, (typeof ranked)[number]>(
@@ -234,9 +261,13 @@ export async function generateProjectRecommendations(input: {
   const selectedRanked = ranked.filter((item) =>
     selectedSubredditIds.has(item.subredditId),
   );
+  const candidateLimit = Math.max(
+    0,
+    MAX_RECOMMENDATIONS - selectedSubredditIds.size,
+  );
   const candidateRanked = ranked.filter(
     (item) => !selectedSubredditIds.has(item.subredditId),
-  );
+  ).slice(0, candidateLimit);
 
   await prisma.$transaction(async (tx) => {
     await tx.projectSubredditRecommendation.deleteMany({
@@ -295,6 +326,7 @@ export async function generateProjectRecommendations(input: {
           } as Prisma.InputJsonValue,
           status: "CANDIDATE",
         })),
+        skipDuplicates: true,
       });
     }
   });

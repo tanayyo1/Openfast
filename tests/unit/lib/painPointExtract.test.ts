@@ -66,6 +66,23 @@ describe("pain point extractor", () => {
     expect(cannot?.normalizedPhrase.includes("can t")).toBe(false);
   });
 
+  test("normalizes how-do-I phrasing with readable casing", () => {
+    const extracted = extractPainPointCandidates([
+      {
+        redditId: "h1",
+        title: "How do I get first 10 beta users?",
+        score: 0.5,
+        relevanceScore: 0.7,
+      },
+    ]);
+
+    const howDo = extracted.find((item) =>
+      item.normalizedPhrase.startsWith("how do i "),
+    );
+    expect(howDo).toBeDefined();
+    expect(howDo?.phrase.startsWith("how do I ")).toBe(true);
+  });
+
   test("does not double-count duplicate thread ids", () => {
     const extracted = extractPainPointCandidates([
       {

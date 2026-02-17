@@ -2,7 +2,7 @@
 
 > **Last Updated**: 2026-02-17
 > **Target**: `mediafast_clone_system_design_report.md`  
-> **Current Estimate**: ~35-40% of MVP parity complete
+> **Current Estimate**: ~70-75% of MVP parity complete
 
 ---
 
@@ -80,20 +80,20 @@
 ## P1 - Recommendations + Intel (Required by Report Flows)
 
 - [x] Add recommendation data model support (project↔subreddit recommendations with fit/risk/reasons).
-- [ ] Build recommendation endpoints: `POST /projects/:id/recommend-subreddits`, `GET /projects/:id/recommendations`, `POST /projects/:id/recommendations/select`.
-- [ ] Implement `subreddit.ingest` queue + worker.
+- [x] Build recommendation endpoints: `POST /projects/:id/recommend-subreddits`, `GET /projects/:id/recommendations`, `POST /projects/:id/recommendations/select`.
+- [x] Implement `subreddit.ingest` queue + worker.
 - [ ] Implement rules ingestion + parser into derived policy flags.
 - [ ] Implement subreddit stats aggregation (daily stats + freshness timestamps).
-- [ ] Implement `subreddit.compute_time_windows` queue + worker.
-- [ ] Return “best 5 subreddit recommendations” based on project + risk + time windows.
+- [x] Implement `subreddit.compute_time_windows` queue + worker.
+- [x] Return “best 5 subreddit recommendations” based on project + risk + time windows.
 
 ## P2 - AI Content Pipeline (Report-Parity APIs)
 
-- [ ] Add task-centric content endpoints: `POST /tasks/:id/generate-content`, `GET /tasks/:id/content`, `PATCH /tasks/:id/content`.
-- [ ] Implement `content.generate` queue + worker.
-- [ ] Connect OpenAI generation to subreddit rules + project voice.
-- [ ] Generate 3+ variants with risk reasons + suggested fixes.
-- [ ] Add rewrite mode and compliance transformation endpoint.
+- [x] Add task-centric content endpoints: `POST /tasks/:id/generate-content`, `GET /tasks/:id/content`, `PATCH /tasks/:id/content`.
+- [x] Implement `content.generate` queue + worker.
+- [x] Connect OpenAI generation to subreddit rules + project voice.
+- [x] Generate 3+ variants with risk reasons + suggested fixes.
+- [x] Add rewrite mode and compliance transformation endpoint.
 
 ## P3 - Account Health + Visibility Checks
 
@@ -105,34 +105,34 @@
 
 ## P4 - Free Tools Backend + Rate Limiting
 
-- [ ] Implement free tool APIs: `POST /tools/post-generate`, `GET /tools/subreddit-analyzer`, `POST /tools/shadowban-check`.
-- [ ] Add per-IP and per-user rate limiting for public tools.
+- [x] Implement free tool APIs: `POST /tools/post-generate`, `GET /tools/subreddit-analyzer`, `POST /tools/shadowban-check`.
+- [x] Add per-IP and per-user rate limiting for public tools.
 - [ ] Connect tool responses to real intel/risk services instead of static/demo behavior.
 
 ## P5 - Billing / Entitlements
 
-- [ ] Implement Stripe checkout + webhook processing.
-- [ ] Enforce plan quotas (projects, Reddit accounts, scheduled posts, AI generations).
+- [x] Implement Stripe checkout + webhook processing.
+- [x] Enforce plan quotas (projects, Reddit accounts, scheduled posts, AI generations).
 - [ ] Add entitlement checks on all quota-sensitive APIs.
 
 ## P6 - Admin/Ops Essentials
 
-- [ ] Basic job monitor endpoints + internal status page.
-- [ ] Ingestion status/lag visibility.
-- [ ] Prompt template management (minimum internal CRUD or config-based versioning).
+- [x] Basic job monitor endpoints + internal status page.
+- [x] Ingestion status/lag visibility.
+- [x] Prompt template management (minimum internal CRUD or config-based versioning).
 - [ ] Alerting hooks for failed publish and queue backlog.
 
 ## P7 - Missing Queue/Cron Parity from Report
 
-- [ ] Add queues: `recommendations.generate`, `roadmap.generate`, `content.generate`, `subreddit.ingest`, `subreddit.compute_time_windows`, `risk.account_health`, `risk.visibility_check`.
-- [ ] Add cron triggers: daily ingest, daily time-window compute, 30-min metrics refresh, daily reminders.
+- [x] Add queues: `recommendations.generate`, `roadmap.generate`, `content.generate`, `subreddit.ingest`, `subreddit.compute_time_windows`, `risk.account_health`, `risk.visibility_check`.
+- [x] Add cron triggers: daily ingest, daily time-window compute, 30-min metrics refresh, daily reminders.
 
 ## P8 - Test Coverage to Support MVP Confidence
 
 - [x] Integration tests for scheduled-post APIs and publish lifecycle.
 - [x] Integration tests for analytics endpoints.
-- [ ] Integration tests for recommendations + content generation flow.
-- [ ] Worker tests for retry behavior and failure classification.
+- [x] Integration tests for recommendations + content generation flow.
+- [x] Worker tests for retry behavior and failure classification.
 - [ ] E2E smoke flow: signup/login -> create project -> connect Reddit -> generate roadmap -> generate draft -> approve -> schedule -> publish -> view analytics.
 
 ---

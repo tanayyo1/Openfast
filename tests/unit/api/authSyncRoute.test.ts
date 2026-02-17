@@ -83,5 +83,93 @@ describe("auth sync route", () => {
         orderBy: { createdAt: "asc" },
       }),
     );
+    expect(mockedPrisma.user.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { email: "member@reditfast.local" },
+        select: expect.objectContaining({
+          id: true,
+          authId: true,
+          email: true,
+          name: true,
+          image: true,
+          emailVerified: true,
+          createdAt: true,
+          updatedAt: true,
+        }),
+      }),
+    );
+  });
+
+  test("creates user/workspace with safe field selection only", async () => {
+    mockedCreateClient.mockReturnValue({
+      auth: {
+        getUser: jest.fn().mockResolvedValue({
+          data: {
+            user: {
+              id: "auth_new_1",
+              email: "new@reditfast.local",
+              email_confirmed_at: null,
+              user_metadata: { name: "New User" },
+            },
+          },
+          error: null,
+        }),
+      },
+    });
+    mockedPrisma.user.findUnique.mockResolvedValue(null);
+    mockedPrisma.user.create.mockResolvedValue({
+      id: "u_new",
+      authId: "auth_new_1",
+      email: "new@reditfast.local",
+      name: "New User",
+      image: null,
+      emailVerified: null,
+      createdAt: "2026-02-17T00:00:00.000Z",
+      updatedAt: "2026-02-17T00:00:00.000Z",
+    });
+    mockedPrisma.workspace.create.mockResolvedValue({
+      id: "ws_new",
+      name: "New User's Workspace",
+      ownerId: "u_new",
+      plan: "FREE",
+      status: "ACTIVE",
+      createdAt: "2026-02-17T00:00:00.000Z",
+      updatedAt: "2026-02-17T00:00:00.000Z",
+    });
+
+    const res = await syncUser(
+      new Request("http://test.local/api/auth/sync", {
+        method: "POST",
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(mockedPrisma.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          id: true,
+          authId: true,
+          email: true,
+          name: true,
+          image: true,
+          emailVerified: true,
+          createdAt: true,
+          updatedAt: true,
+        }),
+      }),
+    );
+    expect(mockedPrisma.workspace.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          id: true,
+          name: true,
+          ownerId: true,
+          plan: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+        }),
+      }),
+    );
   });
 });

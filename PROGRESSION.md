@@ -107,7 +107,7 @@
 
 - [x] Implement free tool APIs: `POST /tools/post-generate`, `GET /tools/subreddit-analyzer`, `POST /tools/shadowban-check`.
 - [x] Add per-IP and per-user rate limiting for public tools.
-- [ ] Connect tool responses to real intel/risk services instead of static/demo behavior.
+- [x] Connect tool responses to real intel/risk services instead of static/demo behavior.
 
 ## P5 - Billing / Entitlements
 

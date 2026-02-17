@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MaxWidth } from "@/components/public/MaxWidth";
 import { useSupabase } from "@/components/providers/SupabaseProvider";
+import { analytics } from "@/lib/analyticsClient";
 
 function setDemoAuthCookie() {
   document.cookie = `rf_demo_auth=1; Path=/; Max-Age=${60 * 60 * 24 * 30}`;
@@ -19,6 +20,10 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    void analytics.trackSignupStarted();
+  }, []);
 
   return (
     <div className="py-16">
@@ -44,6 +49,7 @@ export default function SignupPage() {
               if (!supabase) {
                 // Allow local UI testing without Supabase configured.
                 if (process.env.NODE_ENV !== "production") {
+                  void analytics.trackSignupCompleted("demo_user");
                   setDemoAuthCookie();
                   router.push("/onboarding");
                   return;
@@ -84,6 +90,7 @@ export default function SignupPage() {
 
               // Check if email confirmation is required
               if (data.session) {
+                void analytics.trackSignupCompleted(data.user?.id);
                 // Auto-confirmed (email confirmation disabled)
                 // Sync user to our database
                 const syncRes = await fetch("/api/auth/sync", {
@@ -164,6 +171,7 @@ export default function SignupPage() {
               <button
                 type="button"
                 onClick={() => {
+                  void analytics.trackSignupCompleted("demo_user");
                   setDemoAuthCookie();
                   router.push("/onboarding");
                 }}

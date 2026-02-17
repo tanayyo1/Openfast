@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { MaxWidth } from "@/components/public/MaxWidth";
+import { analytics } from "@/lib/analyticsClient";
 
 const plans = [
   {
@@ -91,6 +94,9 @@ export default function PricingPage() {
               </ul>
               <Link
                 href="/signup"
+                onClick={() => {
+                  void analytics.trackPlanActivated(plan.name, plan.price);
+                }}
                 className={`mt-6 inline-flex w-full items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition ${
                   plan.highlight
                     ? "bg-primary text-primary-foreground hover:bg-primary/90"

@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect } from "react";
+import { analytics } from "@/lib/analyticsClient";
 
 const steps = [
   {
@@ -24,6 +28,10 @@ const steps = [
 ];
 
 export default function OnboardingPage() {
+  useEffect(() => {
+    void analytics.trackOnboardingStep("overview");
+  }, []);
+
   return (
     <div className="space-y-8">
       <div>
@@ -54,6 +62,12 @@ export default function OnboardingPage() {
               </div>
               <Link
                 href={step.href}
+                onClick={() => {
+                  void analytics.trackOnboardingStep(`overview_${index + 1}`, {
+                    href: step.href,
+                    action: step.action,
+                  });
+                }}
                 className="rounded-full border border-border px-4 py-2 text-sm font-semibold transition hover:border-foreground/40"
               >
                 {step.action}

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDemoStore } from "@/stores/demoStore";
+import { analytics } from "@/lib/analyticsClient";
 
 const scopes = [
   {
@@ -37,6 +38,12 @@ export default function ConnectRedditPage() {
 
   const [username, setUsername] = useState("");
   const [tier, setTier] = useState<"New" | "Established">("New");
+
+  useEffect(() => {
+    void analytics.trackOnboardingStep("connect_reddit", {
+      hasProjectId: Boolean(projectId),
+    });
+  }, [projectId]);
 
   const canContinue = useMemo(() => {
     return accounts.length > 0;
@@ -117,6 +124,9 @@ export default function ConnectRedditPage() {
                 const clean = username.trim();
                 if (!clean) return;
                 connectRedditAccount({ username: clean, tier });
+                void analytics.trackOnboardingStep("connect_reddit_account", {
+                  tier,
+                });
                 setUsername("");
               }}
               className="mt-4 w-full rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
@@ -192,6 +202,9 @@ export default function ConnectRedditPage() {
           type="button"
           disabled={!canContinue}
           onClick={() => {
+            void analytics.trackOnboardingCompleted({
+              accountCount: accounts.length,
+            });
             const base = projectId
               ? `/roadmaps/generate?projectId=${encodeURIComponent(projectId)}`
               : "/roadmaps/generate";

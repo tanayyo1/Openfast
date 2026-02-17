@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect } from "react";
 import { MaxWidth } from "@/components/public/MaxWidth";
+import { analytics } from "@/lib/analyticsClient";
 
 const heroSignals = [
   "Compliance guardrails baked in",
@@ -102,6 +106,10 @@ const tools = [
 ];
 
 export default function HomePage() {
+  useEffect(() => {
+    void analytics.trackHomepageView();
+  }, []);
+
   return (
     <div>
       <section className="relative pb-20 pt-16">

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDemoStore } from "@/stores/demoStore";
+import { analytics } from "@/lib/analyticsClient";
 
 const goalOptions = [
   {
@@ -28,6 +29,10 @@ export default function CreateProjectPage() {
   const [brandVoice, setBrandVoice] = useState("");
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void analytics.trackOnboardingStep("create_project");
+  }, []);
 
   const isValid = useMemo(() => {
     return name.trim().length > 1 && description.trim().length > 10;
@@ -192,6 +197,12 @@ export default function CreateProjectPage() {
                 description: description.trim(),
                 brandVoice: brandVoice.trim(),
                 goals: selectedGoals,
+              });
+
+              void analytics.trackOnboardingStep("create_project_saved", {
+                hasUrl: Boolean(url.trim()),
+                goalCount: selectedGoals.length,
+                projectId,
               });
 
               router.push(

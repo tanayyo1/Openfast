@@ -128,4 +128,42 @@ describe("generateProjectPainPoints", () => {
       1,
     );
   });
+
+  test("preserves existing pain points when extraction returns no candidates", async () => {
+    mockedPrisma.projectSubredditRecommendation.findMany
+      .mockResolvedValueOnce([{ subredditId: "sub_1", status: "SELECTED" }])
+      .mockResolvedValueOnce([]);
+    mockedPrisma.threadCandidate.findMany.mockResolvedValueOnce([
+      {
+        subredditId: "sub_1",
+        redditId: "t3_1",
+        title: "General discussion",
+        score: 0.5,
+        relevanceScore: 0.6,
+      },
+    ]);
+    mockedExtract.extractPainPointCandidates.mockReturnValueOnce([]);
+    mockedPrisma.projectPainPoint.findMany.mockResolvedValueOnce([
+      {
+        id: "pp_existing",
+        subredditId: "sub_1",
+        phrase: "existing pain point",
+        normalizedPhrase: "existing pain point",
+        severityScore: 0.7,
+        confidenceScore: 0.65,
+        frequency: 3,
+        subreddit: { id: "sub_1", name: "startups", title: "Startups" },
+      },
+    ]);
+
+    const out = await generateProjectPainPoints({
+      workspaceId: "ws_1",
+      projectId: "p_1",
+    });
+
+    expect(tx.projectPainPoint.deleteMany).not.toHaveBeenCalled();
+    expect(tx.projectPainPoint.createMany).not.toHaveBeenCalled();
+    expect(out.extracted).toBe(1);
+    expect(out.items[0]?.id).toBe("pp_existing");
+  });
 });

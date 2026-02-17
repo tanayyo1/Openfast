@@ -51,8 +51,8 @@ export async function POST(req: Request) {
   const { email, password, name, workspaceName } = parsed.data;
   const normalizedEmail = email.toLowerCase();
 
-  const existing = await prisma.user.findUnique({
-    where: { email: normalizedEmail },
+  const existing = await prisma.user.findFirst({
+    where: { email: { equals: normalizedEmail, mode: "insensitive" } },
     select: { id: true },
   });
   if (existing) {

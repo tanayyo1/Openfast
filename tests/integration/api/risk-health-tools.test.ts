@@ -182,7 +182,7 @@ describe("Risk health + tools APIs", () => {
       };
       expect(json.check.result).toBe("OK");
       expect(json.check.permalink).toContain("reddit.com");
-      expect(json.queue?.id).toBe("job_vis_1");
+      expect(json.queue?.id).toMatch(/^inline:/);
     } finally {
       fetchSpy.mockRestore();
     }

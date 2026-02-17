@@ -10,7 +10,8 @@ function cadenceForTier(tier: "NEW" | "ESTABLISHED" | "TRUSTED" | "RESTRICTED") 
   return "Comments only until account recovers";
 }
 
-function scorePillTone(score: number) {
+function scorePillTone(score: number | null) {
+  if (score == null) return "border-slate-300 bg-slate-50 text-slate-700";
   if (score < 30) return "border-red-300 bg-red-50 text-red-700";
   if (score < 45) return "border-amber-300 bg-amber-50 text-amber-700";
   return "border-emerald-300 bg-emerald-50 text-emerald-700";
@@ -76,7 +77,10 @@ export default async function HealthPage() {
           accounts.map((account) => {
             const latestSnapshot = account.healthSnapshots[0] ?? null;
             const latestVisibility = account.visibilityChecks[0] ?? null;
-            const healthScore = Math.round(latestSnapshot?.healthScore ?? 100);
+            const healthScore =
+              latestSnapshot != null
+                ? Math.round(latestSnapshot.healthScore)
+                : null;
             const warnings: string[] = [];
 
             if (account.safetyTier === "RESTRICTED") {
@@ -84,11 +88,11 @@ export default async function HealthPage() {
                 "Publishing should stay blocked until account restrictions recover.",
               );
             }
-            if (healthScore < 30) {
+            if (healthScore != null && healthScore < 30) {
               warnings.push(
                 "High risk detected. Do not schedule posts until health improves.",
               );
-            } else if (healthScore < 45) {
+            } else if (healthScore != null && healthScore < 45) {
               warnings.push(
                 "Health score is low. Prioritize comments and reduce posting pace.",
               );
@@ -123,13 +127,19 @@ export default async function HealthPage() {
                   <span
                     className={`rounded-full border px-3 py-1 text-xs ${scorePillTone(healthScore)}`}
                   >
-                    Score {healthScore}
+                    {healthScore == null ? "Score unavailable" : `Score ${healthScore}`}
                   </span>
                 </div>
 
-                <div className="mt-5">
-                  <BarMeter label="Health score" value={healthScore} />
-                </div>
+                {healthScore == null ? (
+                  <div className="mt-5 rounded-2xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
+                    Score unavailable until first health snapshot is captured.
+                  </div>
+                ) : (
+                  <div className="mt-5">
+                    <BarMeter label="Health score" value={healthScore} />
+                  </div>
+                )}
 
                 <div className="mt-6 rounded-2xl border border-border bg-background/70 p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
@@ -149,7 +159,7 @@ export default async function HealthPage() {
                     <li>
                       Last health snapshot:{" "}
                       {latestSnapshot
-                        ? latestSnapshot.capturedAt.toLocaleString()
+                        ? latestSnapshot.capturedAt.toISOString()
                         : "Not captured"}
                     </li>
                   </ul>

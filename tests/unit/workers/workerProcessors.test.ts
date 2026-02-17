@@ -292,6 +292,52 @@ describe("worker processors", () => {
     expect(mockedRedditClient.redditFetch).not.toHaveBeenCalled();
   });
 
+  test("processPublishJob does not apply health block to comment drafts", async () => {
+    mockedPrisma.scheduledPost.findUnique.mockResolvedValue({
+      ...baseScheduledPost,
+      draft: {
+        ...baseScheduledPost.draft,
+        type: "COMMENT",
+        title: null,
+        generationParams: { parentThingId: "t3_parent123" },
+      },
+    });
+    mockedPrisma.accountHealthSnapshot.findFirst.mockResolvedValue({
+      healthScore: 12,
+    });
+    mockedPrisma.publishedItem.count.mockResolvedValue(0);
+    mockedTokenCrypto.decryptToken.mockReturnValue("access-token");
+    mockedRedditClient.redditFetch.mockResolvedValue({
+      data: {
+        json: {
+          data: {
+            name: "t1_comment123",
+            id: "comment123",
+            permalink: "/r/startups/comments/post123/comment123/",
+            url: "https://reddit.com/r/startups/comments/post123/comment123/",
+          },
+        },
+      },
+    });
+    mockedPrisma.publishedItem.upsert.mockResolvedValue({ id: "pi_comment_1" });
+    mockedQueue.enqueueMetricsFetchJob.mockResolvedValue({ id: "job_m_2" });
+
+    const job = {
+      id: "job_p_comment_health_ok",
+      attemptsStarted: 1,
+      data: { scheduledPostId: "sp_1" },
+    } as unknown as Job<{ scheduledPostId: string }>;
+
+    await expect(processPublishJob(job)).resolves.toEqual({
+      scheduledPostId: "sp_1",
+      publishedItemId: "pi_comment_1",
+      status: "published",
+    });
+    expect(mockedRedditClient.redditFetch).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "/api/comment" }),
+    );
+  });
+
   test("processPublishJob is idempotent when already published", async () => {
     mockedPrisma.scheduledPost.findUnique.mockResolvedValue({
       ...baseScheduledPost,

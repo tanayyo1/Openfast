@@ -206,6 +206,37 @@ export async function POST(req: Request) {
   const recommendations =
     selectedRecs.length > 0 ? selectedRecs : candidateRecs;
 
+  const painPoints = await prisma.projectPainPoint.findMany({
+    where: {
+      workspaceId: session.workspaceId,
+      projectId,
+      status: "ACTIVE",
+    },
+    orderBy: [{ frequency: "desc" }, { severityScore: "desc" }],
+    take: 40,
+    select: {
+      subredditId: true,
+      phrase: true,
+      frequency: true,
+      severityScore: true,
+    },
+  });
+  const painPointBySubreddit = new Map<
+    string,
+    Array<{ phrase: string; frequency: number; severityScore: number }>
+  >();
+  for (const painPoint of painPoints) {
+    const list = painPointBySubreddit.get(painPoint.subredditId) ?? [];
+    if (list.length < 2) {
+      list.push({
+        phrase: painPoint.phrase,
+        frequency: painPoint.frequency,
+        severityScore: painPoint.severityScore,
+      });
+    }
+    painPointBySubreddit.set(painPoint.subredditId, list);
+  }
+
   const created = await prisma.$transaction(
     async (tx: Prisma.TransactionClient) => {
       const roadmap = await tx.roadmap.create({
@@ -266,6 +297,11 @@ export async function POST(req: Request) {
           typeof recReasons.summary === "string" && recReasons.summary
             ? recReasons.summary
             : "Good fit based on project niche and subreddit activity.";
+        const mappedPainPoints = painPointBySubreddit.get(rec.subredditId) ?? [];
+        const painPointHint =
+          mappedPainPoints.length > 0
+            ? ` Pain points seen here: ${mappedPainPoints.map((item) => item.phrase).join("; ")}.`
+            : "";
 
         const instructionPrefix =
           taskType === "RESEARCH"
@@ -281,7 +317,7 @@ export async function POST(req: Request) {
           type: taskType,
           subredditId: rec.subredditId,
           title: `${taskType} in r/${rec.subreddit.name}`,
-          instructions: `${instructionPrefix}\nReason: ${reasonSummary}`,
+          instructions: `${instructionPrefix}\nReason: ${reasonSummary}${painPointHint}`,
           priority: taskType === "POST" ? 4 : 3,
           fitScore: rec.fitScore,
           status: "PENDING" as const,

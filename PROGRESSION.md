@@ -157,7 +157,7 @@
 - RED-41: Draft rewrite
 - RED-49: Subreddit fit score
 - RED-51: Anti-pattern detector (DONE - vote manipulation / engagement-gating / repetition signals added to draft compliance scoring)
-- RED-56: Pain point extractor
+- RED-56: Pain point extractor (DONE - project/subreddit pain-point extraction from thread candidates + persisted insights + API endpoints)
 - RED-50: Community engagement threshold (DONE - subreddit-level comment threshold gate at schedule + publish with explicit API/worker errors)
 
 ### Tier 3 - Polish (Backlog, Medium priority)

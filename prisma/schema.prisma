@@ -700,6 +700,29 @@ model Conversion {
   @@map("conversions")
 }
 
+model AnalyticsEvent {
+  id String @id
+
+  eventName String @map("event_name")
+
+  workspaceId String? @map("workspace_id")
+  userId      String? @map("user_id")
+
+  anonymousSessionId String? @map("anonymous_session_id")
+  source             String
+  page               String?
+
+  properties Json
+
+  eventTs    DateTime @map("event_ts")
+  ingestedAt DateTime @default(now()) @map("ingested_at")
+
+  @@index([workspaceId, eventTs])
+  @@index([eventName, eventTs])
+  @@index([anonymousSessionId, eventTs])
+  @@map("analytics_events")
+}
+
 // ==================== AUDIT & LOGS ====================
 
 model AuditLog {

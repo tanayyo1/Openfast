@@ -19,6 +19,28 @@ function planFromPriceId(value: string | null | undefined): Plan | null {
   return null;
 }
 
+function resolveCheckoutCompletedPlan(input: {
+  metadataPlan: string | undefined;
+  metadataPriceId: string | undefined;
+}): Plan | null {
+  const byPriceId = planFromPriceId(input.metadataPriceId);
+  if (byPriceId && byPriceId !== "FREE") return byPriceId;
+
+  const byMetadata = planFromMetadata(input.metadataPlan);
+  if (byMetadata !== "FREE") return byMetadata;
+
+  return null;
+}
+
+function currentPeriodEndForPlan(plan: Plan) {
+  if (plan === "LIFETIME") {
+    const farFuture = new Date();
+    farFuture.setUTCFullYear(farFuture.getUTCFullYear() + 100);
+    return farFuture;
+  }
+  return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+}
+
 function safeStatus(value: string | undefined): SubscriptionStatus {
   const fallback: SubscriptionStatus = "INCOMPLETE";
   if (!value) return fallback;
@@ -160,10 +182,14 @@ export async function POST(req: Request) {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     const workspaceId = session.metadata?.workspaceId;
-    const plan = planFromMetadata(session.metadata?.plan);
+    const plan = resolveCheckoutCompletedPlan({
+      metadataPlan: session.metadata?.plan,
+      metadataPriceId: session.metadata?.priceId,
+    });
     const customerId =
       typeof session.customer === "string" ? session.customer : null;
     if (workspaceId && customerId) {
+      const periodEnd = currentPeriodEndForPlan(plan ?? "PRO");
       await prisma.subscription.upsert({
         where: { workspaceId },
         update: {
@@ -175,7 +201,7 @@ export async function POST(req: Request) {
           stripePriceId: session.metadata?.priceId ?? null,
           status: "ACTIVE",
           currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          currentPeriodEnd: periodEnd,
           cancelAtPeriodEnd: false,
         },
         create: {
@@ -188,11 +214,13 @@ export async function POST(req: Request) {
           stripePriceId: session.metadata?.priceId ?? null,
           status: "ACTIVE",
           currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          currentPeriodEnd: periodEnd,
           cancelAtPeriodEnd: false,
         },
       });
-      await applyWorkspacePlan(workspaceId, plan);
+      if (plan) {
+        await applyWorkspacePlan(workspaceId, plan);
+      }
     }
   }
 

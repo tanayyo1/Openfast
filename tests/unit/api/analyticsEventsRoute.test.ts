@@ -9,6 +9,7 @@ jest.mock("@/lib/prisma", () => ({
 }));
 
 import { POST as ingestEvents } from "@/app/api/analytics/events/route";
+import { Prisma } from "@prisma/client";
 
 const mockedGuards = jest.requireMock("@/lib/server/auth-guards") as {
   requireWorkspaceSession: jest.Mock;
@@ -62,7 +63,7 @@ describe("analytics events ingest route (RED-79A)", () => {
     expect(executeRaw).toHaveBeenCalledTimes(1);
   });
 
-  test("rejects protected onboarding event without workspace context", async () => {
+  test("rejects protected onboarding event without authentication", async () => {
     mockedGuards.requireWorkspaceSession.mockRejectedValue(
       new Error("UNAUTHORIZED"),
     );
@@ -84,7 +85,7 @@ describe("analytics events ingest route (RED-79A)", () => {
 
     const body = await readJson<{ violations: Array<{ reason: string }> }>(res);
     expect(res.status).toBe(400);
-    expect(body.violations[0]?.reason).toMatch(/workspaceId is required/i);
+    expect(body.violations[0]?.reason).toMatch(/authentication is required/i);
     expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
   });
 
@@ -116,5 +117,36 @@ describe("analytics events ingest route (RED-79A)", () => {
       /does not match authenticated workspace/i,
     );
     expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  test("maps foreign-key insert failures to INVALID_REFERENCE", async () => {
+    mockedGuards.requireWorkspaceSession.mockResolvedValue({
+      workspaceId: "ws_1",
+      user: { id: "user_1" },
+    });
+    const prismaErr = new Error("fk fail") as Prisma.PrismaClientKnownRequestError;
+    Object.setPrototypeOf(
+      prismaErr,
+      Prisma.PrismaClientKnownRequestError.prototype,
+    );
+    (prismaErr as unknown as { code: string }).code = "P2010";
+    (prismaErr as unknown as { meta: Record<string, unknown> }).meta = {
+      code: "23503",
+    };
+    mockedPrisma.$transaction.mockRejectedValue(prismaErr);
+
+    const res = await ingestEvents(
+      new Request("http://test.local/api/analytics/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          events: [{ eventName: "plan_activated", source: "web_app" }],
+        }),
+      }),
+    );
+
+    const body = await readJson<{ code: string }>(res);
+    expect(res.status).toBe(400);
+    expect(body.code).toBe("INVALID_REFERENCE");
   });
 });

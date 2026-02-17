@@ -47,18 +47,32 @@ export async function POST(
   let subredditStrict: boolean | undefined;
   let productCategory: string | undefined;
 
+  let json: unknown = {};
   try {
-    const raw = await req.json().catch(() => ({}));
-    const parsed = bodySchema.safeParse(raw);
-    if (parsed.success) {
-      if (parsed.data.title !== undefined) title = parsed.data.title;
-      if (parsed.data.body !== undefined) body = parsed.data.body;
-      subredditStrict = parsed.data.subredditStrict;
-      productCategory = parsed.data.productCategory;
-    }
+    const rawBody = await req.text();
+    json = rawBody.trim().length > 0 ? JSON.parse(rawBody) : {};
   } catch {
-    // use draft title/body
+    return NextResponse.json(
+      { error: "Invalid JSON body", code: "BAD_JSON" },
+      { status: 400 },
+    );
   }
+
+  const parsed = bodySchema.safeParse(json);
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: "Invalid input",
+        code: "VALIDATION_ERROR",
+        details: parsed.error.flatten(),
+      },
+      { status: 400 },
+    );
+  }
+  if (parsed.data.title !== undefined) title = parsed.data.title;
+  if (parsed.data.body !== undefined) body = parsed.data.body;
+  subredditStrict = parsed.data.subredditStrict;
+  productCategory = parsed.data.productCategory;
 
   const result = validatePostStructure(title, body, {
     subredditStrict,

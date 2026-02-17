@@ -25,9 +25,12 @@ function decodeCursor(raw: string): Cursor | null {
     const parsed = JSON.parse(
       Buffer.from(raw, "base64url").toString("utf8"),
     ) as unknown;
-    const schema = z.object({ createdAt: z.string(), id: z.string() });
+    const schema = z.object({ createdAt: z.string(), id: z.string().min(1) });
     const res = schema.safeParse(parsed);
-    return res.success ? res.data : null;
+    if (!res.success) return null;
+    const createdAt = new Date(res.data.createdAt);
+    if (Number.isNaN(createdAt.getTime())) return null;
+    return res.data;
   } catch {
     return null;
   }
@@ -184,7 +187,7 @@ export async function POST(req: Request) {
         select: { id: true, name: true, title: true },
       },
     },
-    orderBy: [{ fitScore: "desc" }, { riskScore: "asc" }, { id: "asc" }],
+    orderBy: [{ compositeScore: "desc" }, { id: "asc" }],
     take: 5,
   });
 
@@ -199,12 +202,43 @@ export async function POST(req: Request) {
         select: { id: true, name: true, title: true },
       },
     },
-    orderBy: [{ fitScore: "desc" }, { riskScore: "asc" }, { id: "asc" }],
+    orderBy: [{ compositeScore: "desc" }, { id: "asc" }],
     take: 5,
   });
 
   const recommendations =
     selectedRecs.length > 0 ? selectedRecs : candidateRecs;
+
+  const painPoints = await prisma.projectPainPoint.findMany({
+    where: {
+      workspaceId: session.workspaceId,
+      projectId,
+      status: "ACTIVE",
+    },
+    orderBy: [{ frequency: "desc" }, { severityScore: "desc" }],
+    take: 40,
+    select: {
+      subredditId: true,
+      phrase: true,
+      frequency: true,
+      severityScore: true,
+    },
+  });
+  const painPointBySubreddit = new Map<
+    string,
+    Array<{ phrase: string; frequency: number; severityScore: number }>
+  >();
+  for (const painPoint of painPoints) {
+    const list = painPointBySubreddit.get(painPoint.subredditId) ?? [];
+    if (list.length < 2) {
+      list.push({
+        phrase: painPoint.phrase,
+        frequency: painPoint.frequency,
+        severityScore: painPoint.severityScore,
+      });
+    }
+    painPointBySubreddit.set(painPoint.subredditId, list);
+  }
 
   const created = await prisma.$transaction(
     async (tx: Prisma.TransactionClient) => {
@@ -254,6 +288,7 @@ export async function POST(req: Request) {
               "Build karma via useful comments, then post once approved.",
             priority: 3,
             status: "PENDING" as const,
+            fitScore: null,
           };
         }
 
@@ -265,6 +300,11 @@ export async function POST(req: Request) {
           typeof recReasons.summary === "string" && recReasons.summary
             ? recReasons.summary
             : "Good fit based on project niche and subreddit activity.";
+        const mappedPainPoints = painPointBySubreddit.get(rec.subredditId) ?? [];
+        const painPointHint =
+          mappedPainPoints.length > 0
+            ? ` Pain points seen here: ${mappedPainPoints.map((item) => item.phrase).join("; ")}.`
+            : "";
 
         const instructionPrefix =
           taskType === "RESEARCH"
@@ -280,8 +320,9 @@ export async function POST(req: Request) {
           type: taskType,
           subredditId: rec.subredditId,
           title: `${taskType} in r/${rec.subreddit.name}`,
-          instructions: `${instructionPrefix}\nReason: ${reasonSummary}`,
+          instructions: `${instructionPrefix}\nReason: ${reasonSummary}${painPointHint}`,
           priority: taskType === "POST" ? 4 : 3,
+          fitScore: rec.fitScore,
           status: "PENDING" as const,
         };
       });

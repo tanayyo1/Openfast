@@ -9,10 +9,12 @@ type RecommendationOutput = {
   subredditId: string;
   fitScore: number;
   riskScore: number;
+  timeWindowScore: number;
+  compositeScore: number;
   reasons: Prisma.JsonValue;
   status: string;
   selectedAt: Date | null;
-  rank: number | null;
+  dismissedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   subreddit: {
@@ -122,6 +124,37 @@ export async function generateProjectRecommendations(input: {
 
   const keywords = extractProjectKeywords(project);
   const primaryKeyword = keywords[0];
+  const existingSelected = await prisma.projectSubredditRecommendation.findMany({
+    where: {
+      workspaceId: input.workspaceId,
+      projectId: input.projectId,
+      status: "SELECTED",
+    },
+    select: { subredditId: true },
+  });
+  const selectedSubredditIds = new Set(
+    existingSelected.map((item) => item.subredditId),
+  );
+
+  const fetchCurrentRecommendations = async () =>
+    prisma.projectSubredditRecommendation.findMany({
+      where: {
+        workspaceId: input.workspaceId,
+        projectId: input.projectId,
+      },
+      include: {
+        subreddit: {
+          select: {
+            id: true,
+            name: true,
+            title: true,
+            subscribers: true,
+          },
+        },
+      },
+      orderBy: [{ compositeScore: "desc" }, { id: "asc" }],
+      take: 5,
+    });
 
   const subreddits = await prisma.subredditCatalog.findMany({
     where: primaryKeyword
@@ -152,7 +185,21 @@ export async function generateProjectRecommendations(input: {
   });
 
   if (subreddits.length === 0) {
-    return { project, recommendations: [] as RecommendationOutput[] };
+    await prisma.projectSubredditRecommendation.deleteMany({
+      where: {
+        workspaceId: input.workspaceId,
+        projectId: input.projectId,
+        status: { not: "SELECTED" },
+      },
+    });
+    const recommendations = await fetchCurrentRecommendations();
+    return {
+      project,
+      recommendations: recommendations.map((rec) => ({
+        ...rec,
+        ranking: null,
+      })) as RecommendationOutput[],
+    };
   }
 
   const ranked = rankTopSubreddits(
@@ -184,64 +231,81 @@ export async function generateProjectRecommendations(input: {
   const scoreMap = new Map<string, (typeof ranked)[number]>(
     ranked.map((item: (typeof ranked)[number]) => [item.subredditId, item]),
   );
+  const selectedRanked = ranked.filter((item) =>
+    selectedSubredditIds.has(item.subredditId),
+  );
+  const candidateRanked = ranked.filter(
+    (item) => !selectedSubredditIds.has(item.subredditId),
+  );
 
   await prisma.$transaction(async (tx) => {
     await tx.projectSubredditRecommendation.deleteMany({
       where: {
         workspaceId: input.workspaceId,
         projectId: input.projectId,
+        status: { not: "SELECTED" },
       },
     });
 
-    if (ranked.length === 0) return;
-
-    await tx.projectSubredditRecommendation.createMany({
-      data: ranked.map((item: (typeof ranked)[number], index: number) => ({
-        workspaceId: input.workspaceId,
-        projectId: input.projectId,
-        subredditId: item.subredditId,
-        fitScore: item.fitScore,
-        riskScore: item.riskScore,
-        rank: index + 1,
-        reasons: {
+    for (const item of selectedRanked) {
+      await tx.projectSubredditRecommendation.updateMany({
+        where: {
+          workspaceId: input.workspaceId,
+          projectId: input.projectId,
+          subredditId: item.subredditId,
+          status: "SELECTED",
+        },
+        data: {
           fitScore: item.fitScore,
           riskScore: item.riskScore,
           timeWindowScore: item.timeWindowScore,
           compositeScore: item.compositeScore,
-          summary:
-            item.riskScore > 0.6
-              ? "High potential but elevated moderation risk."
-              : "Good fit with manageable posting risk.",
-        } as Prisma.InputJsonValue,
-        status: "CANDIDATE",
-      })),
-    });
+          reasons: {
+            fitScore: item.fitScore,
+            riskScore: item.riskScore,
+            timeWindowScore: item.timeWindowScore,
+            summary:
+              item.riskScore > 0.6
+                ? "High potential but elevated moderation risk."
+                : "Good fit with manageable posting risk.",
+          } as Prisma.InputJsonValue,
+          dismissedAt: null,
+        },
+      });
+    }
+
+    if (candidateRanked.length > 0) {
+      await tx.projectSubredditRecommendation.createMany({
+        data: candidateRanked.map((item: (typeof ranked)[number]) => ({
+          workspaceId: input.workspaceId,
+          projectId: input.projectId,
+          subredditId: item.subredditId,
+          fitScore: item.fitScore,
+          riskScore: item.riskScore,
+          timeWindowScore: item.timeWindowScore,
+          compositeScore: item.compositeScore,
+          reasons: {
+            fitScore: item.fitScore,
+            riskScore: item.riskScore,
+            timeWindowScore: item.timeWindowScore,
+            summary:
+              item.riskScore > 0.6
+                ? "High potential but elevated moderation risk."
+                : "Good fit with manageable posting risk.",
+          } as Prisma.InputJsonValue,
+          status: "CANDIDATE",
+        })),
+      });
+    }
   });
 
-  const recommendations = await prisma.projectSubredditRecommendation.findMany({
-    where: {
-      workspaceId: input.workspaceId,
-      projectId: input.projectId,
-    },
-    include: {
-      subreddit: {
-        select: {
-          id: true,
-          name: true,
-          title: true,
-          subscribers: true,
-        },
-      },
-    },
-    orderBy: [{ fitScore: "desc" }, { riskScore: "asc" }, { id: "asc" }],
-    take: 5,
-  });
+  const recommendations = await fetchCurrentRecommendations();
 
   return {
     project,
     recommendations: recommendations.map((rec) => ({
       ...rec,
       ranking: scoreMap.get(rec.subredditId) ?? null,
-    })),
+    })) as RecommendationOutput[],
   };
 }

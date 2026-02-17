@@ -72,8 +72,20 @@ export async function POST(req: Request) {
   const preparedEvents: PreparedEvent[] = [];
 
   parsed.data.events.forEach((event, index) => {
-    const workspaceId = event.workspaceId ?? session?.workspaceId ?? null;
-    const userId = session?.user.id ?? event.userId ?? null;
+    if (!session && requiresWorkspaceContext(event.eventName)) {
+      violations.push({
+        index,
+        reason:
+          "Authentication is required for onboarding and plan activation events",
+      });
+      return;
+    }
+
+    // Anonymous/public ingestion never trusts caller-provided workspace/user ids.
+    const workspaceId = session
+      ? (event.workspaceId ?? session.workspaceId)
+      : null;
+    const userId = session ? session.user.id : null;
 
     if (session && workspaceId && workspaceId !== session.workspaceId) {
       violations.push({
@@ -87,15 +99,6 @@ export async function POST(req: Request) {
       violations.push({
         index,
         reason: "userId does not match authenticated user",
-      });
-      return;
-    }
-
-    if (!workspaceId && requiresWorkspaceContext(event.eventName)) {
-      violations.push({
-        index,
-        reason:
-          "workspaceId is required for onboarding and plan activation events",
       });
       return;
     }
@@ -153,6 +156,31 @@ export async function POST(req: Request) {
       }
     });
   } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+      if (err.code === "P2003") {
+        return NextResponse.json(
+          {
+            error: "Invalid analytics references",
+            code: "INVALID_REFERENCE",
+          },
+          { status: 400 },
+        );
+      }
+      if (
+        err.code === "P2010" &&
+        typeof err.meta === "object" &&
+        err.meta !== null &&
+        String((err.meta as Record<string, unknown>).code) === "23503"
+      ) {
+        return NextResponse.json(
+          {
+            error: "Invalid analytics references",
+            code: "INVALID_REFERENCE",
+          },
+          { status: 400 },
+        );
+      }
+    }
     return NextResponse.json(
       {
         error: "Failed to ingest analytics events",

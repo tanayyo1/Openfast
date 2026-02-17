@@ -86,7 +86,15 @@ function fail(
 export function buildRedditProfileChecklist(input: ProfileChecklistInput) {
   const thresholds = getChecklistThresholds();
   const scopeSet = normalizeScopes(input.scopes);
-  const combinedKarma = input.linkKarma + input.commentKarma;
+  const accountAgeDays = Math.max(0, Math.floor(input.accountAgeDays));
+  const linkKarma = Math.max(0, Math.floor(input.linkKarma));
+  const commentKarma = Math.max(0, Math.floor(input.commentKarma));
+  const combinedKarma = linkKarma + commentKarma;
+  const publishedComments = Math.max(0, Math.floor(input.publishedComments));
+  const commentFirstMinComments = Math.max(
+    0,
+    Math.floor(input.commentFirstMinComments),
+  );
   const syncAgeDays = Math.max(
     0,
     Math.floor((Date.now() - input.lastSyncAt.getTime()) / (1000 * 60 * 60 * 24)),
@@ -112,12 +120,12 @@ export function buildRedditProfileChecklist(input: ProfileChecklistInput) {
     );
   }
 
-  if (input.accountAgeDays >= thresholds.minimumAccountAgeDays) {
+  if (accountAgeDays >= thresholds.minimumAccountAgeDays) {
     items.push(
       pass(
         "account_age",
         "Account age",
-        `Account age is ${input.accountAgeDays} days.`,
+        `Account age is ${accountAgeDays} days.`,
       ),
     );
   } else {
@@ -125,7 +133,7 @@ export function buildRedditProfileChecklist(input: ProfileChecklistInput) {
       warn(
         "account_age",
         "Account age",
-        `Account age is ${input.accountAgeDays} days; recommended minimum is ${thresholds.minimumAccountAgeDays}.`,
+        `Account age is ${accountAgeDays} days; recommended minimum is ${thresholds.minimumAccountAgeDays}.`,
         "Prioritize comments and avoid promotional posts until account age increases.",
       ),
     );
@@ -150,12 +158,12 @@ export function buildRedditProfileChecklist(input: ProfileChecklistInput) {
     );
   }
 
-  if (input.commentKarma >= thresholds.minimumCommentKarma) {
+  if (commentKarma >= thresholds.minimumCommentKarma) {
     items.push(
       pass(
         "comment_karma",
         "Comment karma",
-        `Comment karma is ${input.commentKarma}.`,
+        `Comment karma is ${commentKarma}.`,
       ),
     );
   } else {
@@ -163,7 +171,7 @@ export function buildRedditProfileChecklist(input: ProfileChecklistInput) {
       warn(
         "comment_karma",
         "Comment karma",
-        `Comment karma is ${input.commentKarma}; target at least ${thresholds.minimumCommentKarma}.`,
+        `Comment karma is ${commentKarma}; target at least ${thresholds.minimumCommentKarma}.`,
         "Engage in existing threads before creating new posts.",
       ),
     );
@@ -236,12 +244,12 @@ export function buildRedditProfileChecklist(input: ProfileChecklistInput) {
   }
 
   if (input.safetyTier === "NEW") {
-    if (input.publishedComments >= input.commentFirstMinComments) {
+    if (publishedComments >= commentFirstMinComments) {
       items.push(
         pass(
           "comment_first_progress",
           "Comment-first progress",
-          `Published comments: ${input.publishedComments}/${input.commentFirstMinComments}.`,
+          `Published comments: ${publishedComments}/${commentFirstMinComments}.`,
         ),
       );
     } else {
@@ -249,7 +257,7 @@ export function buildRedditProfileChecklist(input: ProfileChecklistInput) {
         fail(
           "comment_first_progress",
           "Comment-first progress",
-          `Published comments: ${input.publishedComments}/${input.commentFirstMinComments}.`,
+          `Published comments: ${publishedComments}/${commentFirstMinComments}.`,
           "Complete comment-first requirement before scheduling post drafts.",
         ),
       );
@@ -282,4 +290,3 @@ export function buildRedditProfileChecklist(input: ProfileChecklistInput) {
     items,
   };
 }
-

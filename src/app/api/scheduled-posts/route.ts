@@ -296,32 +296,30 @@ export async function POST(req: Request) {
     }
   }
 
-  const latestHealth = await prisma.accountHealthSnapshot.findFirst({
-    where: {
-      workspaceId: session.workspaceId,
-      redditAccountId: redditAccount.id,
-    },
-    orderBy: { capturedAt: "desc" },
-    select: { healthScore: true, capturedAt: true },
-  });
-  if (
-    latestHealth &&
-    draft.type === "POST" &&
-    latestHealth.healthScore < HEALTH_BLOCK_THRESHOLD
-  ) {
-    return NextResponse.json(
-      {
-        error:
-          "Account health is below safe threshold. Scheduling posts is temporarily blocked.",
-        code: "ACCOUNT_HEALTH_BLOCKED",
-        details: {
-          healthScore: latestHealth.healthScore,
-          threshold: HEALTH_BLOCK_THRESHOLD,
-          capturedAt: latestHealth.capturedAt.toISOString(),
-        },
+  if (draft.type === "POST") {
+    const latestHealth = await prisma.accountHealthSnapshot.findFirst({
+      where: {
+        workspaceId: session.workspaceId,
+        redditAccountId: redditAccount.id,
       },
-      { status: 409 },
-    );
+      orderBy: { capturedAt: "desc" },
+      select: { healthScore: true, capturedAt: true },
+    });
+    if (latestHealth && latestHealth.healthScore < HEALTH_BLOCK_THRESHOLD) {
+      return NextResponse.json(
+        {
+          error:
+            "Account health is below safe threshold. Scheduling posts is temporarily blocked.",
+          code: "ACCOUNT_HEALTH_BLOCKED",
+          details: {
+            healthScore: latestHealth.healthScore,
+            threshold: HEALTH_BLOCK_THRESHOLD,
+            capturedAt: latestHealth.capturedAt.toISOString(),
+          },
+        },
+        { status: 409 },
+      );
+    }
   }
 
   const subredditId = data.subredditId ?? draft.subredditId;

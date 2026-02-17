@@ -109,4 +109,82 @@ describe("project demand-scorecard route (RED-57)", () => {
     expect(json.scorecard.components.fit).toBeGreaterThan(0);
     expect(json.scorecard.components.painIntensity).toBeGreaterThan(0);
   });
+
+  test("returns auth error when workspace session fails", async () => {
+    mockedGuards.requireWorkspaceSession.mockRejectedValueOnce(
+      new Error("UNAUTHORIZED"),
+    );
+
+    const res = await getDemandScorecard(
+      new Request("http://test.local/api/projects/p_1/demand-scorecard"),
+      { params: { id: "p_1" } },
+    );
+
+    expect(res.status).toBe(401);
+    const json = (await readJson(res)) as { code: string; error: string };
+    expect(json.code).toBe("UNAUTHORIZED");
+    expect(json.error).toBe("Unauthorized");
+  });
+
+  test("returns unknown tier with blockers when recommendations are empty", async () => {
+    mockedPrisma.project.findFirst.mockResolvedValueOnce({
+      id: "p_empty_rec",
+      name: "No recs",
+    });
+    mockedPrisma.projectSubredditRecommendation.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    mockedPrisma.projectPainPoint.findMany.mockResolvedValueOnce([
+      { severityScore: 0.8, confidenceScore: 0.8, frequency: 5 },
+    ]);
+
+    const res = await getDemandScorecard(
+      new Request("http://test.local/api/projects/p_empty_rec/demand-scorecard"),
+      { params: { id: "p_empty_rec" } },
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as {
+      scorecard: {
+        overallDemandScore: number;
+        marketTier: string;
+        blockers: string[];
+      };
+    };
+    expect(json.scorecard.overallDemandScore).toBe(0);
+    expect(json.scorecard.marketTier).toBe("UNKNOWN");
+    expect(json.scorecard.blockers.length).toBeGreaterThan(0);
+  });
+
+  test("returns zero painIntensity when pain points are empty", async () => {
+    mockedPrisma.project.findFirst.mockResolvedValueOnce({
+      id: "p_no_pains",
+      name: "No pains",
+    });
+    mockedPrisma.projectSubredditRecommendation.findMany.mockResolvedValueOnce([
+      {
+        fitScore: 0.8,
+        riskScore: 0.2,
+        timeWindowScore: 0.6,
+        status: "SELECTED",
+        subreddit: {
+          subscribers: 100000,
+          activeUsers: 2000,
+          avgCommentsPerPost: 10,
+        },
+      },
+    ]);
+    mockedPrisma.projectPainPoint.findMany.mockResolvedValueOnce([]);
+
+    const res = await getDemandScorecard(
+      new Request("http://test.local/api/projects/p_no_pains/demand-scorecard"),
+      { params: { id: "p_no_pains" } },
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as {
+      scorecard: { components: { painIntensity: number } };
+    };
+    expect(json.scorecard.components.painIntensity).toBe(0);
+  });
 });

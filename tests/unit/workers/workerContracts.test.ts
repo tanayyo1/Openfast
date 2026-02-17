@@ -8,6 +8,7 @@ jest.mock("@/lib/prisma", () => ({
       update: jest.fn(),
     },
     publishedItem: {
+      count: jest.fn(),
       findUnique: jest.fn(),
     },
     performanceSnapshot: {
@@ -50,6 +51,7 @@ const mockedPrisma = prisma as unknown as {
     update: jest.Mock;
   };
   publishedItem: {
+    count: jest.Mock;
     findUnique: jest.Mock;
   };
   performanceSnapshot: {
@@ -59,8 +61,13 @@ const mockedPrisma = prisma as unknown as {
 };
 
 describe("worker contracts", () => {
+  const originalCommunityThreshold =
+    process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS;
+
   beforeEach(() => {
     jest.resetAllMocks();
+    process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS = "0";
+    mockedPrisma.publishedItem.count.mockResolvedValue(0);
     (acquireDistributedLock as jest.Mock)
       .mockResolvedValueOnce({
         acquired: true,
@@ -70,6 +77,14 @@ describe("worker contracts", () => {
         acquired: true,
         release: jest.fn().mockResolvedValue(undefined),
       });
+  });
+
+  afterEach(() => {
+    if (typeof originalCommunityThreshold === "string") {
+      process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS = originalCommunityThreshold;
+      return;
+    }
+    delete process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS;
   });
 
   test("publish worker writes published item and schedules metrics fetch", async () => {

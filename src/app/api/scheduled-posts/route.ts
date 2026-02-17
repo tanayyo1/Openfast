@@ -5,6 +5,7 @@ import { z } from "zod";
 import { QuotaExceededError, assertWorkspaceQuota } from "@/lib/billing/quota";
 import { enqueuePublishJob } from "@/lib/queue/enqueue";
 import { prisma } from "@/lib/prisma";
+import { evaluateCommunityEngagementThreshold } from "@/lib/reddit/communityEngagement";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 import { validatePostStructure } from "@/lib/content/postStructureValidator";
 
@@ -313,6 +314,42 @@ export async function POST(req: Request) {
       { error: "Subreddit not found", code: "SUBREDDIT_NOT_FOUND" },
       { status: 404 },
     );
+  }
+
+  if (draft.type === "POST") {
+    const communityThreshold = await evaluateCommunityEngagementThreshold(
+      {
+        workspaceId: session.workspaceId,
+        redditAccountId: redditAccount.id,
+        subredditId,
+      },
+      ({ workspaceId, redditAccountId, subredditId: thresholdSubredditId }) =>
+        prisma.publishedItem.count({
+          where: {
+            workspaceId,
+            redditAccountId,
+            subredditId: thresholdSubredditId,
+            type: "COMMENT",
+          },
+        }),
+    );
+
+    if (!communityThreshold.met) {
+      return NextResponse.json(
+        {
+          error:
+            "Community engagement threshold not met. Publish comments in this subreddit before posting.",
+          code: "COMMUNITY_ENGAGEMENT_REQUIRED",
+          details: {
+            requiredComments: communityThreshold.requiredComments,
+            publishedComments: communityThreshold.publishedComments,
+            remainingComments: communityThreshold.remainingComments,
+            subredditId,
+          },
+        },
+        { status: 409 },
+      );
+    }
   }
 
   const scheduledAt = new Date(data.scheduledAt);

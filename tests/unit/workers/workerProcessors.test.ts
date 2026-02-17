@@ -119,8 +119,12 @@ const basePublishedItem = {
 };
 
 describe("worker processors", () => {
+  const originalCommunityThreshold =
+    process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS = "0";
     mockedPrisma.accountHealthSnapshot.findFirst.mockResolvedValue(null);
     mockedRedditClient.enforceRedditAccountRateLimit.mockResolvedValue({
       remaining: 42,
@@ -134,6 +138,14 @@ describe("worker processors", () => {
         acquired: true,
         release: jest.fn().mockResolvedValue(undefined),
       });
+  });
+
+  afterEach(() => {
+    if (typeof originalCommunityThreshold === "string") {
+      process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS = originalCommunityThreshold;
+      return;
+    }
+    delete process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS;
   });
 
   test("processPublishJob success path publishes and enqueues metrics", async () => {
@@ -259,6 +271,23 @@ describe("worker processors", () => {
 
     await expect(processPublishJob(job)).rejects.toThrow(
       "COMMENT_FIRST_REQUIRED",
+    );
+    expect(mockedRedditClient.redditFetch).not.toHaveBeenCalled();
+  });
+
+  test("processPublishJob blocks posts when community engagement threshold is unmet", async () => {
+    process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS = "2";
+    mockedPrisma.scheduledPost.findUnique.mockResolvedValue(baseScheduledPost);
+    mockedPrisma.publishedItem.count.mockResolvedValue(0);
+
+    const job = {
+      id: "job_p_engagement_threshold",
+      attemptsStarted: 1,
+      data: { scheduledPostId: "sp_1" },
+    } as unknown as Job<{ scheduledPostId: string }>;
+
+    await expect(processPublishJob(job)).rejects.toThrow(
+      "COMMUNITY_ENGAGEMENT_REQUIRED",
     );
     expect(mockedRedditClient.redditFetch).not.toHaveBeenCalled();
   });

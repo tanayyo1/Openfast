@@ -30,6 +30,8 @@ describe("Scheduled posts API", () => {
   let workspaceId: string;
   let userId: string;
   let counter = 0;
+  const originalCommunityThreshold =
+    process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS;
 
   beforeAll(async () => {
     const user = await prisma.user.findUnique({
@@ -55,6 +57,15 @@ describe("Scheduled posts API", () => {
       user: { id: userId },
       workspaceId,
     });
+    process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS = "0";
+  });
+
+  afterEach(() => {
+    if (typeof originalCommunityThreshold === "string") {
+      process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS = originalCommunityThreshold;
+      return;
+    }
+    delete process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS;
   });
 
   afterAll(async () => {
@@ -156,6 +167,29 @@ describe("Scheduled posts API", () => {
     });
     await prisma.subredditCatalog.deleteMany({
       where: { id: ids.subredditId },
+    });
+  }
+
+  async function createPublishedComment(input: {
+    workspaceId: string;
+    redditAccountId: string;
+    subredditId: string;
+    uniqueKey: string;
+  }) {
+    return prisma.publishedItem.create({
+      data: {
+        workspaceId: input.workspaceId,
+        redditAccountId: input.redditAccountId,
+        subredditId: input.subredditId,
+        type: "COMMENT",
+        redditFullname: `t1_${input.uniqueKey}`,
+        redditId: input.uniqueKey,
+        permalink: `/r/test/comments/${input.uniqueKey}`,
+        url: `https://reddit.com/r/test/comments/${input.uniqueKey}`,
+        titleSnapshot: null,
+        bodySnapshot: "seed comment",
+      },
+      select: { id: true },
     });
   }
 
@@ -279,6 +313,69 @@ describe("Scheduled posts API", () => {
       expect(json.code).toBe("COMMENT_FIRST_REQUIRED");
       expect(json.details.requiredComments).toBe(3);
       expect(json.details.publishedComments).toBe(0);
+    } finally {
+      await cleanupFixture(ids);
+    }
+  });
+
+  test("enforces community engagement threshold before scheduling POST drafts", async () => {
+    process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS = "2";
+    const ids = await makeFixture("APPROVED", {
+      safetyTier: "ESTABLISHED",
+      draftType: "POST",
+    });
+    try {
+      const blocked = await createScheduledPost(
+        new Request("http://test.local/api/scheduled-posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            draftId: ids.draftId,
+            redditAccountId: ids.redditAccountId,
+            scheduledAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+            timezone: "UTC",
+          }),
+        }),
+      );
+      expect(blocked.status).toBe(409);
+      const blockedJson = (await readJson(blocked)) as {
+        code: string;
+        details: {
+          requiredComments: number;
+          publishedComments: number;
+          remainingComments: number;
+        };
+      };
+      expect(blockedJson.code).toBe("COMMUNITY_ENGAGEMENT_REQUIRED");
+      expect(blockedJson.details.requiredComments).toBe(2);
+      expect(blockedJson.details.publishedComments).toBe(0);
+
+      await createPublishedComment({
+        workspaceId,
+        redditAccountId: ids.redditAccountId,
+        subredditId: ids.subredditId,
+        uniqueKey: `c1_${Date.now()}_${counter}`,
+      });
+      await createPublishedComment({
+        workspaceId,
+        redditAccountId: ids.redditAccountId,
+        subredditId: ids.subredditId,
+        uniqueKey: `c2_${Date.now()}_${counter}`,
+      });
+
+      const allowed = await createScheduledPost(
+        new Request("http://test.local/api/scheduled-posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            draftId: ids.draftId,
+            redditAccountId: ids.redditAccountId,
+            scheduledAt: new Date(Date.now() + 10 * 60_000).toISOString(),
+            timezone: "UTC",
+          }),
+        }),
+      );
+      expect(allowed.status).toBe(201);
     } finally {
       await cleanupFixture(ids);
     }

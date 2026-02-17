@@ -62,7 +62,7 @@ const PATTERNS: Array<{
   },
   {
     regex: /\bhow\s+do\s+i\s+([^?.!,;]+)/i,
-    normalize: (m) => `how do i ${m[1]}`,
+    normalize: (m) => `how do I ${m[1]}`,
   },
   {
     regex: /\bhow\s+to\s+([^?.!,;]+)/i,

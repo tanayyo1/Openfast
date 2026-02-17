@@ -32,6 +32,12 @@ function parsePositiveEnvInt(name: string, fallback: number) {
   return Math.floor(raw);
 }
 
+function parseNonNegativeEnvInt(name: string, fallback: number) {
+  const raw = Number(process.env[name]);
+  if (!Number.isFinite(raw) || raw < 0) return fallback;
+  return Math.floor(raw);
+}
+
 export function getChecklistThresholds() {
   return {
     minimumAccountAgeDays: parsePositiveEnvInt(
@@ -53,6 +59,10 @@ export function getChecklistThresholds() {
     minimumHealthScore: parsePositiveEnvInt(
       "PROFILE_CHECKLIST_MIN_HEALTH_SCORE",
       45,
+    ),
+    maxWarningsForReady: parseNonNegativeEnvInt(
+      "PROFILE_CHECKLIST_MAX_WARNINGS_FOR_READY",
+      2,
     ),
   };
 }
@@ -286,7 +296,11 @@ export function buildRedditProfileChecklist(input: ProfileChecklistInput) {
       failed,
     },
     readiness:
-      failed > 0 ? "NOT_READY" : warned > 2 ? "NEEDS_IMPROVEMENT" : "READY",
+      failed > 0
+        ? "NOT_READY"
+        : warned > thresholds.maxWarningsForReady
+          ? "NEEDS_IMPROVEMENT"
+          : "READY",
     items,
   };
 }

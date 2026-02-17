@@ -66,8 +66,16 @@ function normalizeAudience(signal: RecommendationSignal) {
 export function buildDemandScorecard(
   input: DemandScorecardInput,
 ): DemandScorecardResult {
-  const selected = input.recommendations.filter((item) => item.status === "SELECTED");
-  const candidatePool = selected.length > 0 ? selected : input.recommendations;
+  const activeRecommendations = input.recommendations.filter(
+    (item) => item.status === "SELECTED" || item.status === "CANDIDATE",
+  );
+  const selected = activeRecommendations.filter(
+    (item) => item.status === "SELECTED",
+  );
+  const candidatePool =
+    selected.length > 0
+      ? selected
+      : activeRecommendations.filter((item) => item.status === "CANDIDATE");
 
   if (candidatePool.length === 0) {
     return {
@@ -173,7 +181,7 @@ export function buildDemandScorecard(
     overallDemandScore: toPct(overall),
     marketTier,
     coverage: {
-      recommendations: input.recommendations.length,
+      recommendations: activeRecommendations.length,
       selectedRecommendations: selected.length,
       painPoints: input.painPoints.length,
     },

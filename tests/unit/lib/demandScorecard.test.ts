@@ -40,6 +40,29 @@ describe("buildDemandScorecard", () => {
     expect(scorecard.components.fit).toBe(20);
   });
 
+  test("ignores dismissed recommendations when scoring", () => {
+    const scorecard = buildDemandScorecard({
+      recommendations: [
+        rec({
+          status: "DISMISSED",
+          fitScore: 1,
+          riskScore: 0,
+          timeWindowScore: 1,
+          subreddit: {
+            subscribers: 500000,
+            activeUsers: 5000,
+            avgCommentsPerPost: 20,
+          },
+        }),
+      ],
+      painPoints: [],
+    });
+
+    expect(scorecard.marketTier).toBe("UNKNOWN");
+    expect(scorecard.overallDemandScore).toBe(0);
+    expect(scorecard.coverage.recommendations).toBe(0);
+  });
+
   test("produces expected market tiers", () => {
     const high = buildDemandScorecard({
       recommendations: [rec({ fitScore: 1, riskScore: 0, timeWindowScore: 1 })],

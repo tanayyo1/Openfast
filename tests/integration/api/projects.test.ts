@@ -47,6 +47,21 @@ describe("Projects API (workspace-scoped)", () => {
 
     userId = user.id;
     workspaceId = ws.workspaceId;
+    await prisma.workspaceEntitlement.upsert({
+      where: { workspaceId },
+      update: { maxProjects: 50 },
+      create: {
+        workspaceId,
+        maxProjects: 50,
+        maxRedditAccounts: 10,
+        maxScheduledPosts: 200,
+        maxDraftsPerMonth: 2000,
+        roadmapDays: 30,
+        hasAdvancedAnalytics: true,
+        hasSmartFinder: true,
+        hasTeamFeatures: false,
+      },
+    });
 
     mockedGuards.requireWorkspaceSession.mockResolvedValue({
       user: { id: userId },

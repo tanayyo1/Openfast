@@ -16,3 +16,12 @@ export function getRedis(): Redis | null {
 
   return redisSingleton;
 }
+
+export async function closeRedis() {
+  if (!redisSingleton) return;
+  const client = redisSingleton;
+  redisSingleton = null;
+  await client.quit().catch(async () => {
+    await client.disconnect();
+  });
+}

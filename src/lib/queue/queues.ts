@@ -97,3 +97,31 @@ export function getDeadLetterQueue() {
   if (!deadLetterQueue) deadLetterQueue = createQueue(QUEUE_NAMES.DEAD_LETTER);
   return deadLetterQueue;
 }
+
+export async function closeAllQueues() {
+  const queues = [
+    publishQueue,
+    metricsFetchQueue,
+    contentGenerateQueue,
+    subredditIngestQueue,
+    subredditComputeTimeWindowsQueue,
+    recommendationsGenerateQueue,
+    roadmapGenerateQueue,
+    riskAccountHealthQueue,
+    riskVisibilityCheckQueue,
+    deadLetterQueue,
+  ].filter((q): q is Queue => q !== null);
+
+  publishQueue = null;
+  metricsFetchQueue = null;
+  contentGenerateQueue = null;
+  subredditIngestQueue = null;
+  subredditComputeTimeWindowsQueue = null;
+  recommendationsGenerateQueue = null;
+  roadmapGenerateQueue = null;
+  riskAccountHealthQueue = null;
+  riskVisibilityCheckQueue = null;
+  deadLetterQueue = null;
+
+  await Promise.allSettled(queues.map((queue) => queue.close()));
+}

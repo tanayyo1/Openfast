@@ -653,6 +653,17 @@ npm run lint && npm run typecheck && npm run test:unit
 npm run ci:local
 ```
 
+Prerequisites for `ci:local` (integration tests require these):
+
+```bash
+docker compose up -d
+npx prisma migrate deploy
+npm run db:seed
+```
+
+If these are missing, `ci:local` can fail with setup errors unrelated to your code changes.
+`test:ci-local` includes `--detectOpenHandles` to surface leaked handles early.
+
 **Commit:**
 
 ```bash

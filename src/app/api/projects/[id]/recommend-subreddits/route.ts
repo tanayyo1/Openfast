@@ -167,11 +167,16 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
         reasons: rec.reasons as Prisma.InputJsonValue,
         status: "CANDIDATE",
       })),
+      skipDuplicates: true,
     });
   });
 
   const persisted = await prisma.projectSubredditRecommendation.findMany({
-    where: { workspaceId: session.workspaceId, projectId },
+    where: {
+      workspaceId: session.workspaceId,
+      projectId,
+      status: { in: ["SELECTED", "CANDIDATE"] },
+    },
     select: {
       subredditId: true,
       fitScore: true,

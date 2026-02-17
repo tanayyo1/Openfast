@@ -4,6 +4,8 @@ export function logWorkerEvent(
   event: string,
   details?: Record<string, unknown>,
 ) {
+  if (process.env.NODE_ENV === "test") return;
+
   const payload = {
     ts: new Date().toISOString(),
     worker,

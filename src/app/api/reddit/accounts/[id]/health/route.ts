@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getHealthGuardrailThresholds } from "@/lib/health/guardrails";
 import { prisma } from "@/lib/prisma";
 import { enqueueRiskAccountHealthJob } from "@/lib/queue/enqueue";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
@@ -24,6 +25,7 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
   }
 
   const redditAccountId = ctx.params.id;
+  const healthThresholds = getHealthGuardrailThresholds();
   const account = await prisma.redditAccount.findFirst({
     where: { id: redditAccountId, workspaceId: session.workspaceId },
     select: {
@@ -69,7 +71,7 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
 
   const warnings: string[] = [];
   if (!account.isActive) warnings.push("Reddit account is inactive.");
-  if (latest && latest.healthScore < 45) {
+  if (latest && latest.healthScore < healthThresholds.caution) {
     warnings.push("Health score is low. Prefer comments and slower pacing.");
   }
   if (account.safetyTier === "RESTRICTED") {
@@ -87,9 +89,10 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
     guardrails: {
       blockPublishing:
         account.safetyTier === "RESTRICTED" ||
-        (latest?.healthScore ?? 100) < 30,
+        (latest?.healthScore ?? 100) < healthThresholds.blockPublishing,
       recommendCommentsOnly:
-        account.safetyTier === "NEW" || (latest?.healthScore ?? 100) < 45,
+        account.safetyTier === "NEW" ||
+        (latest?.healthScore ?? 100) < healthThresholds.caution,
     },
   });
 }

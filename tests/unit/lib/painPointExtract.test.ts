@@ -65,4 +65,28 @@ describe("pain point extractor", () => {
     expect(cannot).toBeDefined();
     expect(cannot?.normalizedPhrase.includes("can t")).toBe(false);
   });
+
+  test("does not double-count duplicate thread ids", () => {
+    const extracted = extractPainPointCandidates([
+      {
+        redditId: "dup_1",
+        title: "Struggling with finding PMF",
+        score: 0.9,
+        relevanceScore: 0.9,
+      },
+      {
+        redditId: "dup_1",
+        title: "Struggling with finding PMF",
+        score: 0.9,
+        relevanceScore: 0.9,
+      },
+    ]);
+
+    const struggling = extracted.find((item) =>
+      item.normalizedPhrase.includes("struggling with"),
+    );
+    expect(struggling).toBeDefined();
+    expect(struggling?.frequency).toBe(1);
+    expect(struggling?.sourceThreadIds).toEqual(["dup_1"]);
+  });
 });

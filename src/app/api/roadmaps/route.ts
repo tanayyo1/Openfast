@@ -25,9 +25,12 @@ function decodeCursor(raw: string): Cursor | null {
     const parsed = JSON.parse(
       Buffer.from(raw, "base64url").toString("utf8"),
     ) as unknown;
-    const schema = z.object({ createdAt: z.string(), id: z.string() });
+    const schema = z.object({ createdAt: z.string(), id: z.string().min(1) });
     const res = schema.safeParse(parsed);
-    return res.success ? res.data : null;
+    if (!res.success) return null;
+    const createdAt = new Date(res.data.createdAt);
+    if (Number.isNaN(createdAt.getTime())) return null;
+    return res.data;
   } catch {
     return null;
   }

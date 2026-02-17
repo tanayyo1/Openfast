@@ -36,10 +36,17 @@ export async function POST(_request: Request) {
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const email = user.email?.trim().toLowerCase();
+    if (!email) {
+      return NextResponse.json(
+        { error: "Email is required", code: "EMAIL_REQUIRED" },
+        { status: 400 },
+      );
+    }
 
     // Check if user already exists in our database
     const existingUser = await prisma.user.findUnique({
-      where: { email: user.email! },
+      where: { email },
       select: safeUserSelect,
     });
 
@@ -71,13 +78,13 @@ export async function POST(_request: Request) {
 
     // Get user metadata (name from signup)
     const name =
-      user.user_metadata?.name || user.email?.split("@")[0] || "User";
+      user.user_metadata?.name || email.split("@")[0] || "User";
 
     // Create user record
     const newUser = await prisma.user.create({
       data: {
         authId: user.id,
-        email: user.email!,
+        email,
         name,
         emailVerified: user.email_confirmed_at
           ? new Date(user.email_confirmed_at)

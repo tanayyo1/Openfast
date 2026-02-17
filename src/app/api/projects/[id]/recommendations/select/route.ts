@@ -80,7 +80,7 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
     async (tx: Prisma.TransactionClient) => {
       await tx.projectSubredditRecommendation.updateMany({
         where: { workspaceId: session.workspaceId, projectId },
-        data: { status: "CANDIDATE", selectedAt: null },
+        data: { status: "CANDIDATE", selectedAt: null, dismissedAt: null },
       });
       await tx.projectSubredditRecommendation.updateMany({
         where: {
@@ -88,7 +88,7 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
           projectId,
           subredditId: { in: subredditIds },
         },
-        data: { status: "SELECTED", selectedAt: new Date() },
+        data: { status: "SELECTED", selectedAt: new Date(), dismissedAt: null },
       });
       return tx.projectSubredditRecommendation.findMany({
         where: {

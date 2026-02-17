@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
 
 const registerSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email(),
   password: z.string().min(8),
   name: z.string().min(1).max(80).optional(),
   workspaceName: z.string().min(1).max(80).optional(),
@@ -35,9 +35,10 @@ export async function POST(req: Request) {
   }
 
   const { email, password, name, workspaceName } = parsed.data;
+  const normalizedEmail = email.toLowerCase();
 
   const existing = await prisma.user.findUnique({
-    where: { email },
+    where: { email: normalizedEmail },
     select: { id: true },
   });
   if (existing) {
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
     async (tx: Prisma.TransactionClient) => {
       const user = await tx.user.create({
         data: {
-          email,
+          email: normalizedEmail,
           passwordHash,
           name: name ?? null,
         },

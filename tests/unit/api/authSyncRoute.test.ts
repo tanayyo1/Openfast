@@ -49,7 +49,7 @@ describe("auth sync route", () => {
           data: {
             user: {
               id: "auth_1",
-              email: "member@reditfast.local",
+              email: "Member@Reditfast.local ",
               email_confirmed_at: "2026-02-16T00:00:00.000Z",
               user_metadata: { name: "Member User" },
             },
@@ -98,6 +98,35 @@ describe("auth sync route", () => {
         }),
       }),
     );
+  });
+
+  test("returns 400 when authenticated profile has no email", async () => {
+    mockedCreateClient.mockReturnValue({
+      auth: {
+        getUser: jest.fn().mockResolvedValue({
+          data: {
+            user: {
+              id: "auth_no_email",
+              email: null,
+              email_confirmed_at: null,
+              user_metadata: {},
+            },
+          },
+          error: null,
+        }),
+      },
+    });
+
+    const res = await syncUser(
+      new Request("http://test.local/api/auth/sync", {
+        method: "POST",
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("EMAIL_REQUIRED");
+    expect(mockedPrisma.user.findUnique).not.toHaveBeenCalled();
   });
 
   test("creates user/workspace with safe field selection only", async () => {

@@ -163,7 +163,8 @@
 ### Tier 3 - Polish (Backlog, Medium priority)
 
 - RED-54: Reddit profile optimization checklist and guide (DONE - checklist scoring API + onboarding guide section)
-- RED-57, RED-59, RED-60, RED-61
+- RED-57: Demand scorecard (DONE - project demand scorecard API from recommendation + pain-point signals + onboarding guide)
+- RED-59, RED-60, RED-61
 
 ### Tier 4 - Post-MVP (Backlog, Low priority)
 

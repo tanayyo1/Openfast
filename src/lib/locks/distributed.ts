@@ -11,6 +11,15 @@ type DistributedLock = {
   release: () => Promise<void>;
 };
 
+export class LockBackendUnavailableError extends Error {
+  code = "LOCK_BACKEND_UNAVAILABLE";
+  isRetryable = true;
+
+  constructor() {
+    super("Distributed lock backend is unavailable");
+  }
+}
+
 function lockKey(key: string) {
   return `lock:${key}`;
 }
@@ -21,7 +30,7 @@ export async function acquireDistributedLock(
   const redis = getRedis();
   if (!redis) {
     if (process.env.NODE_ENV === "production") {
-      throw new Error("LOCK_BACKEND_UNAVAILABLE");
+      throw new LockBackendUnavailableError();
     }
     return { acquired: true, release: async () => undefined };
   }

@@ -52,7 +52,7 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
     ? Math.floor((Date.now() - latest.capturedAt.getTime()) / (1000 * 60 * 60))
     : null;
   const shouldQueueRefresh =
-    !latest || (staleHours !== null && staleHours >= STALE_HOURS);
+    account.isActive && (!latest || (staleHours !== null && staleHours >= STALE_HOURS));
   let refreshQueued = false;
 
   if (shouldQueueRefresh) {

@@ -31,6 +31,7 @@ jest.mock("@/lib/prisma", () => ({
     draft: {
       findFirst: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     },
   },
 }));
@@ -50,6 +51,7 @@ const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
   draft: {
     findFirst: jest.Mock;
     create: jest.Mock;
+    update: jest.Mock;
   };
 };
 
@@ -66,6 +68,7 @@ describe("draft rewrite route (RED-41)", () => {
       workspaceId: "ws_1",
     });
     mockedQuota.assertWorkspaceQuota.mockResolvedValue(undefined);
+    mockedPrisma.draft.update.mockResolvedValue(undefined);
   });
 
   test("returns unauthorized when session is missing", async () => {
@@ -340,6 +343,66 @@ describe("draft rewrite route (RED-41)", () => {
       expect.objectContaining({
         mode: "COMPLIANCE",
         tone: "professional",
+      }),
+    );
+  });
+
+  test("does not leak enqueue error details in persisted queue error", async () => {
+    mockedPrisma.draft.findFirst.mockResolvedValueOnce({
+      id: "dr_1",
+      workspaceId: "ws_1",
+      projectId: "p_1",
+      taskId: "task_1",
+      subredditId: "sub_1",
+      type: "POST",
+      title: "Original",
+      body: "Original body",
+      mediaUrls: [],
+      status: "DRAFT",
+      project: { status: "ACTIVE" },
+    });
+    mockedPrisma.draft.create.mockResolvedValueOnce({
+      id: "dr_rewrite_3",
+      taskId: "task_1",
+      type: "POST",
+      title: "Original",
+      body: "Original body",
+      status: "DRAFT",
+      riskScore: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    mockedQueue.enqueueContentGenerateJob.mockRejectedValueOnce(
+      new Error("redis auth failed with secret=top-secret"),
+    );
+
+    const res = await rewriteDraft(
+      new Request("http://test.local/api/drafts/dr_1/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "REWRITE", variantCount: 3 }),
+      }),
+      { params: Promise.resolve({ id: "dr_1" }) },
+    );
+
+    expect(res.status).toBe(503);
+    expect(mockedPrisma.draft.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "dr_rewrite_3" },
+        data: expect.objectContaining({
+          generationParams: expect.objectContaining({
+            queueError: "QUEUE_ENQUEUE_FAILED",
+          }),
+        }),
+      }),
+    );
+    expect(mockedPrisma.draft.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          generationParams: expect.objectContaining({
+            queueError: expect.stringContaining("top-secret"),
+          }),
+        }),
       }),
     );
   });

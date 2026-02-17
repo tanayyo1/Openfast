@@ -93,4 +93,28 @@ describe("reddit account health route", () => {
     expect((json.staleHours ?? 0) >= 24).toBe(true);
     expect(mockedQueue.enqueueRiskAccountHealthJob).toHaveBeenCalledTimes(1);
   });
+
+  test("does not queue refresh for inactive accounts", async () => {
+    mockedPrisma.redditAccount.findFirst.mockResolvedValue({
+      id: "ra_1",
+      redditUsername: "demo",
+      safetyTier: "ESTABLISHED",
+      isActive: false,
+    });
+    mockedPrisma.accountHealthSnapshot.findFirst.mockResolvedValue(null);
+
+    const res = await getAccountHealth(
+      new Request("http://test.local/api/reddit/accounts/ra_1/health"),
+      { params: { id: "ra_1" } },
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as {
+      refreshQueued: boolean;
+      warnings: string[];
+    };
+    expect(json.refreshQueued).toBe(false);
+    expect(json.warnings).toContain("Reddit account is inactive.");
+    expect(mockedQueue.enqueueRiskAccountHealthJob).not.toHaveBeenCalled();
+  });
 });

@@ -32,7 +32,13 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
     );
   }
 
-  await activatePromptTemplate(template.id);
+  const activated = await activatePromptTemplate(template.id);
+  if (!activated) {
+    return NextResponse.json(
+      { error: "Prompt template not found", code: "PROMPT_TEMPLATE_NOT_FOUND" },
+      { status: 404 },
+    );
+  }
 
-  return NextResponse.json({ ok: true, id: template.id, key: template.key });
+  return NextResponse.json({ ok: true, id: activated.id, key: activated.key });
 }

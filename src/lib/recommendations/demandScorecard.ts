@@ -1,4 +1,4 @@
-type RecommendationSignal = {
+export type RecommendationSignal = {
   fitScore: number;
   riskScore: number;
   timeWindowScore: number;
@@ -10,15 +10,36 @@ type RecommendationSignal = {
   };
 };
 
-type PainPointSignal = {
+export type PainPointSignal = {
   severityScore: number;
   confidenceScore: number;
   frequency: number;
 };
 
-type DemandScorecardInput = {
+export type DemandScorecardInput = {
   recommendations: RecommendationSignal[];
   painPoints: PainPointSignal[];
+};
+
+type MarketTier = "UNKNOWN" | "HIGH" | "MEDIUM" | "EARLY";
+
+export type DemandScorecardResult = {
+  overallDemandScore: number;
+  marketTier: MarketTier;
+  coverage: {
+    recommendations: number;
+    selectedRecommendations: number;
+    painPoints: number;
+  };
+  components: {
+    fit: number;
+    audience: number;
+    timing: number;
+    safety: number;
+    painIntensity: number;
+  };
+  blockers: string[];
+  opportunities: string[];
 };
 
 function clamp(value: number, min = 0, max = 1) {
@@ -42,7 +63,9 @@ function normalizeAudience(signal: RecommendationSignal) {
   return average([subscribers, activeUsers, comments]);
 }
 
-export function buildDemandScorecard(input: DemandScorecardInput) {
+export function buildDemandScorecard(
+  input: DemandScorecardInput,
+): DemandScorecardResult {
   const selected = input.recommendations.filter((item) => item.status === "SELECTED");
   const candidatePool = selected.length > 0 ? selected : input.recommendations;
 
@@ -83,8 +106,15 @@ export function buildDemandScorecard(input: DemandScorecardInput) {
   const painConfidence = average(
     input.painPoints.map((item) => clamp(item.confidenceScore)),
   );
+  const rawFrequencies = input.painPoints.map((item) => item.frequency);
+  // Keep the original baseline (4) but scale up for projects with higher-frequency pain points.
+  const normalizationDivisor = Math.max(
+    4,
+    rawFrequencies.length > 0 ? Math.max(...rawFrequencies) : 0,
+  );
   const painFrequency = clamp(
-    average(input.painPoints.map((item) => item.frequency)) / 4,
+    (rawFrequencies.length > 0 ? average(rawFrequencies) : 0) /
+      Math.max(normalizationDivisor, 1),
   );
   const painIntensity = clamp(
     painSeverity * 0.45 + painFrequency * 0.35 + painConfidence * 0.2,

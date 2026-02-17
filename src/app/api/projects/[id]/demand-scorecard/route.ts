@@ -28,9 +28,6 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
     select: {
       id: true,
       name: true,
-      niche: true,
-      goals: true,
-      constraints: true,
     },
   });
   if (!project) {
@@ -40,15 +37,14 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
     );
   }
 
-  const [recommendations, painPoints] = await Promise.all([
+  const [selectedRecommendations, painPoints] = await Promise.all([
     prisma.projectSubredditRecommendation.findMany({
       where: {
         workspaceId: session.workspaceId,
         projectId,
-        status: { in: ["CANDIDATE", "SELECTED"] },
+        status: "SELECTED",
       },
-      orderBy: [{ status: "asc" }, { compositeScore: "desc" }],
-      take: 30,
+      orderBy: { compositeScore: "desc" },
       select: {
         fitScore: true,
         riskScore: true,
@@ -78,6 +74,37 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
       },
     }),
   ]);
+
+  const candidateRecommendations =
+    selectedRecommendations.length > 0
+      ? []
+      : await prisma.projectSubredditRecommendation.findMany({
+          where: {
+            workspaceId: session.workspaceId,
+            projectId,
+            status: "CANDIDATE",
+          },
+          orderBy: { compositeScore: "desc" },
+          take: 30,
+          select: {
+            fitScore: true,
+            riskScore: true,
+            timeWindowScore: true,
+            status: true,
+            subreddit: {
+              select: {
+                subscribers: true,
+                activeUsers: true,
+                avgCommentsPerPost: true,
+              },
+            },
+          },
+        });
+
+  const recommendations = [
+    ...selectedRecommendations,
+    ...candidateRecommendations,
+  ];
 
   const scorecard = buildDemandScorecard({
     recommendations,

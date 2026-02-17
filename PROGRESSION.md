@@ -1,6 +1,6 @@
 # PROGRESSION.md - MediaFast Clone MVP Tracker
 
-> **Last Updated**: 2026-02-16
+> **Last Updated**: 2026-02-17
 > **Target**: `mediafast_clone_system_design_report.md`  
 > **Current Estimate**: ~35-40% of MVP parity complete
 
@@ -101,7 +101,7 @@
 - [x] Implement `risk.account_health` queue + worker.
 - [x] Implement `risk.visibility_check` queue + worker.
 - [x] Build APIs: `GET /reddit/accounts/:id/health`, `POST /reddit/accounts/:id/visibility-check`.
-- [ ] Surface health warnings in app UX (blocking high-risk publish attempts).
+- [x] Surface health warnings in app UX (blocking high-risk publish attempts).
 
 ## P4 - Free Tools Backend + Rate Limiting
 

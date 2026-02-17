@@ -318,6 +318,47 @@ describe("Scheduled posts API", () => {
     }
   });
 
+  test("blocks post scheduling when account health score is critically low", async () => {
+    const ids = await makeFixture("APPROVED", {
+      safetyTier: "ESTABLISHED",
+      draftType: "POST",
+    });
+    try {
+      await prisma.accountHealthSnapshot.create({
+        data: {
+          workspaceId,
+          redditAccountId: ids.redditAccountId,
+          healthScore: 22,
+          signalsJson: { sampleSize: 12, removals: 6, removalRate: 0.5 },
+          capturedAt: new Date(),
+        },
+      });
+
+      const res = await createScheduledPost(
+        new Request("http://test.local/api/scheduled-posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            draftId: ids.draftId,
+            redditAccountId: ids.redditAccountId,
+            scheduledAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+            timezone: "UTC",
+          }),
+        }),
+      );
+      expect(res.status).toBe(409);
+      const json = (await readJson(res)) as {
+        code: string;
+        details: { healthScore: number; threshold: number };
+      };
+      expect(json.code).toBe("ACCOUNT_HEALTH_BLOCKED");
+      expect(json.details.healthScore).toBe(22);
+      expect(json.details.threshold).toBe(30);
+    } finally {
+      await cleanupFixture(ids);
+    }
+  });
+
   test("enforces community engagement threshold before scheduling POST drafts", async () => {
     process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS = "2";
     const ids = await makeFixture("APPROVED", {

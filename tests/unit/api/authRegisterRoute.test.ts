@@ -92,4 +92,27 @@ describe("auth register route", () => {
     expect(json.code).toBe("EMAIL_TAKEN");
     expect(tx.user.create).not.toHaveBeenCalled();
   });
+
+  test("returns 409 on concurrent unique violation during create", async () => {
+    mockedPrisma.user.findUnique.mockResolvedValue(null);
+    mockedPrisma.$transaction.mockRejectedValueOnce({
+      code: "P2002",
+      meta: { target: ["email"] },
+    });
+
+    const res = await register(
+      new Request("http://test.local/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "User@Example.COM",
+          password: "password123",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(409);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("EMAIL_TAKEN");
+  });
 });

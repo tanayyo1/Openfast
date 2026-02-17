@@ -65,6 +65,14 @@ pr-validation
 - **Require branches to be up to date before merging**
 - **Status checks:** Select all 6 checks listed above
 
+### Temporary fallback: Local CI mode
+
+If GitHub-hosted Actions cannot run (for example, billing is unavailable), temporarily disable required status checks and use local CI as the merge gate.
+
+Required reference: `docs/LOCAL_CI.md`
+
+Re-enable required status checks immediately after hosted CI is restored.
+
 #### Require conversation resolution before merging
 
 Ensures all review comments are addressed.

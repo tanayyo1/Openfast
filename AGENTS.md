@@ -1,6 +1,6 @@
 # AGENTS.md - Fast MVP Execution Guide
 
-> **Last Updated**: 2026-02-15
+> **Last Updated**: 2026-02-17
 > **Primary Goal**: Ship a working ReditFast MVP fast, aligned to `mediafast_clone_system_design_report.md`.
 
 ---
@@ -43,6 +43,24 @@ If docs conflict, prioritize getting the MVP working end-to-end with the report 
 4. After approval, open PR.
 5. Merge PR.
 6. Pull latest `main`.
+
+---
+
+## 3.2) Local CI Mode (Temporary, Mandatory)
+
+When GitHub-hosted CI is unavailable (billing/infra constraints), use local CI as the merge gate.
+
+1. Run this exact command set before opening or merging any PR:
+   - `npm run lint`
+   - `npm run typecheck`
+   - `npm run test:unit`
+   - `npm run test -- tests/unit/lib/recommendationGenerate.test.ts tests/unit/api/projectRecommendSubredditsRoute.test.ts tests/unit/api/projectRecommendationSelectRoute.test.ts tests/unit/api/projectPainPointsRoute.test.ts tests/unit/api/roadmapsRoute.test.ts`
+2. In every PR description, add a **Local CI Evidence** section with pass/fail summary.
+3. Do not merge if any local CI command fails.
+4. Keep branch workflow the same (no direct push to `main`).
+5. Re-enable required GitHub checks in branch protection once hosted CI is restored.
+
+Reference: `docs/LOCAL_CI.md`
 
 ---
 

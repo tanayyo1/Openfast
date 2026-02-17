@@ -4,6 +4,7 @@ import { acquireDistributedLock } from "@/lib/locks/distributed";
 import type { PublishJobData } from "@/lib/queue/enqueue";
 import { enqueueMetricsFetchJob } from "@/lib/queue/enqueue";
 import { prisma } from "@/lib/prisma";
+import { evaluateCommunityEngagementThreshold } from "@/lib/reddit/communityEngagement";
 import {
   enforceRedditAccountRateLimit,
   redditFetch,
@@ -287,6 +288,34 @@ export async function processPublishJob(job: Job<PublishJobData>) {
         throw permanentWorkerError(
           "COMMENT_FIRST_REQUIRED",
           "NEW accounts must publish comments before posts",
+        );
+      }
+    }
+
+    if (scheduled.draft.type === "POST") {
+      const communityThreshold = await evaluateCommunityEngagementThreshold(
+        {
+          workspaceId: scheduled.workspaceId,
+          redditAccountId: scheduled.redditAccountId,
+          subredditId: scheduled.subredditId,
+        },
+        ({ workspaceId, redditAccountId, subredditId }) =>
+          typeof prisma.publishedItem.count === "function"
+            ? prisma.publishedItem.count({
+                where: {
+                  workspaceId,
+                  redditAccountId,
+                  subredditId,
+                  type: "COMMENT",
+                },
+              })
+            : Promise.resolve(0),
+      );
+
+      if (!communityThreshold.met) {
+        throw permanentWorkerError(
+          "COMMUNITY_ENGAGEMENT_REQUIRED",
+          "Community engagement threshold not met for this subreddit",
         );
       }
     }

@@ -375,4 +375,128 @@ describe("recommend subreddits route", () => {
     const json = (await readJson(res)) as { count: number };
     expect(json.count).toBe(5);
   });
+
+  test("deduplicates candidate subreddit names before ingestion", async () => {
+    mockedPrisma.projectSubredditRecommendation.findMany.mockReset();
+    mockedPrisma.projectSubredditRecommendation.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          subredditId: "sub_1",
+          fitScore: 0.82,
+          riskScore: 0.21,
+          timeWindowScore: 0.79,
+          compositeScore: 0.8,
+          reasons: { summary: "good fit" },
+          subreddit: { name: "startups", title: "Startups" },
+        },
+      ]);
+
+    mockedPrisma.project.findFirst.mockResolvedValue({
+      id: "p_1",
+      name: "Acme",
+      niche: "saas",
+      goals: {},
+      constraints: null,
+    });
+    mockedIntel.candidateSubredditNamesForProject.mockReturnValue([
+      "startups",
+      " Startups ",
+      "STARTUPS",
+    ]);
+    mockedIntel.ingestSubreddit.mockResolvedValue({ id: "sub_1" });
+    mockedIntel.computeSubredditTimeWindows.mockResolvedValue(undefined);
+    mockedPrisma.subredditCatalog.findMany.mockResolvedValue([
+      {
+        id: "sub_1",
+        name: "startups",
+        title: "Startups",
+        description: "startup talk",
+        subscribers: 100000,
+        activeUsers: 5000,
+        avgPostsPerDay: 10,
+        avgCommentsPerPost: 7,
+        policy: {
+          promoAllowed: "ALLOWED",
+          linkPolicy: "ALLOWED",
+          selfPromoAllowed: true,
+          affiliateAllowed: true,
+        },
+        timeSlots: [{ score: 0.8 }],
+      },
+    ]);
+    mockedRanking.mockReturnValue([
+      {
+        subredditId: "sub_1",
+        fitScore: 0.82,
+        riskScore: 0.21,
+        timeScore: 0.79,
+        totalScore: 0.8,
+        reasons: { summary: "good fit" },
+      },
+    ]);
+
+    const res = await recommendSubreddits(
+      new Request("http://test.local/api/projects/p_1/recommend-subreddits", {
+        method: "POST",
+      }),
+      { params: { id: "p_1" } },
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockedIntel.ingestSubreddit).toHaveBeenCalledTimes(1);
+    expect(mockedQueue.enqueueSubredditIngestJob).toHaveBeenCalledTimes(1);
+    expect(mockedIntel.computeSubredditTimeWindows).toHaveBeenCalledTimes(1);
+  });
+
+  test("returns existing recommendations without mutation when all ingests fail", async () => {
+    mockedPrisma.projectSubredditRecommendation.findMany.mockReset();
+    mockedPrisma.projectSubredditRecommendation.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          subredditId: "sub_existing",
+          fitScore: 0.72,
+          riskScore: 0.25,
+          timeWindowScore: 0.66,
+          compositeScore: 0.69,
+          reasons: { summary: "existing candidate" },
+          subreddit: { name: "existing", title: "Existing" },
+        },
+      ]);
+
+    mockedPrisma.project.findFirst.mockResolvedValue({
+      id: "p_1",
+      name: "Acme",
+      niche: "saas",
+      goals: {},
+      constraints: null,
+    });
+    mockedIntel.candidateSubredditNamesForProject.mockReturnValue([
+      "startups",
+      "saas",
+    ]);
+    mockedIntel.ingestSubreddit.mockRejectedValue(new Error("INGEST_FAILED"));
+
+    const res = await recommendSubreddits(
+      new Request("http://test.local/api/projects/p_1/recommend-subreddits", {
+        method: "POST",
+      }),
+      { params: { id: "p_1" } },
+    );
+
+    expect(res.status).toBe(200);
+    expect(tx.projectSubredditRecommendation.deleteMany).not.toHaveBeenCalled();
+    expect(tx.projectSubredditRecommendation.updateMany).not.toHaveBeenCalled();
+    expect(tx.projectSubredditRecommendation.createMany).not.toHaveBeenCalled();
+    expect(mockedPrisma.subredditCatalog.findMany).not.toHaveBeenCalled();
+    expect(mockedRanking).not.toHaveBeenCalled();
+
+    const json = (await readJson(res)) as {
+      count: number;
+      items: Array<{ subredditId: string }>;
+    };
+    expect(json.count).toBe(1);
+    expect(json.items[0]?.subredditId).toBe("sub_existing");
+  });
 });

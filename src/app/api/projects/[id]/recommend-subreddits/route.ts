@@ -19,6 +19,43 @@ function authError(err: unknown) {
   return NextResponse.json({ error: "Unauthorized", code }, { status });
 }
 
+function uniqueSubredditNames(names: string[]) {
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+  for (const name of names) {
+    const trimmed = name.trim();
+    if (trimmed.length === 0) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(trimmed);
+  }
+  return deduped;
+}
+
+async function fetchPersistedRecommendations(workspaceId: string, projectId: string) {
+  return prisma.projectSubredditRecommendation.findMany({
+    where: {
+      workspaceId,
+      projectId,
+      status: { in: ["SELECTED", "CANDIDATE"] },
+    },
+    select: {
+      subredditId: true,
+      fitScore: true,
+      riskScore: true,
+      timeWindowScore: true,
+      compositeScore: true,
+      reasons: true,
+      subreddit: {
+        select: { name: true, title: true },
+      },
+    },
+    orderBy: [{ compositeScore: "desc" }],
+    take: 5,
+  });
+}
+
 export async function POST(_req: Request, ctx: { params: { id: string } }) {
   let session;
   try {
@@ -59,26 +96,61 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
   });
   const selectedSubredditIds = new Set(selectedRows.map((row) => row.subredditId));
 
-  const names = candidateSubredditNamesForProject({
-    projectName: project.name,
-    niche: project.niche,
-  });
-
-  const ingested = await Promise.all(
-    names.map(async (name) => {
-      await enqueueSubredditIngestJob({ subredditName: name }).catch(
-        () => null,
-      );
-      const subreddit = await ingestSubreddit(name);
-      await enqueueSubredditComputeTimeWindowsJob({
-        subredditId: subreddit.id,
-      }).catch(() => null);
-      await computeSubredditTimeWindows(subreddit.id);
-      return subreddit;
+  const names = uniqueSubredditNames(
+    candidateSubredditNamesForProject({
+      projectName: project.name,
+      niche: project.niche,
     }),
   );
 
-  const subredditIds = ingested.map((s) => s.id);
+  const ingestedResults = await Promise.all(
+    names.map(async (name) => {
+      try {
+        await enqueueSubredditIngestJob({ subredditName: name }).catch(
+          () => null,
+        );
+        const subreddit = await ingestSubreddit(name);
+        await enqueueSubredditComputeTimeWindowsJob({
+          subredditId: subreddit.id,
+        }).catch(() => null);
+        await computeSubredditTimeWindows(subreddit.id);
+        return subreddit;
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  const ingested = ingestedResults.filter(
+    (
+      subreddit,
+    ): subreddit is Awaited<ReturnType<typeof ingestSubreddit>> =>
+      subreddit !== null,
+  );
+  if (ingested.length === 0) {
+    const persisted = await fetchPersistedRecommendations(
+      session.workspaceId,
+      projectId,
+    );
+    const items = persisted.map((item) => ({
+      subredditId: item.subredditId,
+      subredditName: item.subreddit.name,
+      subredditTitle: item.subreddit.title,
+      fitScore: item.fitScore,
+      riskScore: item.riskScore,
+      timeScore: item.timeWindowScore,
+      totalScore: item.compositeScore,
+      reasons: item.reasons,
+    }));
+
+    return NextResponse.json({
+      projectId,
+      count: items.length,
+      items,
+    });
+  }
+
+  const subredditIds = Array.from(new Set(ingested.map((s) => s.id)));
   const subredditRows = await prisma.subredditCatalog.findMany({
     where: { id: { in: subredditIds } },
     select: {
@@ -171,26 +243,10 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
     });
   });
 
-  const persisted = await prisma.projectSubredditRecommendation.findMany({
-    where: {
-      workspaceId: session.workspaceId,
-      projectId,
-      status: { in: ["SELECTED", "CANDIDATE"] },
-    },
-    select: {
-      subredditId: true,
-      fitScore: true,
-      riskScore: true,
-      timeWindowScore: true,
-      compositeScore: true,
-      reasons: true,
-      subreddit: {
-        select: { name: true, title: true },
-      },
-    },
-    orderBy: [{ compositeScore: "desc" }],
-    take: 5,
-  });
+  const persisted = await fetchPersistedRecommendations(
+    session.workspaceId,
+    projectId,
+  );
 
   const items = persisted.map((item) => ({
     subredditId: item.subredditId,

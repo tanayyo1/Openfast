@@ -38,6 +38,7 @@ const createScheduledPostSchema = z.object({
 });
 
 const DEFAULT_COMMENT_FIRST_MIN_COMMENTS = 3;
+const HEALTH_BLOCK_THRESHOLD = 30;
 
 function authError(err: unknown) {
   const code = err instanceof Error ? err.message : "UNAUTHORIZED";
@@ -293,6 +294,34 @@ export async function POST(req: Request) {
         { status: 409 },
       );
     }
+  }
+
+  const latestHealth = await prisma.accountHealthSnapshot.findFirst({
+    where: {
+      workspaceId: session.workspaceId,
+      redditAccountId: redditAccount.id,
+    },
+    orderBy: { capturedAt: "desc" },
+    select: { healthScore: true, capturedAt: true },
+  });
+  if (
+    latestHealth &&
+    draft.type === "POST" &&
+    latestHealth.healthScore < HEALTH_BLOCK_THRESHOLD
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Account health is below safe threshold. Scheduling posts is temporarily blocked.",
+        code: "ACCOUNT_HEALTH_BLOCKED",
+        details: {
+          healthScore: latestHealth.healthScore,
+          threshold: HEALTH_BLOCK_THRESHOLD,
+          capturedAt: latestHealth.capturedAt.toISOString(),
+        },
+      },
+      { status: 409 },
+    );
   }
 
   const subredditId = data.subredditId ?? draft.subredditId;

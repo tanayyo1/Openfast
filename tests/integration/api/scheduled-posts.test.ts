@@ -160,6 +160,12 @@ describe("Scheduled posts API", () => {
     draftId: string;
   }) {
     await prisma.scheduledPost.deleteMany({ where: { draftId: ids.draftId } });
+    await prisma.publishedItem.deleteMany({
+      where: {
+        redditAccountId: ids.redditAccountId,
+        subredditId: ids.subredditId,
+      },
+    });
     await prisma.draft.deleteMany({ where: { id: ids.draftId } });
     await prisma.project.deleteMany({ where: { id: ids.projectId } });
     await prisma.redditAccount.deleteMany({
@@ -390,6 +396,7 @@ describe("Scheduled posts API", () => {
       expect(blockedJson.code).toBe("COMMUNITY_ENGAGEMENT_REQUIRED");
       expect(blockedJson.details.requiredComments).toBe(2);
       expect(blockedJson.details.publishedComments).toBe(0);
+      expect(blockedJson.details.remainingComments).toBe(2);
 
       await createPublishedComment({
         workspaceId,
@@ -417,6 +424,31 @@ describe("Scheduled posts API", () => {
         }),
       );
       expect(allowed.status).toBe(201);
+    } finally {
+      await cleanupFixture(ids);
+    }
+  });
+
+  test("does not enforce community engagement threshold for COMMENT drafts", async () => {
+    process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS = "2";
+    const ids = await makeFixture("APPROVED", {
+      safetyTier: "ESTABLISHED",
+      draftType: "COMMENT",
+    });
+    try {
+      const res = await createScheduledPost(
+        new Request("http://test.local/api/scheduled-posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            draftId: ids.draftId,
+            redditAccountId: ids.redditAccountId,
+            scheduledAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+            timezone: "UTC",
+          }),
+        }),
+      );
+      expect(res.status).toBe(201);
     } finally {
       await cleanupFixture(ids);
     }

@@ -320,26 +320,24 @@ export async function processPublishJob(job: Job<PublishJobData>) {
       }
     }
 
-    const latestHealth =
-      typeof prisma.accountHealthSnapshot?.findFirst === "function"
-        ? await prisma.accountHealthSnapshot.findFirst({
-            where: {
-              workspaceId: scheduled.workspaceId,
-              redditAccountId: scheduled.redditAccountId,
-            },
-            orderBy: { capturedAt: "desc" },
-            select: { healthScore: true },
-          })
-        : null;
-    if (
-      latestHealth &&
-      scheduled.draft.type === "POST" &&
-      latestHealth.healthScore < 30
-    ) {
-      throw permanentWorkerError(
-        "ACCOUNT_HEALTH_BLOCKED",
-        "Account health score is below safe publish threshold",
-      );
+    if (scheduled.draft.type === "POST") {
+      const latestHealth =
+        typeof prisma.accountHealthSnapshot?.findFirst === "function"
+          ? await prisma.accountHealthSnapshot.findFirst({
+              where: {
+                workspaceId: scheduled.workspaceId,
+                redditAccountId: scheduled.redditAccountId,
+              },
+              orderBy: { capturedAt: "desc" },
+              select: { healthScore: true },
+            })
+          : null;
+      if (latestHealth && latestHealth.healthScore < 30) {
+        throw permanentWorkerError(
+          "ACCOUNT_HEALTH_BLOCKED",
+          "Account health score is below safe publish threshold",
+        );
+      }
     }
 
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);

@@ -15,7 +15,7 @@
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
     "test": "jest",
-    "test:ci-local": "jest --runInBand --detectOpenHandles --forceExit",
+    "test:ci-local": "jest --runInBand --detectOpenHandles",
     "test:unit": "jest --testPathPattern=tests/unit",
     "test:integration": "jest --testPathPattern=tests/integration",
     "test:e2e": "playwright test",

@@ -15,6 +15,9 @@ function cappedTake(value: number | undefined, fallback: number, max: number) {
   return Math.max(1, Math.min(max, Math.floor(value as number)));
 }
 
+const MAX_RECOMMENDATION_SUBREDDITS = 8;
+const MAX_THREADS_PER_SUBREDDIT = 40;
+
 export async function generateProjectPainPoints(input: {
   workspaceId: string;
   projectId: string;
@@ -30,20 +33,44 @@ export async function generateProjectPainPoints(input: {
   });
   if (!project) throw new Error("PROJECT_NOT_FOUND");
 
-  const activeRecommendationSubreddits =
+  const selectedRecommendationSubreddits =
     await prisma.projectSubredditRecommendation.findMany({
       where: {
         workspaceId: input.workspaceId,
         projectId: input.projectId,
-        status: { in: ["SELECTED", "CANDIDATE"] },
+        status: "SELECTED",
       },
       select: {
         subredditId: true,
         status: true,
       },
-      orderBy: [{ status: "asc" }, { compositeScore: "desc" }],
-      take: 8,
+      orderBy: [{ compositeScore: "desc" }],
+      take: MAX_RECOMMENDATION_SUBREDDITS,
     });
+  const remainingRecommendationSlots = Math.max(
+    0,
+    MAX_RECOMMENDATION_SUBREDDITS - selectedRecommendationSubreddits.length,
+  );
+  const candidateRecommendationSubreddits =
+    remainingRecommendationSlots > 0
+      ? await prisma.projectSubredditRecommendation.findMany({
+          where: {
+            workspaceId: input.workspaceId,
+            projectId: input.projectId,
+            status: "CANDIDATE",
+          },
+          select: {
+            subredditId: true,
+            status: true,
+          },
+          orderBy: [{ compositeScore: "desc" }],
+          take: remainingRecommendationSlots,
+        })
+      : [];
+  const activeRecommendationSubreddits = [
+    ...selectedRecommendationSubreddits,
+    ...candidateRecommendationSubreddits,
+  ];
 
   if (activeRecommendationSubreddits.length === 0) {
     await prisma.projectPainPoint.deleteMany({
@@ -58,30 +85,30 @@ export async function generateProjectPainPoints(input: {
   }
 
   const subredditIds = activeRecommendationSubreddits.map((item) => item.subredditId);
-  const threadCandidates = await prisma.threadCandidate.findMany({
-    where: {
-      subredditId: { in: subredditIds },
-      status: CandidateStatus.ACTIVE,
-      expiresAt: { gt: new Date() },
-    },
-    select: {
-      subredditId: true,
-      redditId: true,
-      title: true,
-      score: true,
-      relevanceScore: true,
-      subreddit: { select: { id: true, name: true } },
-    },
-    orderBy: [{ score: "desc" }, { createdAt: "desc" }],
-    take: 200,
-  });
-
-  const bySubreddit = new Map<string, typeof threadCandidates>();
-  for (const candidate of threadCandidates) {
-    const list = bySubreddit.get(candidate.subredditId) ?? [];
-    list.push(candidate);
-    bySubreddit.set(candidate.subredditId, list);
-  }
+  const threadBuckets = await Promise.all(
+    subredditIds.map(async (subredditId) => {
+      const items = await prisma.threadCandidate.findMany({
+        where: {
+          subredditId,
+          status: CandidateStatus.ACTIVE,
+          expiresAt: { gt: new Date() },
+        },
+        select: {
+          subredditId: true,
+          redditId: true,
+          title: true,
+          score: true,
+          relevanceScore: true,
+        },
+        orderBy: [{ score: "desc" }, { createdAt: "desc" }],
+        take: MAX_THREADS_PER_SUBREDDIT,
+      });
+      return [subredditId, items] as const;
+    }),
+  );
+  const bySubreddit = new Map<string, Array<(typeof threadBuckets)[number][1][number]>>(
+    threadBuckets,
+  );
 
   const perSubredditLimit = cappedTake(input.perSubredditLimit, 6, 12);
   const flattened: Array<{

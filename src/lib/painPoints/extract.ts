@@ -58,7 +58,7 @@ const PATTERNS: Array<{
   },
   {
     regex: /\bcan(?:not|'t)\s+([^?.!,;]+)/i,
-    normalize: (m) => `can't ${m[1]}`,
+    normalize: (m) => `cannot ${m[1]}`,
   },
   {
     regex: /\bhow\s+do\s+i\s+([^?.!,;]+)/i,
@@ -205,4 +205,3 @@ export function extractPainPointCandidates(threads: SourceThread[]) {
     return b.confidenceScore - a.confidenceScore;
   });
 }
-

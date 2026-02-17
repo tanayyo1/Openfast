@@ -48,5 +48,21 @@ describe("pain point extractor", () => {
     expect(top?.sampleTitles.length).toBeGreaterThan(0);
     expect(top?.sourceThreadIds.length).toBeGreaterThan(0);
   });
-});
 
+  test("normalizes cannot phrases without introducing split apostrophe tokens", () => {
+    const extracted = extractPainPointCandidates([
+      {
+        redditId: "c1",
+        title: "Can't find a reliable way to validate startup ideas",
+        score: 0.7,
+        relevanceScore: 0.8,
+      },
+    ]);
+
+    const cannot = extracted.find((item) =>
+      item.normalizedPhrase.startsWith("cannot "),
+    );
+    expect(cannot).toBeDefined();
+    expect(cannot?.normalizedPhrase.includes("can t")).toBe(false);
+  });
+});

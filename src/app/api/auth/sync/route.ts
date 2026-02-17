@@ -30,12 +30,17 @@ export async function POST(request: Request) {
         });
       }
 
-      // Return existing workspace
-      const workspace = await prisma.workspace.findFirst({
-        where: { ownerId: existingUser.id },
+      // Return first workspace membership (owner/admin/member), deterministic by join time.
+      const membership = await prisma.workspaceMember.findFirst({
+        where: { userId: existingUser.id },
+        orderBy: { createdAt: "asc" },
+        include: { workspace: true },
       });
 
-      return NextResponse.json({ user: existingUser, workspace });
+      return NextResponse.json({
+        user: existingUser,
+        workspace: membership?.workspace ?? null,
+      });
     }
 
     // Get user metadata (name from signup)

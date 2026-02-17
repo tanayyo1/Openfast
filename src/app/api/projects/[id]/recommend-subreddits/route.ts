@@ -117,7 +117,7 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
     if (ranked.length === 0) return;
 
     await tx.projectSubredditRecommendation.createMany({
-      data: ranked.map((rec, index) => ({
+      data: ranked.map((rec) => ({
         workspaceId: session.workspaceId,
         projectId,
         subredditId: rec.subredditId,
@@ -126,7 +126,6 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
         timeWindowScore: rec.timeScore,
         compositeScore: rec.totalScore,
         reasons: rec.reasons as Prisma.InputJsonValue,
-        rank: index + 1,
         status: "CANDIDATE",
       })),
     });

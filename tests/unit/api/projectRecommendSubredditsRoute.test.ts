@@ -1,0 +1,153 @@
+jest.mock("@/lib/server/auth-guards", () => ({
+  requireWorkspaceSession: jest.fn(),
+}));
+
+jest.mock("@/lib/queue/enqueue", () => ({
+  enqueueSubredditIngestJob: jest.fn(),
+  enqueueSubredditComputeTimeWindowsJob: jest.fn(),
+}));
+
+jest.mock("@/lib/recommendations/ranking", () => ({
+  rankSubreddits: jest.fn(),
+}));
+
+jest.mock("@/lib/subreddit/intel", () => ({
+  candidateSubredditNamesForProject: jest.fn(),
+  ingestSubreddit: jest.fn(),
+  computeSubredditTimeWindows: jest.fn(),
+}));
+
+jest.mock("@/lib/prisma", () => ({
+  prisma: {
+    project: { findFirst: jest.fn() },
+    subredditCatalog: { findMany: jest.fn() },
+    $transaction: jest.fn(),
+  },
+}));
+
+import { POST as recommendSubreddits } from "@/app/api/projects/[id]/recommend-subreddits/route";
+import { rankSubreddits } from "@/lib/recommendations/ranking";
+
+const mockedGuards = jest.requireMock("@/lib/server/auth-guards") as {
+  requireWorkspaceSession: jest.Mock;
+};
+const mockedQueue = jest.requireMock("@/lib/queue/enqueue") as {
+  enqueueSubredditIngestJob: jest.Mock;
+  enqueueSubredditComputeTimeWindowsJob: jest.Mock;
+};
+const mockedIntel = jest.requireMock("@/lib/subreddit/intel") as {
+  candidateSubredditNamesForProject: jest.Mock;
+  ingestSubreddit: jest.Mock;
+  computeSubredditTimeWindows: jest.Mock;
+};
+const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
+  project: { findFirst: jest.Mock };
+  subredditCatalog: { findMany: jest.Mock };
+  $transaction: jest.Mock;
+};
+const mockedRanking = rankSubreddits as jest.Mock;
+
+async function readJson(res: Response) {
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+describe("recommend subreddits route", () => {
+  const tx = {
+    projectSubredditRecommendation: {
+      deleteMany: jest.fn(),
+      createMany: jest.fn(),
+    },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedGuards.requireWorkspaceSession.mockResolvedValue({
+      user: { id: "u_1" },
+      workspaceId: "ws_1",
+    });
+    mockedPrisma.$transaction.mockImplementation(async (handler: Function) =>
+      handler(tx),
+    );
+    mockedQueue.enqueueSubredditIngestJob.mockResolvedValue({ id: "job_ing_1" });
+    mockedQueue.enqueueSubredditComputeTimeWindowsJob.mockResolvedValue({
+      id: "job_slot_1",
+    });
+  });
+
+  test("writes recommendations without unsupported rank field", async () => {
+    mockedPrisma.project.findFirst.mockResolvedValue({
+      id: "p_1",
+      name: "Acme",
+      niche: "saas",
+      goals: {},
+      constraints: null,
+    });
+    mockedIntel.candidateSubredditNamesForProject.mockReturnValue(["startups"]);
+    mockedIntel.ingestSubreddit.mockResolvedValue({ id: "sub_1" });
+    mockedIntel.computeSubredditTimeWindows.mockResolvedValue(undefined);
+    mockedPrisma.subredditCatalog.findMany.mockResolvedValue([
+      {
+        id: "sub_1",
+        name: "startups",
+        title: "Startups",
+        description: "startup talk",
+        subscribers: 100000,
+        activeUsers: 5000,
+        avgPostsPerDay: 10,
+        avgCommentsPerPost: 7,
+        policy: {
+          promoAllowed: "ALLOWED",
+          linkPolicy: "ALLOWED",
+          selfPromoAllowed: true,
+          affiliateAllowed: true,
+        },
+        timeSlots: [{ score: 0.8 }],
+      },
+    ]);
+    mockedRanking.mockReturnValue([
+      {
+        subredditId: "sub_1",
+        fitScore: 0.8,
+        riskScore: 0.2,
+        timeScore: 0.8,
+        totalScore: 0.79,
+        reasons: { summary: "good fit" },
+      },
+    ]);
+
+    const res = await recommendSubreddits(
+      new Request("http://test.local/api/projects/p_1/recommend-subreddits", {
+        method: "POST",
+      }),
+      { params: { id: "p_1" } },
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockedQueue.enqueueSubredditIngestJob).toHaveBeenCalled();
+    expect(mockedQueue.enqueueSubredditComputeTimeWindowsJob).toHaveBeenCalled();
+    expect(tx.projectSubredditRecommendation.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            workspaceId: "ws_1",
+            projectId: "p_1",
+            subredditId: "sub_1",
+            status: "CANDIDATE",
+          }),
+        ],
+      }),
+    );
+    const createManyArg = tx.projectSubredditRecommendation.createMany.mock.calls[0]?.[0];
+    const first = createManyArg?.data?.[0] as Record<string, unknown>;
+    expect(first).toBeDefined();
+    expect(Object.prototype.hasOwnProperty.call(first, "rank")).toBe(false);
+
+    const json = (await readJson(res)) as {
+      count: number;
+      items: Array<{ subredditId: string }>;
+    };
+    expect(json.count).toBe(1);
+    expect(json.items[0]?.subredditId).toBe("sub_1");
+  });
+});

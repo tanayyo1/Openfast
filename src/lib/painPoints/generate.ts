@@ -143,34 +143,34 @@ export async function generateProjectPainPoints(input: {
     }
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.projectPainPoint.deleteMany({
-      where: {
-        workspaceId: input.workspaceId,
-        projectId: input.projectId,
-      },
-    });
+  if (flattened.length > 0) {
+    await prisma.$transaction(async (tx) => {
+      await tx.projectPainPoint.deleteMany({
+        where: {
+          workspaceId: input.workspaceId,
+          projectId: input.projectId,
+        },
+      });
 
-    if (flattened.length === 0) return;
-
-    await tx.projectPainPoint.createMany({
-      data: flattened.map((item) => ({
-        workspaceId: input.workspaceId,
-        projectId: input.projectId,
-        subredditId: item.subredditId,
-        phrase: item.phrase,
-        normalizedPhrase: item.normalizedPhrase,
-        severityScore: item.severityScore,
-        confidenceScore: item.confidenceScore,
-        frequency: item.frequency,
-        evidenceCount: item.sourceThreadIds.length,
-        sampleTitles: item.sampleTitles as Prisma.InputJsonValue,
-        sourceThreadIds: item.sourceThreadIds as Prisma.InputJsonValue,
-        status: CandidateStatus.ACTIVE,
-        expiresAt: null,
-      })),
+      await tx.projectPainPoint.createMany({
+        data: flattened.map((item) => ({
+          workspaceId: input.workspaceId,
+          projectId: input.projectId,
+          subredditId: item.subredditId,
+          phrase: item.phrase,
+          normalizedPhrase: item.normalizedPhrase,
+          severityScore: item.severityScore,
+          confidenceScore: item.confidenceScore,
+          frequency: item.frequency,
+          evidenceCount: item.sourceThreadIds.length,
+          sampleTitles: item.sampleTitles as Prisma.InputJsonValue,
+          sourceThreadIds: item.sourceThreadIds as Prisma.InputJsonValue,
+          status: CandidateStatus.ACTIVE,
+          expiresAt: null,
+        })),
+      });
     });
-  });
+  }
 
   const items: GeneratedPainPointItem[] = await prisma.projectPainPoint.findMany({
     where: {

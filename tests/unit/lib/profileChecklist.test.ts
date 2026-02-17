@@ -88,4 +88,21 @@ describe("profile checklist", () => {
     expect(readyCandidate.summary.warned).toBe(3);
     expect(readyCandidate.readiness).toBe("READY");
   });
+
+  test("normalizes scope casing and trims whitespace before validation", () => {
+    const out = buildRedditProfileChecklist({
+      scopes: [" Identity ", "READ", " submit "],
+      accountAgeDays: 40,
+      linkKarma: 60,
+      commentKarma: 30,
+      safetyTier: "ESTABLISHED",
+      lastSyncAt: new Date(),
+      latestHealthScore: 70,
+      publishedComments: 0,
+      commentFirstMinComments: 3,
+    });
+
+    const requiredScopes = out.items.find((item) => item.key === "required_scopes");
+    expect(requiredScopes?.status).toBe("PASS");
+  });
 });

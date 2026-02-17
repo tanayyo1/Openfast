@@ -23,7 +23,11 @@ export type ProfileChecklistInput = {
 };
 
 function normalizeScopes(scopes: string[]) {
-  return new Set(scopes.map((scope) => scope.toLowerCase()));
+  return new Set(
+    scopes
+      .map((scope) => scope.trim().toLowerCase())
+      .filter((scope) => scope.length > 0),
+  );
 }
 
 function parsePositiveEnvInt(name: string, fallback: number) {

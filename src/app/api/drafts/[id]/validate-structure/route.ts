@@ -47,32 +47,35 @@ export async function POST(
   let subredditStrict: boolean | undefined;
   let productCategory: string | undefined;
 
-  let json: unknown = {};
-  try {
-    const rawBody = await req.text();
-    json = rawBody.trim().length > 0 ? JSON.parse(rawBody) : {};
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body", code: "BAD_JSON" },
-      { status: 400 },
-    );
-  }
+  const rawBody = await req.text();
+  if (rawBody.trim().length > 0) {
+    let rawJson: unknown;
+    try {
+      rawJson = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid JSON body", code: "BAD_JSON" },
+        { status: 400 },
+      );
+    }
 
-  const parsed = bodySchema.safeParse(json);
-  if (!parsed.success) {
-    return NextResponse.json(
-      {
-        error: "Invalid input",
-        code: "VALIDATION_ERROR",
-        details: parsed.error.flatten(),
-      },
-      { status: 400 },
-    );
+    const parsed = bodySchema.safeParse(rawJson);
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          error: "Invalid input",
+          code: "VALIDATION_ERROR",
+          details: parsed.error.flatten(),
+        },
+        { status: 400 },
+      );
+    }
+
+    if (parsed.data.title !== undefined) title = parsed.data.title;
+    if (parsed.data.body !== undefined) body = parsed.data.body;
+    subredditStrict = parsed.data.subredditStrict;
+    productCategory = parsed.data.productCategory;
   }
-  if (parsed.data.title !== undefined) title = parsed.data.title;
-  if (parsed.data.body !== undefined) body = parsed.data.body;
-  subredditStrict = parsed.data.subredditStrict;
-  productCategory = parsed.data.productCategory;
 
   const result = validatePostStructure(title, body, {
     subredditStrict,

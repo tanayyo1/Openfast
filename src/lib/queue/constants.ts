@@ -4,6 +4,10 @@ export const QUEUE_NAMES = {
   CONTENT_GENERATE: "content.generate",
   SUBREDDIT_INGEST: "subreddit.ingest",
   SUBREDDIT_COMPUTE_TIME_WINDOWS: "subreddit.compute_time_windows",
+  RECOMMENDATIONS_GENERATE: "recommendations.generate",
+  ROADMAP_GENERATE: "roadmap.generate",
+  RISK_ACCOUNT_HEALTH: "risk.account_health",
+  RISK_VISIBILITY_CHECK: "risk.visibility_check",
   DEAD_LETTER: "dead.letter",
 } as const;
 

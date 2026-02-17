@@ -24,6 +24,21 @@ const scopes = [
   },
 ];
 
+const profileOptimizationGuide = [
+  "Complete your profile basics before posting (avatar, clear about/bio, consistent username).",
+  "Build comment karma first with 2-3 value-first comments per target subreddit.",
+  "Avoid links and product mentions in early interactions until trust signals improve.",
+  "Keep a consistent cadence (few high-quality interactions daily over bursts).",
+  "Refresh account health weekly and resolve removals before scheduling more posts.",
+];
+
+const demandScorecardGuide = [
+  "Pick 2-4 subreddits with high fit and medium/low risk before scaling volume.",
+  "Extract at least 3 recurring pain points so demand signals are not noisy.",
+  "Use timing windows only after fit is proven; timing does not fix weak positioning.",
+  "If scorecard blockers appear, resolve those before posting promotional content.",
+];
+
 export default function ConnectRedditPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -177,6 +192,32 @@ export default function ConnectRedditPage() {
               <li>Start with comments on new accounts to build karma.</li>
               <li>Follow subreddit rules and avoid repeated links.</li>
             </ul>
+          </div>
+
+          <div className="rounded-[24px] border border-border bg-background/70 p-6">
+            <p className="text-sm font-semibold">Profile optimization guide</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Use this checklist to keep account quality high before scaling
+              post volume.
+            </p>
+            <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
+              {profileOptimizationGuide.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ol>
+          </div>
+
+          <div className="rounded-[24px] border border-border bg-background/70 p-6">
+            <p className="text-sm font-semibold">Demand scorecard guide</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Use project demand scorecards to decide where to post first and
+              when to hold back.
+            </p>
+            <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
+              {demandScorecardGuide.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ol>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 # PROGRESSION.md - MediaFast Clone MVP Tracker
 
-> **Last Updated**: 2026-02-08  
+> **Last Updated**: 2026-02-17
 > **Target**: `mediafast_clone_system_design_report.md`  
 > **Current Estimate**: ~35-40% of MVP parity complete
 
@@ -98,10 +98,10 @@
 ## P3 - Account Health + Visibility Checks
 
 - [x] Add health snapshot + visibility check persistence if missing in schema.
-- [ ] Implement `risk.account_health` queue + worker.
-- [ ] Implement `risk.visibility_check` queue + worker.
-- [ ] Build APIs: `GET /reddit/accounts/:id/health`, `POST /reddit/accounts/:id/visibility-check`.
-- [ ] Surface health warnings in app UX (blocking high-risk publish attempts).
+- [x] Implement `risk.account_health` queue + worker.
+- [x] Implement `risk.visibility_check` queue + worker.
+- [x] Build APIs: `GET /reddit/accounts/:id/health`, `POST /reddit/accounts/:id/visibility-check`.
+- [x] Surface health warnings in app UX (blocking high-risk publish attempts).
 
 ## P4 - Free Tools Backend + Rate Limiting
 
@@ -137,15 +137,45 @@
 
 ---
 
-## 4) Quick Priority Order for Fastest Real MVP
+## 4) Sprint Priority (Updated 2026-02-15)
 
-1. Scheduling APIs + real publish worker + metrics worker.
-2. Analytics endpoints using persisted snapshots.
-3. Recommendations (best 5) + intel ingest/time windows.
-4. Task content generation endpoints + AI variants.
-5. Account health + visibility checks.
-6. Free tools backend + rate limits.
-7. Billing entitlements.
+### Tier 1 - Must Ship First (In Todo on Linear)
+
+1. RED-30: Subreddit rules fetch + cache (DONE - Reddit fetch + Redis/memory cache + fallback)
+2. RED-29: Account health snapshot (DONE - snapshot scoring + tier updates + stale refresh queueing)
+3. RED-35: Distributed locks + rate limits (DONE - Redis locks in publish worker + fallback rate-limit enforcement)
+4. RED-39: OpenAI client + prompt templates (DONE - OpenAI wrapper + DB-backed prompt template service + content worker LLM path)
+5. RED-40: Draft generation + compliance scoring (DONE - variant-level compliance scoring + safest-variant selection)
+6. RED-48: Value-check scoring (DONE - value density scoring integrated into compliance risk penalties)
+7. RED-63: Post structure validator
+8. RED-55: Comment-first mode for new accounts
+
+### Tier 2 - Differentiation (Backlog, High priority)
+
+- RED-62: Subreddit discovery tool
+- RED-53: Tone classifier
+- RED-41: Draft rewrite
+- RED-49: Subreddit fit score
+- RED-51: Anti-pattern detector (DONE - vote manipulation / engagement-gating / repetition signals added to draft compliance scoring)
+- RED-56: Pain point extractor (DONE - project/subreddit pain-point extraction from thread candidates + persisted insights + API endpoints)
+- RED-50: Community engagement threshold (DONE - subreddit-level comment threshold gate at schedule + publish with explicit API/worker errors)
+
+### Tier 3 - Polish (Backlog, Medium priority)
+
+- RED-54: Reddit profile optimization checklist and guide (DONE - checklist scoring API + onboarding guide section)
+- RED-57: Demand scorecard (DONE - project demand scorecard API from recommendation + pain-point signals + onboarding guide)
+- RED-59, RED-60, RED-61
+
+### Tier 4 - Post-MVP (Backlog, Low priority)
+
+- RED-36/37/38 (analytics pipeline), RED-52 (Reddit Ads), RED-58 (landing page gen)
+
+### Remaining from Original Plan
+
+- P5: Billing/entitlements (Stripe)
+- P6: Admin/ops
+- P7: Queue/cron parity
+- P8: Test coverage
 
 ---
 

@@ -2,8 +2,11 @@ import { createHash } from "crypto";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { QuotaExceededError, assertWorkspaceQuota } from "@/lib/billing/quota";
+import { getHealthGuardrailThresholds } from "@/lib/health/guardrails";
 import { enqueuePublishJob } from "@/lib/queue/enqueue";
 import { prisma } from "@/lib/prisma";
+import { evaluateCommunityEngagementThreshold } from "@/lib/reddit/communityEngagement";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 import { validatePostStructure } from "@/lib/content/postStructureValidator";
 
@@ -35,10 +38,18 @@ const createScheduledPostSchema = z.object({
   idempotencyKey: z.string().min(16).max(128).optional(),
 });
 
+const DEFAULT_COMMENT_FIRST_MIN_COMMENTS = 3;
+
 function authError(err: unknown) {
   const code = err instanceof Error ? err.message : "UNAUTHORIZED";
   const status = code === "WORKSPACE_REQUIRED" ? 400 : 401;
   return NextResponse.json({ error: "Unauthorized", code }, { status });
+}
+
+function parsePositiveEnvInt(name: string, fallback: number) {
+  const raw = Number(process.env[name]);
+  if (!Number.isFinite(raw) || raw <= 0) return fallback;
+  return Math.floor(raw);
 }
 
 function isUniqueViolationFor(
@@ -193,12 +204,34 @@ export async function POST(req: Request) {
   }
 
   const data = parsed.data;
+  const healthThresholds = getHealthGuardrailThresholds();
+
+  try {
+    await assertWorkspaceQuota({
+      workspaceId: session.workspaceId,
+      resource: "scheduled_posts",
+    });
+  } catch (err) {
+    if (err instanceof QuotaExceededError) {
+      return NextResponse.json(
+        {
+          error: err.message,
+          code: err.code,
+          details: { resource: err.resource, used: err.used, limit: err.limit },
+        },
+        { status: 403 },
+      );
+    }
+    throw err;
+  }
+
   const draft = await prisma.draft.findFirst({
     where: { id: data.draftId, workspaceId: session.workspaceId },
     select: {
       id: true,
       status: true,
       subredditId: true,
+      type: true,
       title: true,
       body: true,
     },
@@ -227,13 +260,67 @@ export async function POST(req: Request) {
       workspaceId: session.workspaceId,
       isActive: true,
     },
-    select: { id: true },
+    select: { id: true, safetyTier: true },
   });
   if (!redditAccount) {
     return NextResponse.json(
       { error: "Reddit account not found", code: "REDDIT_ACCOUNT_NOT_FOUND" },
       { status: 404 },
     );
+  }
+
+  if (redditAccount.safetyTier === "NEW" && draft.type === "POST") {
+    const minCommentsRequired = parsePositiveEnvInt(
+      "COMMENT_FIRST_MIN_COMMENTS",
+      DEFAULT_COMMENT_FIRST_MIN_COMMENTS,
+    );
+    const publishedComments = await prisma.publishedItem.count({
+      where: {
+        workspaceId: session.workspaceId,
+        redditAccountId: redditAccount.id,
+        type: "COMMENT",
+      },
+    });
+    if (publishedComments < minCommentsRequired) {
+      return NextResponse.json(
+        {
+          error:
+            "Comment-first mode active for NEW accounts. Publish comments first.",
+          code: "COMMENT_FIRST_REQUIRED",
+          details: {
+            requiredComments: minCommentsRequired,
+            publishedComments,
+          },
+        },
+        { status: 409 },
+      );
+    }
+  }
+
+  if (draft.type === "POST") {
+    const latestHealth = await prisma.accountHealthSnapshot.findFirst({
+      where: {
+        workspaceId: session.workspaceId,
+        redditAccountId: redditAccount.id,
+      },
+      orderBy: { capturedAt: "desc" },
+      select: { healthScore: true, capturedAt: true },
+    });
+    if (latestHealth && latestHealth.healthScore < healthThresholds.blockPublishing) {
+      return NextResponse.json(
+        {
+          error:
+            "Account health is below safe threshold. Scheduling posts is temporarily blocked.",
+          code: "ACCOUNT_HEALTH_BLOCKED",
+          details: {
+            healthScore: latestHealth.healthScore,
+            threshold: healthThresholds.blockPublishing,
+            capturedAt: latestHealth.capturedAt.toISOString(),
+          },
+        },
+        { status: 409 },
+      );
+    }
   }
 
   const subredditId = data.subredditId ?? draft.subredditId;
@@ -255,6 +342,42 @@ export async function POST(req: Request) {
       { error: "Subreddit not found", code: "SUBREDDIT_NOT_FOUND" },
       { status: 404 },
     );
+  }
+
+  if (draft.type === "POST") {
+    const communityThreshold = await evaluateCommunityEngagementThreshold(
+      {
+        workspaceId: session.workspaceId,
+        redditAccountId: redditAccount.id,
+        subredditId,
+      },
+      ({ workspaceId, redditAccountId, subredditId: thresholdSubredditId }) =>
+        prisma.publishedItem.count({
+          where: {
+            workspaceId,
+            redditAccountId,
+            subredditId: thresholdSubredditId,
+            type: "COMMENT",
+          },
+        }),
+    );
+
+    if (!communityThreshold.met) {
+      return NextResponse.json(
+        {
+          error:
+            "Community engagement threshold not met. Publish comments in this subreddit before posting.",
+          code: "COMMUNITY_ENGAGEMENT_REQUIRED",
+          details: {
+            requiredComments: communityThreshold.requiredComments,
+            publishedComments: communityThreshold.publishedComments,
+            remainingComments: communityThreshold.remainingComments,
+            subredditId,
+          },
+        },
+        { status: 409 },
+      );
+    }
   }
 
   const scheduledAt = new Date(data.scheduledAt);

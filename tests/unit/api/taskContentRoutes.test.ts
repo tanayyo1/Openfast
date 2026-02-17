@@ -10,7 +10,9 @@ jest.mock("@/lib/prisma", () => ({
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      count: jest.fn(),
     },
+    workspaceEntitlement: { findUnique: jest.fn() },
     subredditRule: { findFirst: jest.fn() },
   },
 }));
@@ -37,7 +39,9 @@ const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
     findMany: jest.Mock;
     create: jest.Mock;
     update: jest.Mock;
+    count: jest.Mock;
   };
+  workspaceEntitlement: { findUnique: jest.Mock };
   subredditRule: { findFirst: jest.Mock };
 };
 const mockedEnqueue = jest.requireMock("@/lib/queue/enqueue") as {
@@ -56,6 +60,13 @@ describe("task content APIs + worker", () => {
       user: { id: "u_1" },
       workspaceId: "ws_1",
     });
+    mockedPrisma.workspaceEntitlement.findUnique.mockResolvedValue({
+      maxProjects: 1,
+      maxRedditAccounts: 1,
+      maxScheduledPosts: 10,
+      maxDraftsPerMonth: 1000,
+    });
+    mockedPrisma.draft.count.mockResolvedValue(0);
   });
 
   test("generation success enqueues content job", async () => {
@@ -267,6 +278,12 @@ describe("task content APIs + worker", () => {
             score: expect.any(Number),
             warnings: expect.any(Array),
             rewriteSuggestions: expect.any(Array),
+          }),
+          generationParams: expect.objectContaining({
+            compliance: expect.objectContaining({
+              antiPatternPenalty: expect.any(Number),
+              selectedAntiPatternFlags: expect.any(Array),
+            }),
           }),
         }),
       }),

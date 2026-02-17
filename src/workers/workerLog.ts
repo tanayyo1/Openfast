@@ -1,1 +1,24 @@
-export { logWorkerEvent } from "./lib/workerLog";
+export function logWorkerEvent(
+  worker: string,
+  level: "info" | "warn" | "error",
+  event: string,
+  details?: Record<string, unknown>,
+) {
+  const payload = {
+    ts: new Date().toISOString(),
+    worker,
+    level,
+    event,
+    details: details ?? {},
+  };
+
+  if (level === "error") {
+    console.error(payload);
+    return;
+  }
+  if (level === "warn") {
+    console.warn(payload);
+    return;
+  }
+  console.log(payload);
+}

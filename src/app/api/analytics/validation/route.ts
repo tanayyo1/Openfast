@@ -16,7 +16,7 @@ export async function GET() {
     return authError(err);
   }
 
-  const result = await validateAnalyticsPipeline();
+  const result = await validateAnalyticsPipeline(session.workspaceId);
 
   return NextResponse.json({
     ...result,

@@ -12,8 +12,11 @@ import {
   getContentGenerateQueue,
   getMetricsFetchQueue,
   getSubredditIngestQueue,
+  getSubredditComputeTimeWindowsQueue,
   getRecommendationsGenerateQueue,
   getRoadmapGenerateQueue,
+  getRiskAccountHealthQueue,
+  getRiskVisibilityCheckQueue,
   getDeadLetterQueue,
 } from "@/lib/queue/queues";
 
@@ -116,14 +119,17 @@ async function runDailyHealthAndReminders(now: Date) {
   );
 }
 
-function parsePositiveInt(raw: string | undefined, fallback: number): number {
+export function parsePositiveInt(
+  raw: string | undefined,
+  fallback: number,
+): number {
   if (!raw) return fallback;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
   return Math.floor(parsed);
 }
 
-async function runBacklogCheck() {
+export async function runBacklogCheck() {
   const backlogThreshold = parsePositiveInt(
     process.env.QUEUE_BACKLOG_ALERT_THRESHOLD,
     1000,
@@ -135,10 +141,16 @@ async function runBacklogCheck() {
     { name: "reddit.metrics_fetch", queue: getMetricsFetchQueue() },
     { name: "subreddit.ingest", queue: getSubredditIngestQueue() },
     {
+      name: "subreddit.compute_time_windows",
+      queue: getSubredditComputeTimeWindowsQueue(),
+    },
+    {
       name: "recommendations.generate",
       queue: getRecommendationsGenerateQueue(),
     },
     { name: "roadmap.generate", queue: getRoadmapGenerateQueue() },
+    { name: "risk.account_health", queue: getRiskAccountHealthQueue() },
+    { name: "risk.visibility_check", queue: getRiskVisibilityCheckQueue() },
     { name: "dead.letter", queue: getDeadLetterQueue() },
   ];
 

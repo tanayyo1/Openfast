@@ -56,7 +56,7 @@ export function DraftEditor({
         <div className="mt-5 space-y-3">
           {variants.map((variant, index) => (
             <button
-              key={variant.title}
+              key={`variant-${index}`}
               type="button"
               onClick={() => {
                 setSelectedIndex(index);

@@ -4,7 +4,17 @@ import { getHealthGuardrailThresholds } from "@/lib/health/guardrails";
 import { prisma } from "@/lib/prisma";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 
-function cadenceForTier(tier: "NEW" | "ESTABLISHED" | "TRUSTED" | "RESTRICTED") {
+const DEFAULT_COMMENT_FIRST_MIN_COMMENTS = 3;
+
+function parsePositiveEnvInt(name: string, fallback: number) {
+  const raw = Number(process.env[name]);
+  if (!Number.isFinite(raw) || raw <= 0) return fallback;
+  return Math.floor(raw);
+}
+
+function cadenceForTier(
+  tier: "NEW" | "ESTABLISHED" | "TRUSTED" | "RESTRICTED",
+) {
   if (tier === "TRUSTED") return "3 to 5 posts per day";
   if (tier === "ESTABLISHED") return "2 to 3 posts per day";
   if (tier === "NEW") return "Prefer comments; 0 to 1 posts per day";
@@ -18,13 +28,18 @@ function scorePillTone(
 ) {
   if (score == null) return "border-slate-300 bg-slate-50 text-slate-700";
   if (score < blockThreshold) return "border-red-300 bg-red-50 text-red-700";
-  if (score < cautionThreshold) return "border-amber-300 bg-amber-50 text-amber-700";
+  if (score < cautionThreshold)
+    return "border-amber-300 bg-amber-50 text-amber-700";
   return "border-emerald-300 bg-emerald-50 text-emerald-700";
 }
 
 export default async function HealthPage() {
   const session = await requireWorkspaceSession();
   const healthThresholds = getHealthGuardrailThresholds();
+  const commentFirstMinComments = parsePositiveEnvInt(
+    "COMMENT_FIRST_MIN_COMMENTS",
+    DEFAULT_COMMENT_FIRST_MIN_COMMENTS,
+  );
 
   const accounts = await prisma.redditAccount.findMany({
     where: { workspaceId: session.workspaceId, isActive: true },
@@ -52,6 +67,21 @@ export default async function HealthPage() {
     },
   });
 
+  const accountIds = accounts.map((a) => a.id);
+  const publishedCommentsByAccount = await prisma.publishedItem.groupBy({
+    by: ["redditAccountId"],
+    where: {
+      workspaceId: session.workspaceId,
+      redditAccountId: { in: accountIds },
+      type: "COMMENT",
+    },
+    _count: true,
+  });
+
+  const commentCountsMap = new Map(
+    publishedCommentsByAccount.map((r) => [r.redditAccountId, r._count]),
+  );
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -70,7 +100,7 @@ export default async function HealthPage() {
           href="/opportunities"
           className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
         >
-          View opportunities
+          Find commenting opportunities
         </Link>
       </div>
 
@@ -87,6 +117,15 @@ export default async function HealthPage() {
               latestSnapshot != null
                 ? Math.round(latestSnapshot.healthScore)
                 : null;
+
+            const publishedComments = commentCountsMap.get(account.id) ?? 0;
+            const isNewAccount = account.safetyTier === "NEW";
+            const canSchedulePosts =
+              !isNewAccount || publishedComments >= commentFirstMinComments;
+            const remainingComments = isNewAccount
+              ? Math.max(0, commentFirstMinComments - publishedComments)
+              : 0;
+
             const warnings: string[] = [];
 
             if (account.safetyTier === "RESTRICTED") {
@@ -94,7 +133,15 @@ export default async function HealthPage() {
                 "Publishing should stay blocked until account restrictions recover.",
               );
             }
-            if (healthScore != null && healthScore < healthThresholds.blockPublishing) {
+            if (isNewAccount && !canSchedulePosts) {
+              warnings.push(
+                `Comment-first mode: publish ${remainingComments} more comment(s) before scheduling posts.`,
+              );
+            }
+            if (
+              healthScore != null &&
+              healthScore < healthThresholds.blockPublishing
+            ) {
               warnings.push(
                 "High risk detected. Do not schedule posts until health improves.",
               );
@@ -140,7 +187,9 @@ export default async function HealthPage() {
                       healthThresholds.caution,
                     )}`}
                   >
-                    {healthScore == null ? "Score unavailable" : `Score ${healthScore}`}
+                    {healthScore == null
+                      ? "Score unavailable"
+                      : `Score ${healthScore}`}
                   </span>
                 </div>
 
@@ -151,6 +200,47 @@ export default async function HealthPage() {
                 ) : (
                   <div className="mt-5">
                     <BarMeter label="Health score" value={healthScore} />
+                  </div>
+                )}
+
+                {isNewAccount && (
+                  <div className="mt-5 rounded-2xl border bg-background/70 p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          Comment-first mode
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {publishedComments} / {commentFirstMinComments}{" "}
+                          comments published
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                          canSchedulePosts
+                            ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                            : "border-amber-300 bg-amber-50 text-amber-700"
+                        }`}
+                      >
+                        {canSchedulePosts
+                          ? "Ready for posts"
+                          : `${remainingComments} more needed`}
+                      </span>
+                    </div>
+                    {!canSchedulePosts && (
+                      <div className="mt-3 flex items-center gap-3">
+                        <p className="text-xs text-muted-foreground">
+                          New accounts must publish comments before scheduling
+                          posts to build history and avoid bans.
+                        </p>
+                        <Link
+                          href="/opportunities"
+                          className="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400"
+                        >
+                          Find opportunities
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -167,7 +257,8 @@ export default async function HealthPage() {
                       ))
                     )}
                     <li>
-                      Last visibility check: {latestVisibility?.result ?? "UNKNOWN"}
+                      Last visibility check:{" "}
+                      {latestVisibility?.result ?? "UNKNOWN"}
                     </li>
                     <li>
                       Last health snapshot:{" "}
@@ -209,13 +300,11 @@ export default async function HealthPage() {
             },
             {
               title: "Health block",
-              detail:
-                `Scheduling posts is blocked when latest health score is below ${healthThresholds.blockPublishing}.`,
+              detail: `Scheduling posts is blocked when latest health score is below ${healthThresholds.blockPublishing}.`,
             },
             {
-              title: "Comments-first fallback",
-              detail:
-                "When health is low, prioritize comments before attempting post scheduling.",
+              title: "Comment-first for new accounts",
+              detail: `NEW tier accounts must publish ${commentFirstMinComments}+ comments before scheduling posts.`,
             },
           ].map((item) => (
             <div
@@ -223,7 +312,9 @@ export default async function HealthPage() {
               className="rounded-2xl border border-border bg-card/80 p-5"
             >
               <p className="text-sm font-semibold">{item.title}</p>
-              <p className="mt-2 text-sm text-muted-foreground">{item.detail}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {item.detail}
+              </p>
             </div>
           ))}
         </div>

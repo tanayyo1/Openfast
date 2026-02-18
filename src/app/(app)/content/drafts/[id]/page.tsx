@@ -39,12 +39,15 @@ export default function DraftPage() {
     setRewriteOpen(true);
   }
 
-  function handleRewriteSubmit(_opts: RewriteOptions) {
+  function handleRewriteSubmit(opts: RewriteOptions) {
     setRewriteLoading(true);
     setRewriteError(null);
 
     try {
-      const newId = rewriteDraft({ draftId });
+      const newId = rewriteDraft({
+        draftId,
+        variantCount: opts.variantCount,
+      });
       if (!newId) {
         setRewriteError("Source draft not found");
         return;

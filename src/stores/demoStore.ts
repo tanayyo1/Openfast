@@ -97,7 +97,10 @@ type DemoState = {
     title: string;
     body: string;
   }) => void;
-  rewriteDraft: (input: { draftId: string }) => string;
+  rewriteDraft: (input: {
+    draftId: string;
+    variantCount?: number;
+  }) => string;
   requestApproval: (input: { taskId: string }) => void;
   approveDraft: (input: { taskId: string }) => void;
 
@@ -285,12 +288,17 @@ export const useDemoStore = create<DemoState>()(
         }));
       },
 
-      rewriteDraft: ({ draftId }) => {
+      rewriteDraft: ({ draftId, variantCount = 3 }) => {
         const source = get().drafts.find((d) => d.id === draftId);
         if (!source) return "";
 
         const newId = makeId("draft");
-        const variants = seedVariants(source.subreddit);
+        const pool = seedVariants(source.subreddit);
+        // Repeat pool entries to fill requested count (pool has 3 items)
+        const variants = Array.from(
+          { length: variantCount },
+          (_, i) => pool[i % pool.length],
+        );
         const selected = variants[0];
 
         const draft: DemoDraft = {

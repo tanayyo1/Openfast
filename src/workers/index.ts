@@ -194,6 +194,16 @@ async function start() {
     forwardToDlq(QUEUE_NAMES.REDDIT_METRICS_FETCH, job.id, err.message).catch(
       (dlqErr) => console.error("DLQ forward failed:", dlqErr),
     );
+    void emitOpsAlert({
+      type: "metrics.failed",
+      level: "warn",
+      message: "Metrics fetch job failed",
+      details: {
+        queue: QUEUE_NAMES.REDDIT_METRICS_FETCH,
+        jobId: String(job.id),
+        reason: err.message,
+      },
+    });
   });
 
   contentWorker.on("failed", (job, err) => {
@@ -208,6 +218,16 @@ async function start() {
     forwardToDlq(QUEUE_NAMES.CONTENT_GENERATE, job.id, err.message).catch(
       (dlqErr) => console.error("DLQ forward failed:", dlqErr),
     );
+    void emitOpsAlert({
+      type: "content.failed",
+      level: "error",
+      message: "Content generation job failed",
+      details: {
+        queue: QUEUE_NAMES.CONTENT_GENERATE,
+        jobId: String(job.id),
+        reason: err.message,
+      },
+    });
   });
 
   subredditIngestWorker.on("failed", (job, err) => {
@@ -222,6 +242,16 @@ async function start() {
     forwardToDlq(QUEUE_NAMES.SUBREDDIT_INGEST, job.id, err.message).catch(
       (dlqErr) => console.error("DLQ forward failed:", dlqErr),
     );
+    void emitOpsAlert({
+      type: "subreddit_ingest.failed",
+      level: "warn",
+      message: "Subreddit ingest job failed",
+      details: {
+        queue: QUEUE_NAMES.SUBREDDIT_INGEST,
+        jobId: String(job.id),
+        reason: err.message,
+      },
+    });
   });
 
   subredditTimeWindowsWorker.on("failed", (job, err) => {
@@ -238,18 +268,48 @@ async function start() {
       job.id,
       err.message,
     ).catch((dlqErr) => console.error("DLQ forward failed:", dlqErr));
+    void emitOpsAlert({
+      type: "subreddit_time_windows.failed",
+      level: "warn",
+      message: "Subreddit time windows job failed",
+      details: {
+        queue: QUEUE_NAMES.SUBREDDIT_COMPUTE_TIME_WINDOWS,
+        jobId: String(job.id),
+        reason: err.message,
+      },
+    });
   });
   riskAccountHealthWorker.on("failed", (job, err) => {
     if (!job?.id) return;
     forwardToDlq(QUEUE_NAMES.RISK_ACCOUNT_HEALTH, job.id, err.message).catch(
       (dlqErr) => console.error("DLQ forward failed:", dlqErr),
     );
+    void emitOpsAlert({
+      type: "risk_account_health.failed",
+      level: "warn",
+      message: "Account health check job failed",
+      details: {
+        queue: QUEUE_NAMES.RISK_ACCOUNT_HEALTH,
+        jobId: String(job.id),
+        reason: err.message,
+      },
+    });
   });
   riskVisibilityCheckWorker.on("failed", (job, err) => {
     if (!job?.id) return;
     forwardToDlq(QUEUE_NAMES.RISK_VISIBILITY_CHECK, job.id, err.message).catch(
       (dlqErr) => console.error("DLQ forward failed:", dlqErr),
     );
+    void emitOpsAlert({
+      type: "risk_visibility_check.failed",
+      level: "warn",
+      message: "Visibility check job failed",
+      details: {
+        queue: QUEUE_NAMES.RISK_VISIBILITY_CHECK,
+        jobId: String(job.id),
+        reason: err.message,
+      },
+    });
   });
   recommendationsWorker.on("failed", (job, err) => {
     if (!job?.id) return;
@@ -258,12 +318,32 @@ async function start() {
       job.id,
       err.message,
     ).catch((dlqErr) => console.error("DLQ forward failed:", dlqErr));
+    void emitOpsAlert({
+      type: "recommendations.failed",
+      level: "warn",
+      message: "Recommendations generation job failed",
+      details: {
+        queue: QUEUE_NAMES.RECOMMENDATIONS_GENERATE,
+        jobId: String(job.id),
+        reason: err.message,
+      },
+    });
   });
   roadmapGenerateWorker.on("failed", (job, err) => {
     if (!job?.id) return;
     forwardToDlq(QUEUE_NAMES.ROADMAP_GENERATE, job.id, err.message).catch(
       (dlqErr) => console.error("DLQ forward failed:", dlqErr),
     );
+    void emitOpsAlert({
+      type: "roadmap.failed",
+      level: "warn",
+      message: "Roadmap generation job failed",
+      details: {
+        queue: QUEUE_NAMES.ROADMAP_GENERATE,
+        jobId: String(job.id),
+        reason: err.message,
+      },
+    });
   });
 
   let shuttingDown = false;

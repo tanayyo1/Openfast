@@ -7,6 +7,15 @@ import {
   enqueueSubredditIngestJob,
 } from "@/lib/queue/enqueue";
 import { emitOpsAlert } from "@/lib/ops/alerts";
+import {
+  getPublishQueue,
+  getContentGenerateQueue,
+  getMetricsFetchQueue,
+  getSubredditIngestQueue,
+  getRecommendationsGenerateQueue,
+  getRoadmapGenerateQueue,
+  getDeadLetterQueue,
+} from "@/lib/queue/queues";
 
 function bucketTag(date: Date, minutes: number) {
   const ms = minutes * 60 * 1000;
@@ -107,11 +116,71 @@ async function runDailyHealthAndReminders(now: Date) {
   );
 }
 
+function parsePositiveInt(raw: string | undefined, fallback: number): number {
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.floor(parsed);
+}
+
+async function runBacklogCheck() {
+  const backlogThreshold = parsePositiveInt(
+    process.env.QUEUE_BACKLOG_ALERT_THRESHOLD,
+    1000,
+  );
+
+  const queues = [
+    { name: "reddit.publish", queue: getPublishQueue() },
+    { name: "content.generate", queue: getContentGenerateQueue() },
+    { name: "reddit.metrics_fetch", queue: getMetricsFetchQueue() },
+    { name: "subreddit.ingest", queue: getSubredditIngestQueue() },
+    {
+      name: "recommendations.generate",
+      queue: getRecommendationsGenerateQueue(),
+    },
+    { name: "roadmap.generate", queue: getRoadmapGenerateQueue() },
+    { name: "dead.letter", queue: getDeadLetterQueue() },
+  ];
+
+  for (const { name, queue } of queues) {
+    try {
+      const counts = await queue.getJobCounts("waiting", "failed");
+      if (counts.waiting >= backlogThreshold) {
+        await emitOpsAlert({
+          type: "queue.backlog",
+          level: "warn",
+          message: `Queue backlog threshold exceeded: ${name}`,
+          details: { queue: name, waiting: counts.waiting, backlogThreshold },
+        });
+      }
+      if (counts.failed >= 100) {
+        await emitOpsAlert({
+          type: "queue.failed_accumulation",
+          level: "warn",
+          message: `High failed job count: ${name}`,
+          details: { queue: name, failed: counts.failed },
+        });
+      }
+    } catch (err: unknown) {
+      await emitOpsAlert({
+        type: "queue.backlog_check_failed",
+        level: "error",
+        message: `Backlog check failed for queue: ${name}`,
+        details: {
+          queue: name,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      }).catch(() => undefined);
+    }
+  }
+}
+
 type CronState = {
   lastIngestDay: string | null;
   lastWindowsDay: string | null;
   lastReminderDay: string | null;
   lastMetricsBucket: string | null;
+  lastBacklogBucket: string | null;
 };
 
 export function startCronScheduler() {
@@ -124,6 +193,7 @@ export function startCronScheduler() {
     lastWindowsDay: null,
     lastReminderDay: null,
     lastMetricsBucket: null,
+    lastBacklogBucket: null,
   };
 
   const tick = async () => {
@@ -151,6 +221,13 @@ export function startCronScheduler() {
     if (hour === 3 && minute < 10 && state.lastReminderDay !== day) {
       state.lastReminderDay = day;
       await runDailyHealthAndReminders(now);
+    }
+
+    // Check queue backlogs every 10 minutes.
+    const backlogBucket = `${day}:${hour}:${Math.floor(minute / 10)}`;
+    if (state.lastBacklogBucket !== backlogBucket) {
+      state.lastBacklogBucket = backlogBucket;
+      await runBacklogCheck();
     }
   };
 

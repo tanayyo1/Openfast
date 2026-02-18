@@ -16,13 +16,16 @@ export type ValidationResult = {
   summary: string;
 };
 
-export async function validateAnalyticsPipeline(): Promise<ValidationResult> {
+export async function validateAnalyticsPipeline(
+  workspaceId: string,
+): Promise<ValidationResult> {
   const checks: ValidationCheck[] = [];
 
   const homepageCount = await prisma.$queryRaw<{ count: bigint }[]>`
     SELECT COUNT(*) as count
     FROM analytics_events
-    WHERE event_name = 'homepage_view'
+    WHERE workspace_id = ${workspaceId}
+      AND event_name = 'homepage_view'
   `;
   const homepageViews = Number(homepageCount[0]?.count ?? 0);
   checks.push({
@@ -39,7 +42,8 @@ export async function validateAnalyticsPipeline(): Promise<ValidationResult> {
         COALESCE(user_id, anonymous_session_id) as session_key,
         ARRAY_AGG(DISTINCT event_name) as stages
       FROM analytics_events
-      WHERE event_name IN ('homepage_view', 'signup_completed', 'onboarding_completed', 'plan_activated')
+      WHERE workspace_id = ${workspaceId}
+        AND event_name IN ('homepage_view', 'signup_completed', 'onboarding_completed', 'plan_activated')
       GROUP BY COALESCE(user_id, anonymous_session_id)
     )
     SELECT COUNT(*) as count
@@ -59,8 +63,8 @@ export async function validateAnalyticsPipeline(): Promise<ValidationResult> {
   const malformedEvents = await prisma.$queryRaw<{ count: bigint }[]>`
     SELECT COUNT(*) as count
     FROM analytics_events
-    WHERE event_ts IS NULL
-       OR (user_id IS NULL AND anonymous_session_id IS NULL)
+    WHERE workspace_id = ${workspaceId}
+      AND (event_ts IS NULL OR (user_id IS NULL AND anonymous_session_id IS NULL))
   `;
   const malformed = Number(malformedEvents[0]?.count ?? 0);
   checks.push({
@@ -77,6 +81,7 @@ export async function validateAnalyticsPipeline(): Promise<ValidationResult> {
   await prisma.$queryRaw`
     SELECT event_name, COUNT(*) as count
     FROM analytics_events
+    WHERE workspace_id = ${workspaceId}
     GROUP BY event_name
     ORDER BY count DESC
     LIMIT 10
@@ -96,6 +101,7 @@ export async function validateAnalyticsPipeline(): Promise<ValidationResult> {
   >`
     SELECT event_name, COUNT(*) as count
     FROM analytics_events
+    WHERE workspace_id = ${workspaceId}
     GROUP BY event_name
     ORDER BY event_name
   `;
@@ -112,7 +118,8 @@ export async function validateAnalyticsPipeline(): Promise<ValidationResult> {
   const recentEvents = await prisma.$queryRaw<{ count: bigint }[]>`
     SELECT COUNT(*) as count
     FROM analytics_events
-    WHERE event_ts > NOW() - INTERVAL '24 hours'
+    WHERE workspace_id = ${workspaceId}
+      AND event_ts > NOW() - INTERVAL '24 hours'
   `;
   const last24h = Number(recentEvents[0]?.count ?? 0);
   checks.push({

@@ -36,6 +36,7 @@ const FUNNEL_STAGES = [
 ] as const;
 
 export async function getFunnelStages(
+  workspaceId: string,
   startDate: Date,
   endDate: Date,
 ): Promise<FunnelStage[]> {
@@ -45,7 +46,8 @@ export async function getFunnelStages(
     const result = await prisma.$queryRaw<{ count: bigint }[]>`
       SELECT COUNT(DISTINCT COALESCE(user_id, anonymous_session_id)) as count
       FROM analytics_events
-      WHERE event_name = ${eventName}
+      WHERE workspace_id = ${workspaceId}
+        AND event_name = ${eventName}
         AND event_ts >= ${startDate}
         AND event_ts <= ${endDate}
     `;
@@ -53,7 +55,8 @@ export async function getFunnelStages(
     const totalResult = await prisma.$queryRaw<{ count: bigint }[]>`
       SELECT COUNT(*) as count
       FROM analytics_events
-      WHERE event_name = ${eventName}
+      WHERE workspace_id = ${workspaceId}
+        AND event_name = ${eventName}
         AND event_ts >= ${startDate}
         AND event_ts <= ${endDate}
     `;
@@ -61,7 +64,8 @@ export async function getFunnelStages(
     const userResult = await prisma.$queryRaw<{ count: bigint }[]>`
       SELECT COUNT(DISTINCT user_id) as count
       FROM analytics_events
-      WHERE event_name = ${eventName}
+      WHERE workspace_id = ${workspaceId}
+        AND event_name = ${eventName}
         AND event_ts >= ${startDate}
         AND event_ts <= ${endDate}
         AND user_id IS NOT NULL
@@ -107,10 +111,11 @@ export function calculateDropoffs(stages: FunnelStage[]): FunnelDropoff[] {
 }
 
 export async function getFunnelData(
+  workspaceId: string,
   startDate: Date,
   endDate: Date,
 ): Promise<FunnelResult> {
-  const stages = await getFunnelStages(startDate, endDate);
+  const stages = await getFunnelStages(workspaceId, startDate, endDate);
   const dropoffs = calculateDropoffs(stages);
 
   return {
@@ -127,7 +132,9 @@ export type EventCountByType = {
   uniqueSessions: number;
 };
 
-export async function getEventCountsLast24h(): Promise<EventCountByType[]> {
+export async function getEventCountsLast24h(
+  workspaceId: string,
+): Promise<EventCountByType[]> {
   const startDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const endDate = new Date();
 
@@ -145,7 +152,8 @@ export async function getEventCountsLast24h(): Promise<EventCountByType[]> {
       COUNT(DISTINCT user_id) as unique_users,
       COUNT(DISTINCT COALESCE(user_id, anonymous_session_id)) as unique_sessions
     FROM analytics_events
-    WHERE event_ts >= ${startDate}
+    WHERE workspace_id = ${workspaceId}
+      AND event_ts >= ${startDate}
       AND event_ts <= ${endDate}
     GROUP BY event_name
     ORDER BY count DESC
@@ -168,33 +176,29 @@ export type FullFunnelPath = {
 };
 
 export async function getFullFunnelPaths(
+  workspaceId: string,
+  startDate: Date,
+  endDate: Date,
   limit = 10,
 ): Promise<FullFunnelPath[]> {
   const results = await prisma.$queryRaw<FullFunnelPath[]>`
-    WITH ranked_events AS (
+    WITH session_stages AS (
       SELECT
         COALESCE(user_id, anonymous_session_id) as session_key,
         user_id,
         anonymous_session_id,
         workspace_id,
-        event_name,
-        event_ts,
-        ROW_NUMBER() OVER (
-          PARTITION BY COALESCE(user_id, anonymous_session_id)
-          ORDER BY event_ts ASC
-        ) as rn
-      FROM analytics_events
-      WHERE event_name IN ('homepage_view', 'signup_started', 'signup_completed', 'onboarding_completed', 'plan_activated')
-    ),
-    session_stages AS (
-      SELECT
-        session_key,
-        user_id,
-        anonymous_session_id,
-        workspace_id,
-        ARRAY_AGG(event_name ORDER BY rn) as stages,
+        ARRAY_AGG(event_name ORDER BY event_ts ASC) as stages,
+        MIN(CASE WHEN event_name = 'homepage_view' THEN event_ts END) as homepage_ts,
+        MIN(CASE WHEN event_name = 'signup_completed' THEN event_ts END) as signup_completed_ts,
+        MIN(CASE WHEN event_name = 'onboarding_completed' THEN event_ts END) as onboarding_completed_ts,
+        MIN(CASE WHEN event_name = 'plan_activated' THEN event_ts END) as plan_activated_ts,
         MAX(event_ts) as completed_at
-      FROM ranked_events
+      FROM analytics_events
+      WHERE workspace_id = ${workspaceId}
+        AND event_name IN ('homepage_view', 'signup_started', 'signup_completed', 'onboarding_completed', 'plan_activated')
+        AND event_ts >= ${startDate}
+        AND event_ts <= ${endDate}
       GROUP BY session_key, user_id, anonymous_session_id, workspace_id
     )
     SELECT
@@ -204,7 +208,13 @@ export async function getFullFunnelPaths(
       stages as "completedStages",
       completed_at as "completedAt"
     FROM session_stages
-    WHERE stages @> ARRAY['homepage_view', 'signup_completed', 'onboarding_completed', 'plan_activated']::text[]
+    WHERE homepage_ts IS NOT NULL
+      AND signup_completed_ts IS NOT NULL
+      AND onboarding_completed_ts IS NOT NULL
+      AND plan_activated_ts IS NOT NULL
+      AND homepage_ts <= signup_completed_ts
+      AND signup_completed_ts <= onboarding_completed_ts
+      AND onboarding_completed_ts <= plan_activated_ts
     ORDER BY completed_at DESC
     LIMIT ${limit}
   `;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireWorkspaceAdminSession } from "@/lib/server/admin-guards";
+import { getWorkspaceEntitlements } from "@/lib/billing/quota";
 import { validateAnalyticsPipeline } from "@/lib/analytics/validation";
 
 function authError(err: unknown) {
@@ -14,6 +15,16 @@ export async function GET() {
     session = await requireWorkspaceAdminSession();
   } catch (err) {
     return authError(err);
+  }
+  const entitlements = await getWorkspaceEntitlements(session.workspaceId);
+  if (!entitlements.hasAdvancedAnalytics) {
+    return NextResponse.json(
+      {
+        error: "Advanced analytics is available on paid plans",
+        code: "ADVANCED_ANALYTICS_REQUIRED",
+      },
+      { status: 403 },
+    );
   }
 
   const result = await validateAnalyticsPipeline(session.workspaceId);

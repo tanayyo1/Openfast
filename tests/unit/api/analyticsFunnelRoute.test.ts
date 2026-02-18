@@ -2,6 +2,10 @@ jest.mock("@/lib/server/auth-guards", () => ({
   requireWorkspaceSession: jest.fn(),
 }));
 
+jest.mock("@/lib/billing/quota", () => ({
+  getWorkspaceEntitlements: jest.fn(),
+}));
+
 jest.mock("@/lib/analytics/funnel", () => ({
   getFunnelData: jest.fn(),
   getEventCountsLast24h: jest.fn(),
@@ -15,6 +19,9 @@ import {
 
 const mockedGuards = jest.requireMock("@/lib/server/auth-guards") as {
   requireWorkspaceSession: jest.Mock;
+};
+const mockedQuota = jest.requireMock("@/lib/billing/quota") as {
+  getWorkspaceEntitlements: jest.Mock;
 };
 const mockedFunnel = jest.requireMock("@/lib/analytics/funnel") as {
   getFunnelData: jest.Mock;
@@ -33,6 +40,9 @@ describe("analytics funnel route", () => {
     mockedGuards.requireWorkspaceSession.mockResolvedValue({
       workspaceId: "ws_1",
       user: { id: "u_1" },
+    });
+    mockedQuota.getWorkspaceEntitlements.mockResolvedValue({
+      hasAdvancedAnalytics: true,
     });
     mockedFunnel.getFunnelData.mockResolvedValue({
       stages: [],
@@ -86,6 +96,18 @@ describe("analytics funnel route", () => {
       expect.any(Date),
       5,
     );
+  });
+
+  test("returns 403 when advanced analytics is not enabled", async () => {
+    mockedQuota.getWorkspaceEntitlements.mockResolvedValue({
+      hasAdvancedAnalytics: false,
+    });
+
+    const res = await getAnalyticsFunnel(
+      new Request("http://test.local/api/analytics/funnel"),
+    );
+    expect(res.status).toBe(403);
+    expect(mockedFunnel.getFunnelData).not.toHaveBeenCalled();
   });
 
   test("resolveDateRange rejects invalid period values", () => {

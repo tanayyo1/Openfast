@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+import { getWorkspaceEntitlements } from "@/lib/billing/quota";
 import {
   getFunnelData,
   getEventCountsLast24h,
@@ -73,6 +74,16 @@ export async function GET(req: Request) {
     return NextResponse.json(
       { error: "Invalid query params", code: "INVALID_DATE_RANGE" },
       { status: 400 },
+    );
+  }
+  const entitlements = await getWorkspaceEntitlements(session.workspaceId);
+  if (!entitlements.hasAdvancedAnalytics) {
+    return NextResponse.json(
+      {
+        error: "Advanced analytics is available on paid plans",
+        code: "ADVANCED_ANALYTICS_REQUIRED",
+      },
+      { status: 403 },
     );
   }
 

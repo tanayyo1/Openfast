@@ -19,6 +19,7 @@ type DraftEditorProps = {
   onSave?: (input: { title: string; body: string }) => void;
   onRequestApproval?: () => void;
   onApprove?: () => void;
+  onRewrite?: () => void;
 };
 
 export function DraftEditor({
@@ -30,6 +31,7 @@ export function DraftEditor({
   onSave,
   onRequestApproval,
   onApprove,
+  onRewrite,
 }: DraftEditorProps) {
   const initial = variants[0];
   const [selectedIndex, setSelectedIndex] = useState(initialSelectedIndex);
@@ -54,7 +56,7 @@ export function DraftEditor({
         <div className="mt-5 space-y-3">
           {variants.map((variant, index) => (
             <button
-              key={variant.title}
+              key={`variant-${index}`}
               type="button"
               onClick={() => {
                 setSelectedIndex(index);
@@ -155,12 +157,15 @@ export function DraftEditor({
                 Approve
               </button>
             ) : null}
-            <button
-              type="button"
-              className="rounded-full border border-border px-5 py-2 text-sm font-semibold"
-            >
-              Rewrite
-            </button>
+            {onRewrite ? (
+              <button
+                type="button"
+                onClick={() => onRewrite()}
+                className="rounded-full border border-border px-5 py-2 text-sm font-semibold"
+              >
+                Rewrite
+              </button>
+            ) : null}
           </div>
         </div>
       </div>

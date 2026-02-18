@@ -97,6 +97,7 @@ type DemoState = {
     title: string;
     body: string;
   }) => void;
+  rewriteDraft: (input: { draftId: string }) => string;
   requestApproval: (input: { taskId: string }) => void;
   approveDraft: (input: { taskId: string }) => void;
 
@@ -282,6 +283,34 @@ export const useDemoStore = create<DemoState>()(
               : draft,
           ),
         }));
+      },
+
+      rewriteDraft: ({ draftId }) => {
+        const source = get().drafts.find((d) => d.id === draftId);
+        if (!source) return "";
+
+        const newId = makeId("draft");
+        const variants = seedVariants(source.subreddit);
+        const selected = variants[0];
+
+        const draft: DemoDraft = {
+          id: newId,
+          taskId: source.taskId,
+          projectId: source.projectId,
+          subreddit: source.subreddit,
+          status: "Draft",
+          variants,
+          selectedIndex: 0,
+          editedTitle: selected.title,
+          editedBody: selected.body,
+          createdAt: nowIso(),
+        };
+
+        set((state) => ({
+          drafts: [draft, ...state.drafts],
+        }));
+
+        return newId;
       },
 
       requestApproval: ({ taskId }) => {

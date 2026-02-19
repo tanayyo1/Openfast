@@ -10,6 +10,7 @@ import type { Plan, SubscriptionStatus } from "@prisma/client";
 
 function safeStatus(value: string | undefined): SubscriptionStatus {
   if (!value) return "INCOMPLETE";
+  const key = value.toLowerCase();
   const map: Record<string, SubscriptionStatus> = {
     active: "ACTIVE",
     trialing: "TRIALING",
@@ -19,7 +20,7 @@ function safeStatus(value: string | undefined): SubscriptionStatus {
     incomplete_expired: "INCOMPLETE_EXPIRED",
     unpaid: "UNPAID",
   };
-  return map[value] ?? "INCOMPLETE";
+  return map[key] ?? "INCOMPLETE";
 }
 
 function isTerminalStatus(status: string): boolean {
@@ -43,7 +44,7 @@ async function resolveWorkspaceId(
 
   if (providerSubscriptionId) {
     const existing = await prisma.subscription.findFirst({
-      where: { providerSubscriptionId },
+      where: { provider: "polar", providerSubscriptionId },
       select: { workspaceId: true },
     });
     if (existing) return existing.workspaceId;

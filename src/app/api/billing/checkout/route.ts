@@ -142,17 +142,28 @@ export async function POST(req: Request) {
     );
   }
 
-  const polar = getPolar();
-  const checkout = await polar.checkouts.create({
-    products: [productId],
-    customerEmail: workspace.owner.email,
-    successUrl,
-    metadata: {
-      workspaceId: workspace.id,
-      userId: session.user.id,
-      plan: parsed.data.plan,
-    },
-  });
+  let checkout;
+  try {
+    const polar = getPolar();
+    checkout = await polar.checkouts.create({
+      products: [productId],
+      customerEmail: workspace.owner.email,
+      successUrl,
+      metadata: {
+        workspaceId: workspace.id,
+        userId: session.user.id,
+        plan: parsed.data.plan,
+      },
+    });
+  } catch {
+    return NextResponse.json(
+      {
+        error: "Failed to create checkout session",
+        code: "BILLING_PROVIDER_ERROR",
+      },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({
     checkoutUrl: checkout.url,

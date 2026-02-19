@@ -357,12 +357,40 @@ describe("polar webhook route", () => {
     expect(res.status).toBe(200);
 
     expect(mockedPrisma.subscription.findFirst).toHaveBeenCalledWith({
-      where: { providerSubscriptionId: "polar_sub_1" },
+      where: { provider: "polar", providerSubscriptionId: "polar_sub_1" },
       select: { workspaceId: true },
     });
     expect(mockedPrisma.subscription.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { workspaceId: "ws_from_db" },
+      }),
+    );
+  });
+
+  test("handles mixed-case status values from Polar", async () => {
+    mockedPlanFromProduct.mockReturnValue("PRO");
+    mockedValidateEvent.mockReturnValue({
+      type: "subscription.updated",
+      data: {
+        id: "polar_sub_1",
+        status: "Active",
+        customerId: "polar_cus_1",
+        productId: "product_pro_uuid",
+        currentPeriodStart: "2026-02-01T00:00:00Z",
+        currentPeriodEnd: "2026-03-01T00:00:00Z",
+        cancelAtPeriodEnd: false,
+        metadata: { workspaceId: "ws_1" },
+      },
+    });
+
+    const res = await webhook(makeRequest());
+    expect(res.status).toBe(200);
+
+    expect(mockedPrisma.subscription.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          status: "ACTIVE",
+        }),
       }),
     );
   });

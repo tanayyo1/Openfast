@@ -148,6 +148,22 @@ describe("billing checkout route", () => {
     expect(json.code).toBe("INVALID_REDIRECT_URL");
   });
 
+  test("returns BILLING_PROVIDER_ERROR when Polar API fails", async () => {
+    polarMock.checkouts.create.mockRejectedValue(new Error("Polar API down"));
+
+    const res = await checkout(
+      new Request("http://test.local/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: "PRO" }),
+      }),
+    );
+
+    expect(res.status).toBe(500);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("BILLING_PROVIDER_ERROR");
+  });
+
   test("returns unauthorized when session is missing", async () => {
     mockedGuards.requireWorkspaceSession.mockRejectedValue(
       new Error("UNAUTHORIZED"),

@@ -5,7 +5,7 @@ import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 import { getStripe } from "@/lib/billing/stripe";
 
 const schema = z.object({
-  plan: z.enum(["PRO", "LIFETIME"]),
+  plan: z.enum(["PRO"]),
   successUrl: z.string().url().optional(),
   cancelUrl: z.string().url().optional(),
 });
@@ -16,9 +16,8 @@ function authError(err: unknown) {
   return NextResponse.json({ error: "Unauthorized", code }, { status });
 }
 
-function getPriceId(plan: "PRO" | "LIFETIME") {
-  if (plan === "PRO") return process.env.STRIPE_PRICE_PRO_MONTHLY ?? null;
-  return process.env.STRIPE_PRICE_LIFETIME ?? null;
+function getPriceId() {
+  return process.env.STRIPE_PRICE_PRO_MONTHLY ?? null;
 }
 
 function resolveAllowedOrigins() {
@@ -90,7 +89,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const priceId = getPriceId(parsed.data.plan);
+  const priceId = getPriceId();
   if (!priceId) {
     return NextResponse.json(
       {
@@ -166,9 +165,8 @@ export async function POST(req: Request) {
     );
   }
 
-  const isLifetime = parsed.data.plan === "LIFETIME";
   const checkoutSession = await stripe.checkout.sessions.create({
-    mode: isLifetime ? "payment" : "subscription",
+    mode: "subscription",
     customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: successUrl,
@@ -180,18 +178,14 @@ export async function POST(req: Request) {
       plan: parsed.data.plan,
       priceId,
     },
-    ...(isLifetime
-      ? {}
-      : {
-          subscription_data: {
-            metadata: {
-              workspaceId: workspace.id,
-              userId: session.user.id,
-              plan: parsed.data.plan,
-              priceId,
-            },
-          },
-        }),
+    subscription_data: {
+      metadata: {
+        workspaceId: workspace.id,
+        userId: session.user.id,
+        plan: parsed.data.plan,
+        priceId,
+      },
+    },
   });
 
   return NextResponse.json({

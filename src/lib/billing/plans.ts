@@ -27,20 +27,6 @@ export function limitsForPlan(plan: Plan): PlanLimits {
     };
   }
 
-  if (plan === "LIFETIME") {
-    return {
-      plan,
-      maxProjects: 9999,
-      maxRedditAccounts: 9999,
-      maxScheduledPosts: 99999,
-      maxDraftsPerMonth: 99999,
-      roadmapDays: 30,
-      hasAdvancedAnalytics: true,
-      hasSmartFinder: true,
-      hasTeamFeatures: true,
-    };
-  }
-
   if (plan === "ENTERPRISE") {
     return {
       plan,

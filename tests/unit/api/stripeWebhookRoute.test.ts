@@ -46,7 +46,6 @@ describe("stripe webhook route", () => {
     jest.clearAllMocks();
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
     process.env.STRIPE_PRICE_PRO_MONTHLY = "price_pro";
-    process.env.STRIPE_PRICE_LIFETIME = "price_life";
     process.env.STRIPE_PRICE_ENTERPRISE = "price_enterprise";
 
     mockedPrisma.subscription.upsert.mockResolvedValue(undefined);
@@ -179,48 +178,6 @@ describe("stripe webhook route", () => {
     expect(res.status).toBe(200);
     expect(mockedPrisma.subscription.upsert).toHaveBeenCalled();
     expect(mockedPrisma.workspace.update).not.toHaveBeenCalled();
-  });
-
-  test("sets far-future period end for lifetime checkout", async () => {
-    stripeMock.webhooks.constructEvent.mockReturnValue({
-      type: "checkout.session.completed",
-      data: {
-        object: {
-          metadata: {
-            workspaceId: "ws_1",
-            plan: "LIFETIME",
-            priceId: "price_life",
-          },
-          customer: "cus_1",
-          subscription: null,
-        },
-      },
-    });
-
-    const res = await webhook(
-      new Request("http://test.local/api/webhooks/stripe", {
-        method: "POST",
-        headers: { "stripe-signature": "sig_test" },
-        body: '{"id":"evt_1c"}',
-      }),
-    );
-
-    expect(res.status).toBe(200);
-    const upsertArg = mockedPrisma.subscription.upsert.mock.calls[0]?.[0] as
-      | { create: { currentPeriodEnd: Date } }
-      | undefined;
-    expect(upsertArg).toBeDefined();
-    const end = upsertArg?.create.currentPeriodEnd;
-    expect(end).toBeInstanceOf(Date);
-    expect(end?.getUTCFullYear()).toBeGreaterThanOrEqual(
-      new Date().getUTCFullYear() + 90,
-    );
-    expect(mockedPrisma.workspace.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "ws_1" },
-        data: { plan: "LIFETIME" },
-      }),
-    );
   });
 
   test("handles subscription deletion by reverting workspace to FREE", async () => {

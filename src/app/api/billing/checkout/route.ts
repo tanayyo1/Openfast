@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
-import { getStripe } from "@/lib/billing/stripe";
+import { getPolar } from "@/lib/billing/polar";
 
 const schema = z.object({
   plan: z.enum(["PRO"]),
@@ -16,8 +16,8 @@ function authError(err: unknown) {
   return NextResponse.json({ error: "Unauthorized", code }, { status });
 }
 
-function getPriceId() {
-  return process.env.STRIPE_PRICE_PRO_MONTHLY ?? null;
+function getPolarProductId() {
+  return process.env.POLAR_PRODUCT_PRO ?? null;
 }
 
 function resolveAllowedOrigins() {
@@ -89,8 +89,8 @@ export async function POST(req: Request) {
     );
   }
 
-  const priceId = getPriceId();
-  if (!priceId) {
+  const productId = getPolarProductId();
+  if (!productId) {
     return NextResponse.json(
       {
         error: "Plan is not configured for checkout",
@@ -105,11 +105,7 @@ export async function POST(req: Request) {
     select: {
       id: true,
       name: true,
-      subscription: {
-        select: {
-          stripeCustomerId: true,
-        },
-      },
+      owner: { select: { email: true } },
     },
   });
   if (!workspace) {
@@ -118,19 +114,6 @@ export async function POST(req: Request) {
       { status: 404 },
     );
   }
-
-  const stripe = getStripe();
-  const customerId =
-    workspace.subscription?.stripeCustomerId ??
-    (
-      await stripe.customers.create({
-        name: workspace.name,
-        metadata: {
-          workspaceId: workspace.id,
-          createdByUserId: session.user.id,
-        },
-      })
-    ).id;
 
   const allowedOrigins = resolveAllowedOrigins();
   if (allowedOrigins.size === 0) {
@@ -144,18 +127,12 @@ export async function POST(req: Request) {
   }
   const appOrigin = allowedOrigins.values().next().value as string;
   const successFallback = `${appOrigin}/dashboard?billing=success`;
-  const cancelFallback = `${appOrigin}/pricing?billing=cancel`;
   const successUrl = resolveRedirectUrl(
     parsed.data.successUrl,
     successFallback,
     allowedOrigins,
   );
-  const cancelUrl = resolveRedirectUrl(
-    parsed.data.cancelUrl,
-    cancelFallback,
-    allowedOrigins,
-  );
-  if (!successUrl || !cancelUrl) {
+  if (!successUrl) {
     return NextResponse.json(
       {
         error: "Redirect URL must match application origin",
@@ -165,31 +142,21 @@ export async function POST(req: Request) {
     );
   }
 
-  const checkoutSession = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: customerId,
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-    allow_promotion_codes: true,
+  const polar = getPolar();
+  const checkout = await polar.checkouts.create({
+    products: [productId],
+    customerEmail: workspace.owner.email,
+    successUrl,
     metadata: {
       workspaceId: workspace.id,
       userId: session.user.id,
       plan: parsed.data.plan,
-      priceId,
-    },
-    subscription_data: {
-      metadata: {
-        workspaceId: workspace.id,
-        userId: session.user.id,
-        plan: parsed.data.plan,
-        priceId,
-      },
     },
   });
 
   return NextResponse.json({
-    checkoutUrl: checkoutSession.url,
-    checkoutSessionId: checkoutSession.id,
+    checkoutUrl: checkout.url,
+    checkoutId: checkout.id,
+    checkoutSessionId: checkout.id,
   });
 }

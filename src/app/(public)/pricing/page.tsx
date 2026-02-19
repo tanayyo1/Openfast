@@ -25,25 +25,11 @@ const plans = [
       "5 projects",
       "3 Reddit accounts",
       "Full roadmap (30 days)",
-      "Unlimited drafts",
-      "Scheduling + analytics",
+      "2,000 AI drafts / month",
+      "Auto-scheduling + analytics",
     ],
     cta: "Start Pro",
     highlight: true,
-  },
-  {
-    name: "Lifetime",
-    price: "$129",
-    cadence: "one time",
-    description: "Pay once and keep every Pro feature.",
-    features: [
-      "Unlimited projects",
-      "Unlimited accounts",
-      "All Pro features",
-      "Priority support",
-      "Early access to new tools",
-    ],
-    cta: "Claim lifetime",
   },
 ];
 
@@ -63,7 +49,7 @@ export default function PricingPage() {
             checks and human approval.
           </p>
         </div>
-        <div className="mt-12 grid gap-6 lg:grid-cols-3">
+        <div className="mt-12 grid gap-6 lg:grid-cols-2">
           {plans.map((plan) => (
             <div
               key={plan.name}

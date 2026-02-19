@@ -796,7 +796,6 @@ model PromptTemplate {
 enum Plan {
   FREE
   PRO
-  LIFETIME
   ENTERPRISE
 }
 

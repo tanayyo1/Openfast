@@ -5,7 +5,7 @@ import { limitsForPlan } from "@/lib/billing/plans";
 import { getStripe } from "@/lib/billing/stripe";
 
 function planFromMetadata(value: string | undefined): Plan {
-  if (value === "PRO" || value === "LIFETIME" || value === "ENTERPRISE") {
+  if (value === "PRO" || value === "ENTERPRISE") {
     return value;
   }
   return "FREE";
@@ -14,7 +14,6 @@ function planFromMetadata(value: string | undefined): Plan {
 function planFromPriceId(value: string | null | undefined): Plan | null {
   if (!value) return null;
   if (value === process.env.STRIPE_PRICE_PRO_MONTHLY) return "PRO";
-  if (value === process.env.STRIPE_PRICE_LIFETIME) return "LIFETIME";
   if (value === process.env.STRIPE_PRICE_ENTERPRISE) return "ENTERPRISE";
   return null;
 }
@@ -32,12 +31,7 @@ function resolveCheckoutCompletedPlan(input: {
   return null;
 }
 
-function currentPeriodEndForPlan(plan: Plan) {
-  if (plan === "LIFETIME") {
-    const farFuture = new Date();
-    farFuture.setUTCFullYear(farFuture.getUTCFullYear() + 100);
-    return farFuture;
-  }
+function currentPeriodEndForPlan() {
   return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 }
 
@@ -189,7 +183,7 @@ export async function POST(req: Request) {
     const customerId =
       typeof session.customer === "string" ? session.customer : null;
     if (workspaceId && customerId) {
-      const periodEnd = currentPeriodEndForPlan(plan ?? "PRO");
+      const periodEnd = currentPeriodEndForPlan();
       await prisma.subscription.upsert({
         where: { workspaceId },
         update: {

@@ -34,7 +34,6 @@ describe("billing checkout route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.STRIPE_PRICE_PRO_MONTHLY = "price_pro";
-    process.env.STRIPE_PRICE_LIFETIME = "price_life";
     process.env.APP_URL = "https://app.example.com";
     process.env.BILLING_ALLOWED_REDIRECT_ORIGINS = "https://app.example.com";
 

@@ -170,7 +170,8 @@ export async function GET(req: Request) {
     },
   });
 
-  return NextResponse.json({ items });
+  // Keep legacy key for compatibility with older clients/tests.
+  return NextResponse.json({ items, scheduledPosts: items });
 }
 
 export async function POST(req: Request) {

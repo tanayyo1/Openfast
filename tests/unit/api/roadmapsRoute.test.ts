@@ -27,9 +27,18 @@ const mockedGuards = jest.requireMock("@/lib/server/auth-guards") as {
 };
 const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
   roadmap: { findMany: jest.Mock };
+  project: { findFirst: jest.Mock };
+  projectSubredditRecommendation: { findMany: jest.Mock };
+  projectPainPoint: { findMany: jest.Mock };
+  $transaction: jest.Mock;
 };
 const mockedQuota = jest.requireMock("@/lib/billing/quota") as {
   getWorkspaceEntitlements: jest.Mock;
+};
+const mockedRecommendations = jest.requireMock(
+  "@/lib/recommendations/generate",
+) as {
+  generateProjectRecommendations: jest.Mock;
 };
 
 async function readJson(res: Response) {
@@ -54,6 +63,10 @@ describe("roadmaps route", () => {
       hasSmartFinder: false,
       hasTeamFeatures: false,
     });
+    mockedPrisma.project.findFirst.mockResolvedValue({ id: "p_1" });
+    mockedPrisma.projectSubredditRecommendation.findMany.mockResolvedValue([]);
+    mockedPrisma.projectPainPoint.findMany.mockResolvedValue([]);
+    mockedRecommendations.generateProjectRecommendations.mockResolvedValue(undefined);
   });
 
   test("returns 400 for cursor with invalid createdAt value", async () => {
@@ -98,5 +111,57 @@ describe("roadmaps route", () => {
     };
     expect(json.code).toBe("ROADMAP_HORIZON_LIMIT");
     expect(json.details).toEqual({ requested: 5, maxAllowed: 3 });
+  });
+
+  test("uses array reasons in roadmap task instructions", async () => {
+    const now = new Date("2026-02-20T00:00:00.000Z");
+    const tx = {
+      roadmap: {
+        create: jest.fn().mockResolvedValue({
+          id: "rm_1",
+          projectId: "p_1",
+          startDate: now,
+          horizonDays: 1,
+          status: "ACTIVE",
+          createdAt: now,
+          updatedAt: now,
+        }),
+      },
+      roadmapTask: {
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    mockedPrisma.$transaction.mockImplementationOnce(
+      async (cb: (client: typeof tx) => Promise<unknown>) => cb(tx),
+    );
+    mockedPrisma.projectSubredditRecommendation.findMany
+      .mockResolvedValueOnce([
+        {
+          subredditId: "sub_1",
+          fitScore: 0.7,
+          riskScore: 0.2,
+          compositeScore: 0.61,
+          reasons: ["Niche match 70%.", "Goal alignment 55%."],
+          subreddit: { id: "sub_1", name: "saas", title: "SaaS" },
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const res = await createRoadmap(
+      new Request("http://test.local/api/roadmaps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: "p_1", horizonDays: 1 }),
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    const taskCreateInput = tx.roadmapTask.createMany.mock.calls[0]?.[0] as {
+      data: Array<{ instructions: string }>;
+    };
+    expect(taskCreateInput.data[0]?.instructions).toMatch(/Niche match 70%/i);
+    expect(taskCreateInput.data[0]?.instructions).not.toMatch(
+      /Good fit based on project niche/i,
+    );
   });
 });

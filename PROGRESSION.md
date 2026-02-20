@@ -2,7 +2,7 @@
 
 > **Last Updated**: 2026-02-20
 > **Target**: `mediafast_clone_system_design_report.md`
-> **Current Estimate**: ~96% of MVP parity complete (all P0-P8 items done; hardening pass merged)
+> **Current Estimate**: ~98% of overall parity complete (MVP complete; Tier 2 complete; Tier 3/4 backlog remains)
 
 ---
 
@@ -64,6 +64,13 @@
 - [x] Provider-level unique constraint enforced for subscription identity (`provider`, `provider_subscription_id`).
 - [x] Stripe webhook moved to explicit deprecated behavior (default `410`) with optional temporary legacy ack flag.
 - [x] Demo rewrite flow made consistent for `mode/tone/length` propagation and persisted rewrite params.
+
+### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
+
+- [x] RED-62 discovery ranking quality pass merged (intent weighting, broad-audience penalty refinement, reason quality improvements).
+- [x] Ranking edge-case hardening merged (constraint-negation handling, 2-letter niche tokens like `ai`, unknown-policy conservative risk handling).
+- [x] Compatibility hardening merged for roadmap reason summaries when recommendation reasons are stored as arrays.
+- [x] Added regression tests for ranking + roadmap reason edge cases.
 
 ---
 
@@ -160,12 +167,12 @@
 7. RED-63: Post structure validator (DONE - grade/score/warnings/rewrite suggestions + public docs)
 8. RED-55: Comment-first mode for new accounts (DONE - UI + API + safety tier gating)
 
-### Tier 2 - Differentiation (Backlog, High priority)
+### Tier 2 - Differentiation (Completed for current scope)
 
-- RED-62: Subreddit discovery tool
-- RED-53: Tone classifier
-- RED-41: Draft rewrite
-- RED-49: Subreddit fit score
+- RED-62: Subreddit discovery tool (DONE - discovery API + ingest queueing + ranking quality hardening + edge-case tests)
+- RED-53: Tone classifier (DONE - classifier + worker integration + unit tests)
+- RED-41: Draft rewrite (DONE - rewrite API flow + queue/worker handling + unit/integration tests)
+- RED-49: Subreddit fit score (DONE - fit/risk/time weighted ranking and recommendation scoring outputs)
 - RED-51: Anti-pattern detector (DONE - vote manipulation / engagement-gating / repetition signals added to draft compliance scoring)
 - RED-56: Pain point extractor (DONE - project/subreddit pain-point extraction from thread candidates + persisted insights + API endpoints)
 - RED-50: Community engagement threshold (DONE - subreddit-level comment threshold gate at schedule + publish with explicit API/worker errors)
@@ -200,4 +207,4 @@
 - [x] Risk checks block unsafe posting attempts.
 - [x] Free tools endpoints are live and rate-limited.
 
-> **All MVP checkboxes complete as of 2026-02-20.** Remaining work is Tier 2-4 differentiation features and ongoing hardening.
+> **All MVP checkboxes complete as of 2026-02-20.** Remaining work is Tier 3-4 backlog and ongoing hardening/perf polish.

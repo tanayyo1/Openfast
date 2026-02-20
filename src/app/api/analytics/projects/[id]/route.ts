@@ -13,10 +13,13 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
   const url = new URL(req.url);
   const rawLimit = url.searchParams.get("limit");
   const rawCursor = url.searchParams.get("cursor");
+  const rawDays = url.searchParams.get("days");
   const parsedLimit =
     rawLimit == null || rawLimit.trim().length === 0
       ? undefined
       : Number(rawLimit);
+  const parsedDays =
+    rawDays == null || rawDays.trim().length === 0 ? undefined : Number(rawDays);
   const cursor = rawCursor && rawCursor.trim().length > 0 ? rawCursor : null;
 
   let session;
@@ -43,6 +46,7 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
     {
       itemLimit: parsedLimit,
       cursor,
+      trendDays: parsedDays,
     },
   );
   if (!snapshot) {

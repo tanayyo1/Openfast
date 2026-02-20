@@ -3,10 +3,15 @@ import {
   type WorkspaceDashboardSnapshot,
 } from "@/lib/analytics/dashboardSnapshot";
 import { getLatestWorkspaceDailyRollup } from "@/lib/analytics/rollups";
+import {
+  getWorkspaceDailyPerformanceTrend,
+  type DailyPerformancePoint,
+} from "@/lib/analytics/trends";
 
 export type WorkspaceDashboardData = WorkspaceDashboardSnapshot & {
   source: "rollup" | "live";
   generatedAt: string;
+  trend: DailyPerformancePoint[];
 };
 
 export async function getWorkspaceDashboardData(
@@ -14,12 +19,17 @@ export async function getWorkspaceDashboardData(
   input?: {
     now?: Date;
     maxRollupAgeHours?: number;
+    trendDays?: number;
   },
 ): Promise<WorkspaceDashboardData> {
   const now = input?.now ?? new Date();
   const maxRollupAgeHours = input?.maxRollupAgeHours ?? 36;
+  const trendDays = input?.trendDays;
 
-  const latestRollup = await getLatestWorkspaceDailyRollup(workspaceId);
+  const [latestRollup, trend] = await Promise.all([
+    getLatestWorkspaceDailyRollup(workspaceId),
+    getWorkspaceDailyPerformanceTrend(workspaceId, { now, days: trendDays }),
+  ]);
   const rollupAgeMs = latestRollup
     ? now.getTime() - latestRollup.ingestedAt.getTime()
     : Number.POSITIVE_INFINITY;
@@ -31,6 +41,7 @@ export async function getWorkspaceDashboardData(
       generatedAt: latestRollup.payload.generatedAt,
       summary: latestRollup.payload.summary,
       byProject: latestRollup.payload.byProject,
+      trend,
     };
   }
 
@@ -40,5 +51,6 @@ export async function getWorkspaceDashboardData(
     generatedAt: now.toISOString(),
     summary: snapshot.summary,
     byProject: snapshot.byProject,
+    trend,
   };
 }

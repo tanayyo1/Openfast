@@ -23,6 +23,11 @@ function formatNumber(value: number) {
   }).format(value);
 }
 
+function trendDelta(points: number[]) {
+  if (points.length < 2) return 0;
+  return points[points.length - 1] - points[0];
+}
+
 export default async function AnalyticsPage() {
   const session = await requireWorkspaceSession();
   const entitlements = await getWorkspaceEntitlements(session.workspaceId);
@@ -83,6 +88,13 @@ export default async function AnalyticsPage() {
       change: riskLine,
     };
   });
+  const scoreTrendPoints = dashboard.trend.map((point) => point.totalScore);
+  const commentTrendPoints = dashboard.trend.map((point) => point.totalComments);
+  const removalTrendPoints = dashboard.trend.map((point) => point.removedCount);
+  const trendWindowLabel =
+    dashboard.trend.length > 0
+      ? `${dashboard.trend[0]?.day} → ${dashboard.trend[dashboard.trend.length - 1]?.day}`
+      : "No trend window";
 
   return (
     <div className="space-y-8">
@@ -183,6 +195,55 @@ export default async function AnalyticsPage() {
           ))}
         </div>
       )}
+
+      <div className="rounded-[24px] border border-border bg-card/80 p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <p className="text-sm font-semibold">Time-series trend</p>
+          <p className="text-xs text-muted-foreground">{trendWindowLabel}</p>
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          {[
+            {
+              label: "Daily score",
+              value: formatNumber(scoreTrendPoints[scoreTrendPoints.length - 1] ?? 0),
+              detail: `${formatNumber(trendDelta(scoreTrendPoints))} net change`,
+              points: scoreTrendPoints,
+            },
+            {
+              label: "Daily comments",
+              value: formatNumber(
+                commentTrendPoints[commentTrendPoints.length - 1] ?? 0,
+              ),
+              detail: `${formatNumber(trendDelta(commentTrendPoints))} net change`,
+              points: commentTrendPoints,
+            },
+            {
+              label: "Daily removals",
+              value: formatNumber(
+                removalTrendPoints[removalTrendPoints.length - 1] ?? 0,
+              ),
+              detail: `${formatNumber(trendDelta(removalTrendPoints))} net change`,
+              points: removalTrendPoints,
+            },
+          ].map((metric) => (
+            <div
+              key={metric.label}
+              className="rounded-2xl border border-border bg-background/70 p-4"
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                {metric.label}
+              </p>
+              <div className="mt-3 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-2xl font-semibold">{metric.value}</p>
+                  <p className="text-xs text-muted-foreground">{metric.detail}</p>
+                </div>
+                <Sparkline points={metric.points} className="h-10 w-28 text-primary" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="rounded-[24px] border border-border bg-background/70 p-6">
         <p className="text-sm font-semibold">What to watch</p>

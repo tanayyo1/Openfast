@@ -132,4 +132,16 @@ describe("analytics dashboard route", () => {
       "ws_1",
     );
   });
+
+  test("passes parsed days query to dashboard loader", async () => {
+    const res = await getDashboardAnalytics(
+      new Request("http://test.local/api/analytics/dashboard?days=21"),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockedDashboardData.getWorkspaceDashboardData).toHaveBeenCalledWith(
+      "ws_1",
+      { trendDays: 21 },
+    );
+  });
 });

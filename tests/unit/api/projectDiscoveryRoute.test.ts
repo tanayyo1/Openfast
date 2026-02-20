@@ -166,6 +166,7 @@ describe("project subreddit discovery route (RED-62)", () => {
         fitScore: number;
         riskScore: number;
         totalScore: number;
+        reasons: string[];
       }>;
     };
 
@@ -176,6 +177,7 @@ describe("project subreddit discovery route (RED-62)", () => {
     expect(json.items[0]?.fitScore).toEqual(expect.any(Number));
     expect(json.items[0]?.riskScore).toEqual(expect.any(Number));
     expect(json.items[0]?.totalScore).toEqual(expect.any(Number));
+    expect(json.items[0]?.reasons.join(" ")).toMatch(/Niche match/i);
     expect(json.queuedIngestNames).toContain("saas");
     expect(mockedQueue.enqueueSubredditIngestJob).toHaveBeenCalledWith({
       subredditName: "saas",

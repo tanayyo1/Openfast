@@ -64,19 +64,27 @@ export async function getWorkspaceDailyPerformanceTrend(
     ),
     ranked AS (
       SELECT
-        date(ps.captured_at) AS day,
+        date(timezone('UTC', ps.captured_at)) AS day,
         ps.published_item_id,
         ps.score,
         ps.num_comments,
         ps.is_removed,
         ROW_NUMBER() OVER (
-          PARTITION BY ps.published_item_id, date(ps.captured_at)
+          PARTITION BY ps.published_item_id, date(timezone('UTC', ps.captured_at))
           ORDER BY ps.captured_at DESC, ps.id DESC
         ) AS rn
       FROM performance_snapshots ps
       INNER JOIN published_items pi
         ON pi.id = ps.published_item_id
+      INNER JOIN scheduled_posts sp
+        ON sp.id = pi.scheduled_post_id
+      INNER JOIN drafts d
+        ON d.id = sp.draft_id
+      INNER JOIN projects p
+        ON p.id = d.project_id
       WHERE pi.workspace_id = ${workspaceId}
+        AND p.workspace_id = ${workspaceId}
+        AND p.status <> 'ARCHIVED'
         AND ps.captured_at >= ${window.start}
         AND ps.captured_at <= ${window.end}
     ),
@@ -124,13 +132,13 @@ export async function getProjectDailyPerformanceTrend(
     ),
     ranked AS (
       SELECT
-        date(ps.captured_at) AS day,
+        date(timezone('UTC', ps.captured_at)) AS day,
         ps.published_item_id,
         ps.score,
         ps.num_comments,
         ps.is_removed,
         ROW_NUMBER() OVER (
-          PARTITION BY ps.published_item_id, date(ps.captured_at)
+          PARTITION BY ps.published_item_id, date(timezone('UTC', ps.captured_at))
           ORDER BY ps.captured_at DESC, ps.id DESC
         ) AS rn
       FROM performance_snapshots ps

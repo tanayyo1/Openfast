@@ -27,8 +27,10 @@ function trendDelta(points: number[]) {
 
 export default async function AnalyticsProjectPage({
   params,
+  searchParams,
 }: {
   params: { id: string };
+  searchParams?: Record<string, string | string[] | undefined>;
 }) {
   const session = await requireWorkspaceSession();
   const entitlements = await getWorkspaceEntitlements(session.workspaceId);
@@ -82,9 +84,29 @@ export default async function AnalyticsProjectPage({
     );
   }
 
+  const cursorParam = searchParams?.cursor;
+  const limitParam = searchParams?.limit;
+  const daysParam = searchParams?.days;
+  const cursor = Array.isArray(cursorParam) ? cursorParam[0] : cursorParam;
+  const rawLimit = Array.isArray(limitParam) ? limitParam[0] : limitParam;
+  const rawDays = Array.isArray(daysParam) ? daysParam[0] : daysParam;
+  const maybeLimit =
+    rawLimit && rawLimit.trim().length > 0 ? Number(rawLimit) : undefined;
+  const maybeDays =
+    rawDays && rawDays.trim().length > 0 ? Number(rawDays) : undefined;
+  const parsedLimit =
+    maybeLimit != null && Number.isFinite(maybeLimit) ? maybeLimit : undefined;
+  const parsedDays =
+    maybeDays != null && Number.isFinite(maybeDays) ? maybeDays : undefined;
+
   const snapshot = await computeProjectAnalyticsSnapshot(
     session.workspaceId,
     projectId,
+    {
+      cursor: cursor && cursor.trim().length > 0 ? cursor : null,
+      itemLimit: parsedLimit,
+      trendDays: parsedDays,
+    },
   );
   if (!snapshot) {
     return (
@@ -201,6 +223,32 @@ export default async function AnalyticsProjectPage({
               getRowKey={(row) => `${row.subreddit}-${row.permalink}`}
               rows={rows}
             />
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              {snapshot.page.hasMore && snapshot.page.nextCursor ? (
+                <Link
+                  href={`/analytics/projects/${encodeURIComponent(
+                    snapshot.project.id,
+                  )}?cursor=${encodeURIComponent(
+                    snapshot.page.nextCursor,
+                  )}&limit=${snapshot.page.limit}${
+                    parsedDays != null ? `&days=${parsedDays}` : ""
+                  }`}
+                  className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
+                >
+                  Load older items
+                </Link>
+              ) : null}
+              {cursor ? (
+                <Link
+                  href={`/analytics/projects/${encodeURIComponent(
+                    snapshot.project.id,
+                  )}${parsedDays != null ? `?days=${parsedDays}` : ""}`}
+                  className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
+                >
+                  Back to latest
+                </Link>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>

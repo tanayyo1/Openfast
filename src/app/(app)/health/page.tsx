@@ -2,7 +2,7 @@ import Link from "next/link";
 import { BarMeter } from "@/components/app/charts/BarMeter";
 import { getHealthGuardrailThresholds } from "@/lib/health/guardrails";
 import { prisma } from "@/lib/prisma";
-import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+import { requireWorkspaceSessionForPage } from "@/lib/server/page-auth";
 
 const DEFAULT_COMMENT_FIRST_MIN_COMMENTS = 3;
 
@@ -34,7 +34,7 @@ function scorePillTone(
 }
 
 export default async function HealthPage() {
-  const session = await requireWorkspaceSession();
+  const session = await requireWorkspaceSessionForPage();
   const healthThresholds = getHealthGuardrailThresholds();
   const commentFirstMinComments = parsePositiveEnvInt(
     "COMMENT_FIRST_MIN_COMMENTS",

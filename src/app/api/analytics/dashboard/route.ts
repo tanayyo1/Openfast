@@ -9,8 +9,8 @@ function authError(err: unknown) {
   return NextResponse.json({ error: "Unauthorized", code }, { status });
 }
 
-export async function GET(req?: Request) {
-  const rawDays = req ? new URL(req.url).searchParams.get("days") : null;
+export async function GET(req: Request) {
+  const rawDays = new URL(req.url).searchParams.get("days");
   const parsedDays =
     rawDays == null || rawDays.trim().length === 0 ? undefined : Number(rawDays);
 

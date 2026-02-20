@@ -1,6 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+export type SessionUpdateResult = {
+  response: NextResponse;
+  userId: string | null;
+};
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -12,7 +17,10 @@ export async function updateSession(request: NextRequest) {
     !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   ) {
     // Allow demo/testing mode when Supabase is not configured
-    return supabaseResponse;
+    return {
+      response: supabaseResponse,
+      userId: null,
+    } satisfies SessionUpdateResult;
   }
 
   const supabase = createServerClient(
@@ -44,5 +52,8 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return supabaseResponse;
+  return {
+    response: supabaseResponse,
+    userId: user?.id ?? null,
+  } satisfies SessionUpdateResult;
 }

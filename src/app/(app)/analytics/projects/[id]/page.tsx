@@ -4,7 +4,7 @@ import { Sparkline } from "@/components/app/charts/Sparkline";
 import { SimpleTable } from "@/components/app/tables/SimpleTable";
 import { getWorkspaceEntitlements } from "@/lib/billing/quota";
 import { computeProjectAnalyticsSnapshot } from "@/lib/analytics/projectSnapshot";
-import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+import { requireWorkspaceSessionForPage } from "@/lib/server/page-auth";
 
 type Row = {
   permalink: string;
@@ -32,7 +32,7 @@ export default async function AnalyticsProjectPage({
   params: { id: string };
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
-  const session = await requireWorkspaceSession();
+  const session = await requireWorkspaceSessionForPage();
   const entitlements = await getWorkspaceEntitlements(session.workspaceId);
   let projectId = params.id;
   try {

@@ -83,7 +83,9 @@ describe("analytics dashboard route", () => {
     mockedGuards.requireWorkspaceSession.mockRejectedValue(
       new Error("UNAUTHORIZED"),
     );
-    const res = await getDashboardAnalytics();
+    const res = await getDashboardAnalytics(
+      new Request("http://test.local/api/analytics/dashboard"),
+    );
     expect(res.status).toBe(401);
   });
 
@@ -92,7 +94,9 @@ describe("analytics dashboard route", () => {
       hasAdvancedAnalytics: false,
     });
 
-    const res = await getDashboardAnalytics();
+    const res = await getDashboardAnalytics(
+      new Request("http://test.local/api/analytics/dashboard"),
+    );
     expect(res.status).toBe(403);
     expect(mockedDashboardData.getWorkspaceDashboardData).not.toHaveBeenCalled();
   });
@@ -102,7 +106,9 @@ describe("analytics dashboard route", () => {
       buildDashboardData("rollup"),
     );
 
-    const res = await getDashboardAnalytics();
+    const res = await getDashboardAnalytics(
+      new Request("http://test.local/api/analytics/dashboard"),
+    );
     const body = (await readJson(res)) as {
       source: string;
       generatedAt: string;
@@ -123,7 +129,9 @@ describe("analytics dashboard route", () => {
       buildDashboardData("live"),
     );
 
-    const res = await getDashboardAnalytics();
+    const res = await getDashboardAnalytics(
+      new Request("http://test.local/api/analytics/dashboard"),
+    );
     const body = (await readJson(res)) as { source: string };
 
     expect(res.status).toBe(200);

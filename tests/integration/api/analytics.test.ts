@@ -270,7 +270,9 @@ describe("Analytics APIs", () => {
       expect(accountJson.summary.publishedCount).toBe(1);
       expect(accountJson.summary.totalScore).toBe(25);
 
-      const dashboardRes = await getDashboardAnalytics();
+      const dashboardRes = await getDashboardAnalytics(
+        new Request("http://test.local/api/analytics/dashboard"),
+      );
       expect(dashboardRes.status).toBe(200);
       const dashboardJson = (await readJson(dashboardRes)) as {
         summary: { publishedCount: number; totalScore: number };
@@ -304,7 +306,9 @@ describe("Analytics APIs", () => {
     mockedGuards.requireWorkspaceSession.mockRejectedValueOnce(
       new Error("UNAUTHORIZED"),
     );
-    const res = await getDashboardAnalytics();
+    const res = await getDashboardAnalytics(
+      new Request("http://test.local/api/analytics/dashboard"),
+    );
     expect(res.status).toBe(401);
     const json = (await readJson(res)) as { code: string };
     expect(json.code).toBe("UNAUTHORIZED");

@@ -14,6 +14,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
+    "check:launch": "tsx scripts/launch-readiness.ts",
     "test": "jest",
     "test:ci-local": "jest --runInBand --detectOpenHandles",
     "test:unit": "jest --testPathPattern=tests/unit",

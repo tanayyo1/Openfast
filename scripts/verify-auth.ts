@@ -3,11 +3,25 @@
  * Run: npx tsx scripts/verify-auth.ts
  */
 
-import { createClient } from "@supabase/supabase-js";
 import { prisma } from "@/lib/prisma";
+import { getTokenKeyring } from "@/lib/security/tokenCrypto";
+
+function validateRedditRedirectUri(raw: string) {
+  try {
+    const parsed = new URL(raw);
+    return parsed.pathname === "/api/reddit/oauth/callback";
+  } catch {
+    return false;
+  }
+}
 
 async function verifySetup() {
   console.log("🔍 Verifying Auth Setup...\n");
+  let warnings = 0;
+  const warn = (message: string) => {
+    warnings += 1;
+    console.warn(message);
+  };
 
   // 1. Check database connection
   try {
@@ -34,19 +48,26 @@ async function verifySetup() {
 
   // 3. Test Supabase connection (direct API call)
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    );
-
-    // Try to get auth settings (this tests connectivity)
-    const { data, error } = await supabase.auth.getSession();
-    if (error && error.message !== "Auth session missing!") {
-      throw error;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(
+      new URL("/auth/v1/settings", process.env.NEXT_PUBLIC_SUPABASE_URL),
+      {
+        headers: {
+          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        },
+        signal: controller.signal,
+      },
+    ).finally(() => clearTimeout(timer));
+    if (!res.ok) {
+      throw new Error(`SUPABASE_STATUS_${res.status}`);
     }
     console.log("✅ Supabase API connection: OK\n");
   } catch (error) {
     console.error("❌ Supabase API connection failed:", error);
+    console.error(
+      "   Hint: verify NEXT_PUBLIC_SUPABASE_URL host resolves and key is valid.",
+    );
     process.exit(1);
   }
 
@@ -70,14 +91,14 @@ async function verifySetup() {
     if (missingTables.length === 0) {
       console.log(`✅ Database schema: OK (${tableNames.length} tables)`);
     } else {
-      console.warn(`⚠️  Missing tables: ${missingTables.join(", ")}`);
+      warn(`⚠️  Missing tables: ${missingTables.join(", ")}`);
     }
 
     console.log(
       `   Tables found: ${tableNames.slice(0, 10).join(", ")}${tableNames.length > 10 ? "..." : ""}\n`,
     );
   } catch (error) {
-    console.error("❌ Schema check failed:", error);
+    warn(`⚠️  Schema check failed: ${String(error)}`);
   }
 
   // 5. Check auth_id column exists in users table
@@ -94,13 +115,43 @@ async function verifySetup() {
         "✅ Supabase Auth integration: OK (auth_id column present)\n",
       );
     } else {
-      console.warn("⚠️  auth_id column missing - run: npx prisma db push\n");
+      warn("⚠️  auth_id column missing - run: npx prisma db push\n");
     }
   } catch (error) {
-    console.error("❌ Column check failed:", error);
+    warn(`⚠️  Column check failed: ${String(error)}`);
   }
 
-  console.log("🎉 All checks passed! Auth system is ready.");
+  // 6. Validate token encryption keys
+  try {
+    const keyring = getTokenKeyring();
+    if (Object.keys(keyring).length > 0) {
+      console.log("✅ Token encryption keys: OK\n");
+    } else {
+      warn(
+        "⚠️  TOKEN_ENCRYPTION_KEYS missing or invalid (Reddit token storage will fail)\n",
+      );
+    }
+  } catch (error) {
+    warn(`⚠️  Token encryption key check failed: ${String(error)}`);
+  }
+
+  // 7. Validate Reddit OAuth callback route format
+  const redirectUri = process.env.REDDIT_REDIRECT_URI;
+  if (!redirectUri) {
+    warn("⚠️  REDDIT_REDIRECT_URI missing\n");
+  } else if (!validateRedditRedirectUri(redirectUri)) {
+    warn(
+      `⚠️  REDDIT_REDIRECT_URI should be a valid URL with path /api/reddit/oauth/callback (current: ${redirectUri})\n`,
+    );
+  } else {
+    console.log("✅ Reddit OAuth redirect URI format: OK\n");
+  }
+
+  if (warnings === 0) {
+    console.log("🎉 All checks passed! Auth system is ready.");
+  } else {
+    console.log(`⚠️  Auth verification completed with ${warnings} warning(s).`);
+  }
   console.log("\n📋 Next steps:");
   console.log("   1. Open http://localhost:3000/signup");
   console.log("   2. Create a test account with email/password");
@@ -112,6 +163,12 @@ async function verifySetup() {
   );
   console.log("\n⚡ Quick test command:");
   console.log("   curl http://localhost:3000/api/auth/sync -X POST");
+
+  await prisma.$disconnect();
 }
 
-verifySetup().catch(console.error);
+verifySetup().catch(async (error) => {
+  console.error(error);
+  await prisma.$disconnect();
+  process.exit(1);
+});

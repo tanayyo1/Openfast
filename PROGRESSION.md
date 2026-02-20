@@ -65,6 +65,13 @@
 - [x] Stripe webhook moved to explicit deprecated behavior (default `410`) with optional temporary legacy ack flag.
 - [x] Demo rewrite flow made consistent for `mode/tone/length` propagation and persisted rewrite params.
 
+### Recent Launch Readiness + Auth UX Hardening Batch (2026-02-20)
+
+- [x] Added launch readiness command (`npm run check:launch`) with DB/Redis/Supabase/reddit-redirect/migration/token-key validation.
+- [x] Hardened auth bootstrap and login/signup flows with friendly network/auth error mapping (including Supabase fetch/DNS failures).
+- [x] Added auth error mapping unit coverage and setup verification script improvements to reduce false-positive "healthy" reports.
+- [x] Updated setup docs/examples to include required Reddit callback path and token encryption key requirements.
+
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 
 - [x] RED-62 discovery ranking quality pass merged (intent weighting, broad-audience penalty refinement, reason quality improvements).

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { MaxWidth } from "@/components/public/MaxWidth";
 import { useSupabase } from "@/components/providers/SupabaseProvider";
+import { toFriendlyAuthError } from "@/lib/supabase/auth-errors";
 
 function setDemoAuthCookie() {
   // Demo-only auth gate for the MVP frontend. Backend auth will replace this.
@@ -14,7 +15,7 @@ function setDemoAuthCookie() {
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { supabase } = useSupabase();
+  const { supabase, initError } = useSupabase();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +49,7 @@ export default function LoginPage() {
               if (!supabase) {
                 // Allow local UI testing without Supabase configured.
                 if (process.env.NODE_ENV !== "production") {
+                  setLoading(false);
                   setDemoAuthCookie();
                   router.push(next);
                   return;
@@ -58,30 +60,34 @@ export default function LoginPage() {
                 return;
               }
 
-              const { error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-              });
-
-              setLoading(false);
-              if (error) {
-                setError(error.message);
-                return;
-              }
-
-              // Sync user to our database (handles email confirmation case)
               try {
-                const syncRes = await fetch("/api/auth/sync", {
-                  method: "POST",
+                const { error } = await supabase.auth.signInWithPassword({
+                  email,
+                  password,
                 });
-                if (!syncRes.ok) {
-                  console.error("Failed to sync user on login");
+                if (error) {
+                  setError(toFriendlyAuthError(error));
+                  return;
                 }
-              } catch (syncError) {
-                console.error("Sync error:", syncError);
-              }
 
-              router.push(next);
+                // Sync user to our database (handles email confirmation case)
+                try {
+                  const syncRes = await fetch("/api/auth/sync", {
+                    method: "POST",
+                  });
+                  if (!syncRes.ok) {
+                    console.error("Failed to sync user on login");
+                  }
+                } catch (syncError) {
+                  console.error("Sync error:", syncError);
+                }
+
+                router.push(next);
+              } catch (err) {
+                setError(toFriendlyAuthError(err));
+              } finally {
+                setLoading(false);
+              }
             }}
           >
             <div>
@@ -113,6 +119,11 @@ export default function LoginPage() {
             {error ? (
               <p className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {error}
+              </p>
+            ) : null}
+            {!error && initError ? (
+              <p className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
+                {initError}
               </p>
             ) : null}
             <button

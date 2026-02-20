@@ -107,21 +107,17 @@ docker-compose up -d
 # Set up database schema
 npx prisma db push
 
+# Verify launch readiness
+npm run check:launch
+
 # Start development
 npm run dev
 ```
 
-**📖 Full setup guide:** [SETUP.md](./SETUP.md)  
-**📋 Team tasks:** [TASK_ASSIGNMENTS.md](./TASK_ASSIGNMENTS.md)  
-**✅ Project status:** [TODO.md](./TODO.md)
-npx prisma migrate dev
-npx prisma db seed
-
-# Run development server
-
-npm run dev
-
-````
+- **📖 Full setup guide:** [SETUP.md](./SETUP.md)
+- **🚦 Launch readiness:** [docs/LAUNCH_READINESS.md](./docs/LAUNCH_READINESS.md)
+- **📋 Team tasks:** [TASK_ASSIGNMENTS.md](./TASK_ASSIGNMENTS.md)
+- **✅ Project status:** [TODO.md](./TODO.md)
 
 Visit [http://localhost:3000](http://localhost:3000) to see the app.
 
@@ -139,14 +135,17 @@ REDIS_URL="redis://localhost:6379"
 # Reddit OAuth
 REDDIT_CLIENT_ID="your_client_id"
 REDDIT_CLIENT_SECRET="your_client_secret"
-REDDIT_REDIRECT_URI="http://localhost:3000/api/auth/callback/reddit"
+REDDIT_REDIRECT_URI="http://localhost:3000/api/reddit/oauth/callback"
+TOKEN_ENCRYPTION_KEYS="v1:replace_with_base64_32_byte_key"
 
 # OpenAI
 OPENAI_API_KEY="sk-..."
 
-# Stripe
-STRIPE_SECRET_KEY="sk_..."
-STRIPE_WEBHOOK_SECRET="whsec_..."
+# Polar (billing)
+POLAR_ACCESS_TOKEN="polar_at_..."
+POLAR_WEBHOOK_SECRET="..."
+POLAR_PRODUCT_PRO="..."
+POLAR_PRODUCT_ENTERPRISE="..."
 
 # NextAuth
 NEXTAUTH_SECRET="your_secret_key"
@@ -154,7 +153,7 @@ NEXTAUTH_URL="http://localhost:3000"
 
 # Email
 RESEND_API_KEY="re_..."
-````
+```
 
 ---
 
@@ -191,8 +190,8 @@ Data Layer
 - **Database**: PostgreSQL + Prisma ORM
 - **Queue**: BullMQ (Redis-based)
 - **AI**: OpenAI GPT-4, LangChain, pgvector
-- **Auth**: NextAuth.js + Reddit OAuth
-- **Payments**: Stripe
+- **Auth**: Supabase Auth + Reddit OAuth
+- **Payments**: Polar
 - **Email**: Resend
 
 See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for detailed design.

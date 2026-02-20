@@ -7,6 +7,10 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 
+jest.mock("@/lib/analytics/trends", () => ({
+  getProjectDailyPerformanceTrend: jest.fn(),
+}));
+
 import { computeProjectAnalyticsSnapshot } from "@/lib/analytics/projectSnapshot";
 
 const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
@@ -14,6 +18,9 @@ const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
   scheduledPost: { groupBy: jest.Mock };
   publishedItem: { findMany: jest.Mock };
   $queryRaw: jest.Mock;
+};
+const mockedTrends = jest.requireMock("@/lib/analytics/trends") as {
+  getProjectDailyPerformanceTrend: jest.Mock;
 };
 
 function buildPublishedItem(id: string, score: number) {
@@ -63,6 +70,15 @@ describe("computeProjectAnalyticsSnapshot", () => {
         latest_captured_at: new Date("2026-02-20T00:10:00.000Z"),
       },
     ]);
+    mockedTrends.getProjectDailyPerformanceTrend.mockResolvedValue([
+      {
+        day: "2026-02-20",
+        totalScore: 40,
+        totalComments: 20,
+        removedCount: 1,
+        activeItems: 4,
+      },
+    ]);
     mockedPrisma.publishedItem.findMany.mockResolvedValue([
       buildPublishedItem("pi_1", 12),
       buildPublishedItem("pi_2", 9),
@@ -100,6 +116,7 @@ describe("computeProjectAnalyticsSnapshot", () => {
       hasMore: true,
       nextCursor: "pi_2",
     });
+    expect(out?.trend).toHaveLength(1);
   });
 
   test("uses bounded max limit and cursor in item query", async () => {
@@ -141,5 +158,6 @@ describe("computeProjectAnalyticsSnapshot", () => {
     expect(out?.summary.removedCount).toBe(5);
     expect(out?.summary.avgScore).toBe(10);
     expect(out?.summary.avgComments).toBe(4);
+    expect(out?.trend).toHaveLength(1);
   });
 });

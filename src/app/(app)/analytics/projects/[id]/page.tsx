@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BarMeter } from "@/components/app/charts/BarMeter";
+import { Sparkline } from "@/components/app/charts/Sparkline";
 import { SimpleTable } from "@/components/app/tables/SimpleTable";
 import { getWorkspaceEntitlements } from "@/lib/billing/quota";
 import { computeProjectAnalyticsSnapshot } from "@/lib/analytics/projectSnapshot";
@@ -17,6 +18,11 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US", {
     maximumFractionDigits: value % 1 === 0 ? 0 : 1,
   }).format(value);
+}
+
+function trendDelta(points: number[]) {
+  if (points.length < 2) return 0;
+  return points[points.length - 1] - points[0];
 }
 
 export default async function AnalyticsProjectPage({
@@ -123,6 +129,13 @@ export default async function AnalyticsProjectPage({
     100,
     Math.round(snapshot.summary.avgComments * 12),
   );
+  const scoreTrendPoints = snapshot.trend.map((point) => point.totalScore);
+  const commentTrendPoints = snapshot.trend.map((point) => point.totalComments);
+  const removalTrendPoints = snapshot.trend.map((point) => point.removedCount);
+  const trendWindowLabel =
+    snapshot.trend.length > 0
+      ? `${snapshot.trend[0]?.day} → ${snapshot.trend[snapshot.trend.length - 1]?.day}`
+      : "No trend window";
 
   return (
     <div className="space-y-8">
@@ -189,6 +202,55 @@ export default async function AnalyticsProjectPage({
               rows={rows}
             />
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-[24px] border border-border bg-card/80 p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <p className="text-sm font-semibold">Daily performance trend</p>
+          <p className="text-xs text-muted-foreground">{trendWindowLabel}</p>
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          {[
+            {
+              label: "Score",
+              value: formatNumber(scoreTrendPoints[scoreTrendPoints.length - 1] ?? 0),
+              detail: `${formatNumber(trendDelta(scoreTrendPoints))} net change`,
+              points: scoreTrendPoints,
+            },
+            {
+              label: "Comments",
+              value: formatNumber(
+                commentTrendPoints[commentTrendPoints.length - 1] ?? 0,
+              ),
+              detail: `${formatNumber(trendDelta(commentTrendPoints))} net change`,
+              points: commentTrendPoints,
+            },
+            {
+              label: "Removals",
+              value: formatNumber(
+                removalTrendPoints[removalTrendPoints.length - 1] ?? 0,
+              ),
+              detail: `${formatNumber(trendDelta(removalTrendPoints))} net change`,
+              points: removalTrendPoints,
+            },
+          ].map((metric) => (
+            <div
+              key={metric.label}
+              className="rounded-2xl border border-border bg-background/70 p-4"
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                {metric.label}
+              </p>
+              <div className="mt-3 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-2xl font-semibold">{metric.value}</p>
+                  <p className="text-xs text-muted-foreground">{metric.detail}</p>
+                </div>
+                <Sparkline points={metric.points} className="h-10 w-28 text-primary" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

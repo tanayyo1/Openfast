@@ -6,6 +6,10 @@ jest.mock("@/lib/analytics/dashboardSnapshot", () => ({
   computeWorkspaceDashboardSnapshot: jest.fn(),
 }));
 
+jest.mock("@/lib/analytics/trends", () => ({
+  getWorkspaceDailyPerformanceTrend: jest.fn(),
+}));
+
 import { getWorkspaceDashboardData } from "@/lib/analytics/dashboardData";
 
 const mockedRollups = jest.requireMock("@/lib/analytics/rollups") as {
@@ -15,6 +19,9 @@ const mockedSnapshot = jest.requireMock(
   "@/lib/analytics/dashboardSnapshot",
 ) as {
   computeWorkspaceDashboardSnapshot: jest.Mock;
+};
+const mockedTrends = jest.requireMock("@/lib/analytics/trends") as {
+  getWorkspaceDailyPerformanceTrend: jest.Mock;
 };
 
 function buildSnapshot() {
@@ -43,6 +50,15 @@ describe("getWorkspaceDashboardData", () => {
     mockedSnapshot.computeWorkspaceDashboardSnapshot.mockResolvedValue(
       buildSnapshot(),
     );
+    mockedTrends.getWorkspaceDailyPerformanceTrend.mockResolvedValue([
+      {
+        day: "2026-02-20",
+        totalScore: 20,
+        totalComments: 8,
+        removedCount: 0,
+        activeItems: 2,
+      },
+    ]);
   });
 
   test("uses fresh rollup when available", async () => {
@@ -64,6 +80,7 @@ describe("getWorkspaceDashboardData", () => {
 
     expect(out.source).toBe("rollup");
     expect(out.generatedAt).toBe("2026-02-20T07:00:00.000Z");
+    expect(out.trend).toHaveLength(1);
     expect(mockedSnapshot.computeWorkspaceDashboardSnapshot).not.toHaveBeenCalled();
   });
 
@@ -86,6 +103,7 @@ describe("getWorkspaceDashboardData", () => {
 
     expect(out.source).toBe("live");
     expect(out.generatedAt).toBe("2026-02-20T08:00:00.000Z");
+    expect(out.trend).toHaveLength(1);
     expect(mockedSnapshot.computeWorkspaceDashboardSnapshot).toHaveBeenCalledWith(
       "ws_1",
     );

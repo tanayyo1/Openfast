@@ -1,5 +1,9 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  getProjectDailyPerformanceTrend,
+  type DailyPerformancePoint,
+} from "@/lib/analytics/trends";
 
 export type ProjectAnalyticsItem = {
   id: string;
@@ -46,6 +50,7 @@ export type ProjectAnalyticsSnapshot = {
   };
   summary: ProjectAnalyticsSummary;
   items: ProjectAnalyticsItem[];
+  trend: DailyPerformancePoint[];
   page: {
     limit: number;
     hasMore: boolean;
@@ -72,10 +77,14 @@ export async function computeProjectAnalyticsSnapshot(
   input?: {
     itemLimit?: number;
     cursor?: string | null;
+    trendDays?: number;
+    now?: Date;
   },
 ): Promise<ProjectAnalyticsSnapshot | null> {
   const itemLimit = clampItemLimit(input?.itemLimit);
   const cursor = input?.cursor ?? null;
+  const trendDays = input?.trendDays;
+  const trendNow = input?.now;
 
   const project = await prisma.project.findFirst({
     where: { id: projectId, workspaceId },
@@ -83,7 +92,7 @@ export async function computeProjectAnalyticsSnapshot(
   });
   if (!project) return null;
 
-  const [scheduledStatusCounts, summaryRows, publishedItems] = await Promise.all([
+  const [scheduledStatusCounts, summaryRows, publishedItems, trend] = await Promise.all([
     prisma.scheduledPost.groupBy({
       by: ["status"],
       where: {
@@ -153,6 +162,10 @@ export async function computeProjectAnalyticsSnapshot(
         },
       },
     }),
+    getProjectDailyPerformanceTrend(workspaceId, projectId, {
+      days: trendDays,
+      now: trendNow,
+    }),
   ]);
 
   const statusCounts = scheduledStatusCounts.reduce<Record<string, number>>(
@@ -210,6 +223,7 @@ export async function computeProjectAnalyticsSnapshot(
       latestCapturedAt: summaryRow.latest_captured_at,
     },
     items,
+    trend,
     page: {
       limit: itemLimit,
       hasMore,

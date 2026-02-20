@@ -93,6 +93,14 @@
 - [x] Extracted shared analytics libraries for reuse across API + UI (`src/lib/analytics/dashboardData.ts`, `src/lib/analytics/projectSnapshot.ts`) to keep route/page data logic consistent.
 - [x] Updated analytics route tests and reran analytics + e2e smoke coverage after refactor.
 
+### Recent Analytics Time-Series Batch (RED-38)
+
+- [x] Added daily trend services for workspace/project performance snapshots with bounded day windows and one-snapshot-per-item-per-day aggregation (`src/lib/analytics/trends.ts`).
+- [x] Extended dashboard analytics loaders/API with trend series payload (`trend[]`) and optional `days` query support.
+- [x] Extended project analytics loaders/API with trend series while preserving paginated item payload (`limit`, `cursor`, `days`).
+- [x] Upgraded `/analytics` and `/analytics/projects/:id` pages to render backend-driven trend sparklines from time-series data.
+- [x] Added and updated analytics unit tests for trend clamping/mapping and loader integration (`tests/unit/lib/trends.test.ts`, `tests/unit/lib/dashboardData.test.ts`, `tests/unit/lib/projectSnapshot.test.ts`).
+
 ---
 
 ## 2) What Is Partial
@@ -210,7 +218,7 @@
 
 - RED-36: Analytics rollup foundation (DONE - daily workspace rollups + dashboard rollup read/fallback + cron trigger + tests)
 - RED-37: Analytics UI live data (DONE - dashboard + project analytics pages now server-backed, no demo-store dependency)
-- RED-38: Analytics pipeline follow-up backlog
+- RED-38: Analytics time-series follow-up (DONE - daily workspace/project trend services + API surfaces + UI sparkline integration + tests)
 - RED-52 (Reddit Ads), RED-58 (landing page gen)
 
 ### Remaining from Original Plan

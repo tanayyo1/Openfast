@@ -9,7 +9,11 @@ function authError(err: unknown) {
   return NextResponse.json({ error: "Unauthorized", code }, { status });
 }
 
-export async function GET() {
+export async function GET(req?: Request) {
+  const rawDays = req ? new URL(req.url).searchParams.get("days") : null;
+  const parsedDays =
+    rawDays == null || rawDays.trim().length === 0 ? undefined : Number(rawDays);
+
   let session;
   try {
     session = await requireWorkspaceSession();
@@ -27,11 +31,17 @@ export async function GET() {
     );
   }
 
-  const dashboard = await getWorkspaceDashboardData(session.workspaceId);
+  const dashboard =
+    parsedDays == null
+      ? await getWorkspaceDashboardData(session.workspaceId)
+      : await getWorkspaceDashboardData(session.workspaceId, {
+          trendDays: parsedDays,
+        });
   return NextResponse.json({
     source: dashboard.source,
     generatedAt: dashboard.generatedAt,
     summary: dashboard.summary,
     byProject: dashboard.byProject,
+    trend: dashboard.trend,
   });
 }

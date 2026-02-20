@@ -33,6 +33,9 @@ const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
 const mockedQueue = jest.requireMock("@/lib/queue/enqueue") as {
   enqueueSubredditIngestJob: jest.Mock;
 };
+const mockedIntel = jest.requireMock("@/lib/subreddit/intel") as {
+  candidateSubredditNamesForProject: jest.Mock;
+};
 
 async function readJson(res: Response) {
   const text = await res.text();
@@ -42,6 +45,10 @@ async function readJson(res: Response) {
 describe("project subreddit discovery route (RED-62)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedIntel.candidateSubredditNamesForProject.mockReturnValue([
+      "startups",
+      "saas",
+    ]);
     mockedGuards.requireWorkspaceSession.mockResolvedValue({
       user: { id: "u_1" },
       workspaceId: "ws_1",
@@ -238,5 +245,72 @@ describe("project subreddit discovery route (RED-62)", () => {
     expect(mockedQueue.enqueueSubredditIngestJob).not.toHaveBeenCalledWith({
       subredditName: "ai",
     });
+  });
+
+  test("normalizes r/ prefixed candidate names before queueing ingest", async () => {
+    mockedIntel.candidateSubredditNamesForProject.mockReturnValueOnce([
+      "r/Foo_Bar",
+    ]);
+    mockedPrisma.project.findFirst.mockResolvedValueOnce({
+      id: "p_1",
+      name: "Acme SaaS",
+      niche: "saas marketing",
+      goals: { primary: "traffic" },
+      constraints: null,
+    });
+    mockedPrisma.subredditCatalog.findMany.mockResolvedValueOnce([]);
+
+    const res = await discoverSubreddits(
+      new Request("http://test.local/api/projects/p_1/discover-subreddits"),
+      { params: { id: "p_1" } },
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as { queuedIngestNames: string[] };
+    expect(json.queuedIngestNames).toContain("foo_bar");
+    expect(mockedQueue.enqueueSubredditIngestJob).toHaveBeenCalledWith({
+      subredditName: "foo_bar",
+    });
+  });
+
+  test("caps queued ingest names and exposes truncation metadata", async () => {
+    mockedIntel.candidateSubredditNamesForProject.mockReturnValueOnce([
+      "subaaa",
+      "subaab",
+      "subaac",
+      "subaad",
+      "subaae",
+      "subaaf",
+      "subaag",
+      "subaah",
+      "subaai",
+      "subaaj",
+      "subaak",
+      "subaal",
+    ]);
+    mockedPrisma.project.findFirst.mockResolvedValueOnce({
+      id: "p_1",
+      name: "Acme SaaS",
+      niche: "saas marketing",
+      goals: { primary: "traffic" },
+      constraints: null,
+    });
+    mockedPrisma.subredditCatalog.findMany.mockResolvedValueOnce([]);
+
+    const res = await discoverSubreddits(
+      new Request("http://test.local/api/projects/p_1/discover-subreddits"),
+      { params: { id: "p_1" } },
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as {
+      queuedIngestNames: string[];
+      queuedIngestNamesTruncated: boolean;
+      queuedIngestNamesDropped: number;
+    };
+    expect(json.queuedIngestNames).toHaveLength(10);
+    expect(json.queuedIngestNamesTruncated).toBe(true);
+    expect(json.queuedIngestNamesDropped).toBe(2);
+    expect(mockedQueue.enqueueSubredditIngestJob).toHaveBeenCalledTimes(10);
   });
 });

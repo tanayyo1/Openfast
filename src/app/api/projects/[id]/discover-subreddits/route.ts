@@ -153,11 +153,17 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
   });
 
   const foundNames = new Set(
-    discovered.map((sub) => normalizeSubredditName(sub.name) ?? sub.name),
+    discovered.map((sub) => normalizeSubredditName(sub.name) ?? sub.name.toLowerCase()),
   );
-  const queuedIngestNames = candidateNames.filter(
+  const missingInCatalogNames = candidateNames.filter(
     (name) => !foundNames.has(name),
-  ).slice(0, MAX_QUEUED_INGEST_NAMES);
+  );
+  const queuedIngestNames = missingInCatalogNames.slice(
+    0,
+    MAX_QUEUED_INGEST_NAMES,
+  );
+  const queuedIngestNamesDropped =
+    missingInCatalogNames.length - queuedIngestNames.length;
   await Promise.all(
     queuedIngestNames.map((name) =>
       enqueueSubredditIngestJob({ subredditName: name }).catch(() => undefined),
@@ -208,6 +214,8 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
     query: parsed.data.q ?? null,
     count: items.length,
     queuedIngestNames,
+    queuedIngestNamesTruncated: queuedIngestNamesDropped > 0,
+    queuedIngestNamesDropped,
     items,
   });
 }

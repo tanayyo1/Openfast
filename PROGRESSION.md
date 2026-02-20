@@ -187,7 +187,7 @@
 
 - RED-54: Reddit profile optimization checklist and guide (DONE - checklist scoring API + onboarding guide section)
 - RED-57: Demand scorecard (DONE - project demand scorecard API from recommendation + pain-point signals + onboarding guide)
-- RED-59: Comment automation (DONE - opportunity feed + create comment task/draft automation APIs + tests)
+- RED-59: Comment automation (DONE - backend opportunity feed + create comment task/draft automation APIs + tests; additional UI polish can continue in Tier 3)
 - RED-60, RED-61
 
 ### Tier 4 - Post-MVP (Backlog, Low priority)

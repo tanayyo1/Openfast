@@ -15,11 +15,16 @@ export type WorkspaceDailyRollupPayload = WorkspaceDashboardSnapshot & {
   generatedAt: string;
 };
 
+export type WorkspaceDailyRollupFailure = {
+  workspaceId: string;
+  error: string;
+};
+
 export type WorkspaceDailyRollupRunResult = {
   forDate: string;
   scannedWorkspaces: number;
   persisted: number;
-  failedWorkspaces: string[];
+  failedWorkspaces: WorkspaceDailyRollupFailure[];
 };
 
 function dayKeyFromDate(date: Date) {
@@ -150,41 +155,76 @@ export async function persistWorkspaceDailyRollup(input: {
 export async function runWorkspaceDailyRollups(input?: {
   now?: Date;
   maxWorkspaces?: number;
+  pageSize?: number;
 }): Promise<WorkspaceDailyRollupRunResult> {
   const now = input?.now ?? new Date();
-  const maxWorkspaces = input?.maxWorkspaces ?? 200;
+  const maxWorkspaces =
+    typeof input?.maxWorkspaces === "number" &&
+    Number.isFinite(input.maxWorkspaces) &&
+    input.maxWorkspaces > 0
+      ? Math.floor(input.maxWorkspaces)
+      : null;
+  const pageSize =
+    typeof input?.pageSize === "number" &&
+    Number.isFinite(input.pageSize) &&
+    input.pageSize > 0
+      ? Math.floor(input.pageSize)
+      : 200;
 
-  const workspaces = await prisma.workspace.findMany({
-    where: {
-      status: "ACTIVE",
-      entitlements: {
-        is: {
-          hasAdvancedAnalytics: true,
+  let scannedWorkspaces = 0;
+  let persisted = 0;
+  const failedWorkspaces: WorkspaceDailyRollupFailure[] = [];
+  let cursorId: string | null = null;
+
+  while (true) {
+    const remaining = maxWorkspaces ? maxWorkspaces - scannedWorkspaces : null;
+    if (remaining !== null && remaining <= 0) break;
+
+    const take = remaining === null ? pageSize : Math.min(pageSize, remaining);
+    const workspaces: Array<{ id: string }> = await prisma.workspace.findMany({
+      where: {
+        status: "ACTIVE",
+        entitlements: {
+          is: {
+            hasAdvancedAnalytics: true,
+          },
         },
       },
-    },
-    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-    select: { id: true },
-    take: maxWorkspaces,
-  });
+      orderBy: { id: "asc" },
+      select: { id: true },
+      take,
+      ...(cursorId
+        ? {
+            cursor: { id: cursorId },
+            skip: 1,
+          }
+        : {}),
+    });
 
-  let persisted = 0;
-  const failedWorkspaces: string[] = [];
-  for (const workspace of workspaces) {
-    try {
-      await persistWorkspaceDailyRollup({
-        workspaceId: workspace.id,
-        now,
-      });
-      persisted += 1;
-    } catch {
-      failedWorkspaces.push(workspace.id);
+    if (workspaces.length === 0) break;
+    scannedWorkspaces += workspaces.length;
+
+    for (const workspace of workspaces) {
+      try {
+        await persistWorkspaceDailyRollup({
+          workspaceId: workspace.id,
+          now,
+        });
+        persisted += 1;
+      } catch (err: unknown) {
+        failedWorkspaces.push({
+          workspaceId: workspace.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
+
+    cursorId = workspaces[workspaces.length - 1]?.id ?? null;
   }
 
   return {
     forDate: dayKeyFromDate(now),
-    scannedWorkspaces: workspaces.length,
+    scannedWorkspaces,
     persisted,
     failedWorkspaces,
   };

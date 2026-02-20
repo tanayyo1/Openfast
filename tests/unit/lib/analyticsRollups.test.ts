@@ -28,6 +28,7 @@ const mockedDashboardSnapshot = jest.requireMock(
 describe("analytics rollups", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedPrisma.workspace.findMany.mockResolvedValue([]);
     mockedDashboardSnapshot.computeWorkspaceDashboardSnapshot.mockResolvedValue({
       summary: {
         projectCount: 1,
@@ -151,7 +152,64 @@ describe("analytics rollups", () => {
       forDate: "2026-02-20",
       scannedWorkspaces: 3,
       persisted: 2,
-      failedWorkspaces: ["ws_2"],
+      failedWorkspaces: [{ workspaceId: "ws_2", error: "db timeout" }],
+    });
+  });
+
+  test("paginates workspace scan when page size is small", async () => {
+    mockedPrisma.workspace.findMany
+      .mockResolvedValueOnce([
+        { id: "ws_1" },
+        { id: "ws_2" },
+      ])
+      .mockResolvedValueOnce([{ id: "ws_3" }])
+      .mockResolvedValueOnce([]);
+    mockedPrisma.analyticsEvent.upsert
+      .mockResolvedValueOnce({
+        id: "rollup_ws_ws_1_2026-02-20",
+        workspaceId: "ws_1",
+        eventTs: new Date("2026-02-20T00:00:00.000Z"),
+        properties: {},
+      })
+      .mockResolvedValueOnce({
+        id: "rollup_ws_ws_2_2026-02-20",
+        workspaceId: "ws_2",
+        eventTs: new Date("2026-02-20T00:00:00.000Z"),
+        properties: {},
+      })
+      .mockResolvedValueOnce({
+        id: "rollup_ws_ws_3_2026-02-20",
+        workspaceId: "ws_3",
+        eventTs: new Date("2026-02-20T00:00:00.000Z"),
+        properties: {},
+      });
+
+    const out = await runWorkspaceDailyRollups({
+      now: new Date("2026-02-20T08:00:00.000Z"),
+      pageSize: 2,
+    });
+
+    expect(mockedPrisma.workspace.findMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        orderBy: { id: "asc" },
+        take: 2,
+      }),
+    );
+    expect(mockedPrisma.workspace.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        orderBy: { id: "asc" },
+        take: 2,
+        cursor: { id: "ws_2" },
+        skip: 1,
+      }),
+    );
+    expect(out).toEqual({
+      forDate: "2026-02-20",
+      scannedWorkspaces: 3,
+      persisted: 3,
+      failedWorkspaces: [],
     });
   });
 

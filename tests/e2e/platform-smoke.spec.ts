@@ -8,6 +8,8 @@ test("public smoke: home and pricing render", async ({ page }) => {
   ).toBeVisible();
 
   await page.goto("/pricing");
-  await expect(page.getByText(/\$39/i)).toBeVisible();
-  await expect(page.getByText(/\$129/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: /plans built/i })).toBeVisible();
+  await expect(page.getByText(/^Free$/)).toBeVisible();
+  await expect(page.getByText(/^Pro$/)).toBeVisible();
+  await expect(page.getByRole("link", { name: /contact sales/i })).toBeVisible();
 });

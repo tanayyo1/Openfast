@@ -132,6 +132,8 @@ export default function DraftPage() {
 
       <DraftEditor
         variants={draft.variants}
+        taskType={task.type}
+        subreddit={task.subreddit}
         initialSelectedIndex={draft.selectedIndex}
         initialTitle={draft.editedTitle}
         initialBody={draft.editedBody}

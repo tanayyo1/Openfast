@@ -78,6 +78,14 @@
 - [x] Added automation API: `POST /api/tasks/from-opportunity` (creates COMMENT task from opportunity, creates COMMENT draft scaffold, and queues content generation variants).
 - [x] Added route-level tests for both opportunity feed and task-from-opportunity flows, including queue-unavailable fallback behavior.
 
+### Recent Analytics Rollup Batch (RED-36)
+
+- [x] Added reusable dashboard snapshot computation service (`src/lib/analytics/dashboardSnapshot.ts`) to isolate workspace-wide dashboard metrics aggregation.
+- [x] Added daily workspace rollup persistence/read path on `analytics_events` (`src/lib/analytics/rollups.ts`) with deterministic rollup IDs and strict payload validation.
+- [x] Updated dashboard analytics API to prefer recent rollups with live-compute fallback (`GET /api/analytics/dashboard` returns `source: "rollup" | "live"` and `generatedAt`).
+- [x] Wired daily rollup execution into cron scheduler (`daily_analytics_rollups`) with partial-failure alerting.
+- [x] Added regression tests for rollup persistence/batch edge cases and dashboard route stale-rollup fallback.
+
 ---
 
 ## 2) What Is Partial
@@ -193,7 +201,9 @@
 
 ### Tier 4 - Post-MVP (Backlog, Low priority)
 
-- RED-36/37/38 (analytics pipeline), RED-52 (Reddit Ads), RED-58 (landing page gen)
+- RED-36: Analytics rollup foundation (DONE - daily workspace rollups + dashboard rollup read/fallback + cron trigger + tests)
+- RED-37/38: Analytics pipeline follow-up backlog
+- RED-52 (Reddit Ads), RED-58 (landing page gen)
 
 ### Remaining from Original Plan
 

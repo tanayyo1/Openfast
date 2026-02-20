@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export type ProjectAnalyticsItem = {
@@ -45,19 +46,44 @@ export type ProjectAnalyticsSnapshot = {
   };
   summary: ProjectAnalyticsSummary;
   items: ProjectAnalyticsItem[];
+  page: {
+    limit: number;
+    hasMore: boolean;
+    nextCursor: string | null;
+  };
 };
+
+type ProjectAnalyticsSummaryRow = {
+  published_count: number;
+  total_score: number;
+  total_comments: number;
+  removed_count: number;
+  latest_captured_at: Date | null;
+};
+
+function clampItemLimit(rawLimit: number | undefined) {
+  if (!Number.isFinite(rawLimit) || (rawLimit ?? 0) <= 0) return 100;
+  return Math.min(200, Math.max(1, Math.floor(rawLimit!)));
+}
 
 export async function computeProjectAnalyticsSnapshot(
   workspaceId: string,
   projectId: string,
+  input?: {
+    itemLimit?: number;
+    cursor?: string | null;
+  },
 ): Promise<ProjectAnalyticsSnapshot | null> {
+  const itemLimit = clampItemLimit(input?.itemLimit);
+  const cursor = input?.cursor ?? null;
+
   const project = await prisma.project.findFirst({
     where: { id: projectId, workspaceId },
     select: { id: true, name: true, status: true },
   });
   if (!project) return null;
 
-  const [scheduledStatusCounts, publishedItems] = await Promise.all([
+  const [scheduledStatusCounts, summaryRows, publishedItems] = await Promise.all([
     prisma.scheduledPost.groupBy({
       by: ["status"],
       where: {
@@ -66,12 +92,45 @@ export async function computeProjectAnalyticsSnapshot(
       },
       _count: { _all: true },
     }),
+    prisma.$queryRaw<ProjectAnalyticsSummaryRow[]>(Prisma.sql`
+      SELECT
+        COUNT(pi.id)::int AS published_count,
+        COALESCE(SUM(ls.score), 0)::int AS total_score,
+        COALESCE(SUM(ls.num_comments), 0)::int AS total_comments,
+        COALESCE(SUM(CASE WHEN ls.is_removed THEN 1 ELSE 0 END), 0)::int AS removed_count,
+        MAX(ls.captured_at) AS latest_captured_at
+      FROM published_items pi
+      INNER JOIN scheduled_posts sp
+        ON sp.id = pi.scheduled_post_id
+      INNER JOIN drafts d
+        ON d.id = sp.draft_id
+      LEFT JOIN LATERAL (
+        SELECT
+          ps.score,
+          ps.num_comments,
+          ps.is_removed,
+          ps.captured_at
+        FROM performance_snapshots ps
+        WHERE ps.published_item_id = pi.id
+        ORDER BY ps.captured_at DESC, ps.id DESC
+        LIMIT 1
+      ) ls ON true
+      WHERE pi.workspace_id = ${workspaceId}
+        AND d.project_id = ${projectId}
+    `),
     prisma.publishedItem.findMany({
       where: {
         workspaceId,
         scheduledPost: { draft: { projectId } },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: itemLimit + 1,
+      ...(cursor
+        ? {
+            cursor: { id: cursor },
+            skip: 1,
+          }
+        : {}),
       select: {
         id: true,
         type: true,
@@ -104,21 +163,19 @@ export async function computeProjectAnalyticsSnapshot(
     {},
   );
 
-  let totalScore = 0;
-  let totalComments = 0;
-  let removedCount = 0;
-  let latestCapturedAt: Date | null = null;
+  const summaryRow = summaryRows[0] ?? {
+    published_count: 0,
+    total_score: 0,
+    total_comments: 0,
+    removed_count: 0,
+    latest_captured_at: null,
+  };
 
-  const items = publishedItems.map((item) => {
+  const hasMore = publishedItems.length > itemLimit;
+  const visibleItems = hasMore ? publishedItems.slice(0, itemLimit) : publishedItems;
+
+  const items = visibleItems.map((item) => {
     const latest = item.snapshots[0] ?? null;
-    if (latest) {
-      totalScore += latest.score;
-      totalComments += latest.numComments;
-      if (latest.isRemoved) removedCount += 1;
-      if (!latestCapturedAt || latest.capturedAt > latestCapturedAt) {
-        latestCapturedAt = latest.capturedAt;
-      }
-    }
     return {
       id: item.id,
       type: item.type,
@@ -129,7 +186,11 @@ export async function computeProjectAnalyticsSnapshot(
     };
   });
 
-  const publishedCount = items.length;
+  const publishedCount = summaryRow.published_count;
+  const nextCursor = hasMore
+    ? visibleItems[visibleItems.length - 1]?.id ?? null
+    : null;
+
   return {
     project,
     summary: {
@@ -141,13 +202,18 @@ export async function computeProjectAnalyticsSnapshot(
         (statusCounts.FAILED_RETRYABLE ?? 0) +
         (statusCounts.FAILED_PERMANENT ?? 0),
       cancelledCount: statusCounts.CANCELLED ?? 0,
-      removedCount,
-      totalScore,
-      avgScore: publishedCount ? totalScore / publishedCount : 0,
-      totalComments,
-      avgComments: publishedCount ? totalComments / publishedCount : 0,
-      latestCapturedAt,
+      removedCount: summaryRow.removed_count,
+      totalScore: summaryRow.total_score,
+      avgScore: publishedCount ? summaryRow.total_score / publishedCount : 0,
+      totalComments: summaryRow.total_comments,
+      avgComments: publishedCount ? summaryRow.total_comments / publishedCount : 0,
+      latestCapturedAt: summaryRow.latest_captured_at,
     },
     items,
+    page: {
+      limit: itemLimit,
+      hasMore,
+      nextCursor,
+    },
   };
 }

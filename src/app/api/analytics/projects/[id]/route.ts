@@ -9,7 +9,16 @@ function authError(err: unknown) {
   return NextResponse.json({ error: "Unauthorized", code }, { status });
 }
 
-export async function GET(_req: Request, ctx: { params: { id: string } }) {
+export async function GET(req: Request, ctx: { params: { id: string } }) {
+  const url = new URL(req.url);
+  const rawLimit = url.searchParams.get("limit");
+  const rawCursor = url.searchParams.get("cursor");
+  const parsedLimit =
+    rawLimit == null || rawLimit.trim().length === 0
+      ? undefined
+      : Number(rawLimit);
+  const cursor = rawCursor && rawCursor.trim().length > 0 ? rawCursor : null;
+
   let session;
   try {
     session = await requireWorkspaceSession();
@@ -31,6 +40,10 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
   const snapshot = await computeProjectAnalyticsSnapshot(
     session.workspaceId,
     projectId,
+    {
+      itemLimit: parsedLimit,
+      cursor,
+    },
   );
   if (!snapshot) {
     return NextResponse.json(

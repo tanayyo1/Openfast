@@ -26,7 +26,19 @@ export default async function AnalyticsProjectPage({
 }) {
   const session = await requireWorkspaceSession();
   const entitlements = await getWorkspaceEntitlements(session.workspaceId);
-  const projectId = decodeURIComponent(params.id);
+  let projectId = params.id;
+  try {
+    projectId = decodeURIComponent(params.id);
+  } catch {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold">Invalid project id</h1>
+        <Link href="/analytics" className="text-sm underline">
+          Back to analytics
+        </Link>
+      </div>
+    );
+  }
 
   if (!entitlements.hasAdvancedAnalytics) {
     return (

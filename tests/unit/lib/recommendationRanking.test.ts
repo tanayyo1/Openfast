@@ -69,6 +69,8 @@ describe("rankSubreddits", () => {
     expect(ranked[2].riskScore).toBeGreaterThan(ranked[0].riskScore);
     expect(ranked[0].totalScore).toBeGreaterThanOrEqual(ranked[1].totalScore);
     expect(ranked[1].totalScore).toBeGreaterThanOrEqual(ranked[2].totalScore);
+    expect(ranked[0].reasons[0]).toMatch(/Niche match/i);
+    expect(ranked[0].reasons.join(" ")).toMatch(/Goal alignment/i);
   });
 
   test("caps result length to requested limit", () => {
@@ -93,5 +95,58 @@ describe("rankSubreddits", () => {
       5,
     );
     expect(ranked).toHaveLength(5);
+  });
+
+  test("penalizes broad high-traffic subreddits when niche fit is weak", () => {
+    const ranked = rankSubreddits(
+      {
+        niche: "b2b compliance automation",
+        goals: { primary: "conversion" },
+        constraints: null,
+      },
+      [
+        {
+          id: "broad",
+          name: "askreddit",
+          title: "AskReddit",
+          description: "Ask and answer thought provoking questions.",
+          subscribers: 40000000,
+          activeUsers: 120000,
+          avgPostsPerDay: 1200,
+          avgCommentsPerPost: 30,
+          bestTimeScore: 0.95,
+          policy: {
+            promoAllowed: "ALLOWED",
+            linkPolicy: "ALLOWED",
+            selfPromoAllowed: true,
+            affiliateAllowed: true,
+          },
+        },
+        {
+          id: "niche",
+          name: "b2bmarketing",
+          title: "B2B Marketing",
+          description: "B2B SaaS marketing and revenue operations",
+          subscribers: 50000,
+          activeUsers: 1200,
+          avgPostsPerDay: 25,
+          avgCommentsPerPost: 9,
+          bestTimeScore: 0.75,
+          policy: {
+            promoAllowed: "CONTEXTUAL_ONLY",
+            linkPolicy: "ALLOWED",
+            selfPromoAllowed: true,
+            affiliateAllowed: true,
+          },
+        },
+      ],
+      5,
+    );
+
+    expect(ranked).toHaveLength(2);
+    expect(ranked[0]?.subredditId).toBe("niche");
+    const broad = ranked.find((item) => item.subredditId === "broad");
+    expect(broad).toBeDefined();
+    expect(broad?.reasons.join(" ")).toMatch(/broad-audience penalty/i);
   });
 });

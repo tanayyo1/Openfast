@@ -44,6 +44,48 @@ export type RankedSubredditScore = {
   compositeScore: number;
 };
 
+type GoalIntent = {
+  reach: boolean;
+  engagement: boolean;
+  conversion: boolean;
+};
+
+const TOKEN_STOPWORDS = new Set([
+  "about",
+  "after",
+  "and",
+  "are",
+  "but",
+  "for",
+  "from",
+  "have",
+  "how",
+  "into",
+  "that",
+  "the",
+  "their",
+  "there",
+  "they",
+  "this",
+  "those",
+  "with",
+  "without",
+  "your",
+]);
+
+const BROAD_SUBREDDIT_NAMES = new Set([
+  "askreddit",
+  "funny",
+  "gaming",
+  "memes",
+  "movies",
+  "news",
+  "pics",
+  "todayilearned",
+  "videos",
+  "worldnews",
+]);
+
 function clamp(v: number, min = 0, max = 1) {
   return Math.max(min, Math.min(max, v));
 }
@@ -53,42 +95,156 @@ function normalize(value: number, max: number) {
   return clamp(value / max);
 }
 
-function getProjectKeywords(project: ProjectInput): string[] {
-  const base = [project.niche ?? ""];
-  if (typeof project.goals === "object" && project.goals !== null) {
-    base.push(JSON.stringify(project.goals));
-  }
-  if (typeof project.constraints === "object" && project.constraints !== null) {
-    base.push(JSON.stringify(project.constraints));
-  }
-  return base
-    .join(" ")
+function tokenize(text: string): string[] {
+  return text
     .toLowerCase()
     .split(/[^a-z0-9]+/)
-    .filter((t) => t.length >= 3);
+    .filter((token) => token.length >= 3 && !TOKEN_STOPWORDS.has(token));
 }
 
-function overlapScore(projectTokens: string[], subText: string) {
-  if (projectTokens.length === 0) return 0;
-  const unique = new Set(projectTokens);
-  const text = subText.toLowerCase();
-  let hits = 0;
-  for (const token of unique) {
-    if (text.includes(token)) hits += 1;
+function collectStringValues(input: unknown, depth = 0): string[] {
+  if (depth > 4) return [];
+  if (typeof input === "string") return [input];
+  if (Array.isArray(input)) {
+    return input.slice(0, 25).flatMap((item) => collectStringValues(item, depth + 1));
   }
-  return clamp(hits / unique.size);
+  if (input && typeof input === "object") {
+    return Object.values(input as Record<string, unknown>)
+      .slice(0, 25)
+      .flatMap((value) => collectStringValues(value, depth + 1));
+  }
+  return [];
 }
 
-function computeFitScore(project: ProjectInput, sub: SubredditInput) {
-  const projectTokens = getProjectKeywords(project);
+function buildProjectTokenWeights(project: ProjectInput) {
+  const weights = new Map<string, number>();
+  const apply = (tokens: string[], weight: number) => {
+    for (const token of tokens) {
+      const current = weights.get(token) ?? 0;
+      if (weight > current) weights.set(token, weight);
+    }
+  };
+
+  apply(tokenize(project.niche ?? ""), 1.4);
+  apply(
+    collectStringValues(project.goals)
+      .flatMap((text) => tokenize(text))
+      .slice(0, 80),
+    1.15,
+  );
+  apply(
+    collectStringValues(project.constraints)
+      .flatMap((text) => tokenize(text))
+      .slice(0, 80),
+    0.9,
+  );
+  return weights;
+}
+
+function overlapScore(projectTokenWeights: Map<string, number>, subText: string) {
+  if (projectTokenWeights.size === 0) {
+    return { score: 0, matchedWeight: 0, totalWeight: 0, matchedKeywordCount: 0 };
+  }
+
+  const subTokens = new Set(tokenize(subText));
+  let matchedWeight = 0;
+  let totalWeight = 0;
+  let matchedKeywordCount = 0;
+  for (const [token, weight] of projectTokenWeights) {
+    totalWeight += weight;
+    if (subTokens.has(token)) {
+      matchedWeight += weight;
+      matchedKeywordCount += 1;
+    }
+  }
+  return {
+    score: clamp(matchedWeight / Math.max(totalWeight, 0.0001)),
+    matchedWeight,
+    totalWeight,
+    matchedKeywordCount,
+  };
+}
+
+function detectGoalIntent(goals: unknown): GoalIntent {
+  const tokens = collectStringValues(goals).flatMap((text) => tokenize(text));
+  if (tokens.length === 0) {
+    return { reach: false, engagement: false, conversion: false };
+  }
+  const has = (...needles: string[]) => needles.some((needle) => tokens.includes(needle));
+  return {
+    reach: has("traffic", "growth", "awareness", "reach", "distribution"),
+    engagement: has("community", "engagement", "discussion", "comments", "conversation"),
+    conversion: has("conversion", "conversions", "leads", "sales", "signup", "signups"),
+  };
+}
+
+function computeGoalFit(input: {
+  goalIntent: GoalIntent;
+  audienceFit: number;
+  cadenceFit: number;
+  conversationFit: number;
+  riskProxy: number;
+}) {
+  const tracks: number[] = [];
+  if (input.goalIntent.reach) {
+    tracks.push(input.audienceFit * 0.7 + input.cadenceFit * 0.3);
+  }
+  if (input.goalIntent.engagement) {
+    tracks.push(input.conversationFit * 0.6 + input.audienceFit * 0.4);
+  }
+  if (input.goalIntent.conversion) {
+    tracks.push(
+      (1 - input.riskProxy) * 0.45 +
+        input.conversationFit * 0.3 +
+        input.audienceFit * 0.25,
+    );
+  }
+  if (tracks.length === 0) {
+    tracks.push(input.audienceFit * 0.6 + input.cadenceFit * 0.4);
+  }
+  return tracks.reduce((sum, score) => sum + score, 0) / tracks.length;
+}
+
+function computeFitBreakdown(project: ProjectInput, sub: SubredditInput) {
+  const projectTokenWeights = buildProjectTokenWeights(project);
   const text = `${sub.name} ${sub.title} ${sub.description ?? ""}`;
-  const semanticFit = overlapScore(projectTokens, text);
-  const audienceFit = normalize(sub.activeUsers, 50_000);
-  const cadenceFit = normalize(sub.avgPostsPerDay ?? 0, 150);
-  return clamp(semanticFit * 0.6 + audienceFit * 0.25 + cadenceFit * 0.15);
+  const overlap = overlapScore(projectTokenWeights, text);
+  const semanticFit = overlap.score;
+  const audienceFit = normalize(sub.activeUsers, 40_000);
+  const cadenceFit = normalize(sub.avgPostsPerDay ?? 0, 120);
+  const conversationFit = normalize(sub.avgCommentsPerPost ?? 0, 20);
+  const riskProxy =
+    sub.policy?.promoAllowed === "DISALLOWED"
+      ? 0.9
+      : sub.policy?.promoAllowed === "CONTEXTUAL_ONLY"
+        ? 0.5
+        : 0.2;
+  const goalIntent = detectGoalIntent(project.goals);
+  const goalFit = computeGoalFit({
+    goalIntent,
+    audienceFit,
+    cadenceFit,
+    conversationFit,
+    riskProxy,
+  });
+  const goalFitCapped = semanticFit < 0.2 ? Math.min(goalFit, 0.45) : goalFit;
+  const fitScore = clamp(
+    semanticFit * 0.58 + goalFitCapped * 0.3 + cadenceFit * 0.12,
+  );
+  return {
+    fitScore,
+    semanticFit,
+    goalFit: goalFitCapped,
+    audienceFit,
+    cadenceFit,
+    conversationFit,
+    matchedKeywordCount: overlap.matchedKeywordCount,
+    keywordCount: projectTokenWeights.size,
+    goalIntent,
+  };
 }
 
-function computeRiskScore(sub: SubredditInput) {
+function computeBaseRiskScore(sub: SubredditInput) {
   let risk = 0.15;
   if (sub.policy?.promoAllowed === "DISALLOWED") risk += 0.45;
   else if (sub.policy?.promoAllowed === "CONTEXTUAL_ONLY") risk += 0.2;
@@ -107,6 +263,68 @@ function computeRiskScore(sub: SubredditInput) {
   return clamp(risk);
 }
 
+function computeBroadAudiencePenalty(input: {
+  sub: SubredditInput;
+  semanticFit: number;
+}) {
+  const { sub, semanticFit } = input;
+  let penalty = 0;
+  if (
+    semanticFit < 0.2 &&
+    BROAD_SUBREDDIT_NAMES.has(sub.name.toLowerCase())
+  ) {
+    penalty += 0.08;
+  }
+  if (semanticFit < 0.18 && sub.activeUsers > 4_000) {
+    penalty += normalize(sub.activeUsers, 80_000) * 0.16;
+  }
+  if (semanticFit < 0.1 && sub.activeUsers > 50_000) {
+    penalty += 0.12;
+  }
+  if (semanticFit < 0.12 && sub.subscribers > 500_000) {
+    penalty += 0.12;
+  }
+  return clamp(penalty, 0, 0.45);
+}
+
+function buildReasons(input: {
+  fitScore: number;
+  riskScore: number;
+  timeScore: number;
+  broadAudiencePenalty: number;
+  fit: ReturnType<typeof computeFitBreakdown>;
+  sub: SubredditInput;
+}) {
+  const reasons = [
+    `Niche match ${Math.round(input.fit.semanticFit * 100)}% (${input.fit.matchedKeywordCount}/${Math.max(input.fit.keywordCount, 1)} keywords).`,
+    `Goal alignment ${Math.round(input.fit.goalFit * 100)}% based on audience and engagement signals.`,
+    `Best-time signal ${Math.round(input.timeScore * 100)}%.`,
+    `fit=${input.fitScore.toFixed(2)} risk=${input.riskScore.toFixed(2)} time=${input.timeScore.toFixed(2)}`,
+  ];
+  if (input.fit.goalIntent.reach) {
+    reasons.push("Supports reach-focused goals via active audience/cadence.");
+  }
+  if (input.fit.goalIntent.engagement) {
+    reasons.push("Supports engagement-focused goals via comment activity.");
+  }
+  if (input.fit.goalIntent.conversion) {
+    reasons.push("Conversion goal considered with moderation-risk sensitivity.");
+  }
+  if (input.broadAudiencePenalty > 0) {
+    reasons.push("Applied broad-audience penalty due to weak niche specificity.");
+  }
+  if (input.sub.policy?.promoAllowed === "DISALLOWED") {
+    reasons.push("Strict promo policy increases execution risk.");
+  }
+  if (input.sub.avgCommentsPerPost && input.sub.avgCommentsPerPost > 10) {
+    reasons.push("Strong comment activity.");
+  }
+  if (input.sub.activeUsers > 5000) {
+    reasons.push("Healthy active audience.");
+  }
+  return reasons;
+}
+
 export function rankSubreddits(
   project: ProjectInput,
   subreddits: SubredditInput[],
@@ -114,27 +332,28 @@ export function rankSubreddits(
 ): RankedRecommendation[] {
   return subreddits
     .map((sub) => {
-      const fitScore = computeFitScore(project, sub);
-      const riskScore = computeRiskScore(sub);
+      const fit = computeFitBreakdown(project, sub);
+      const broadAudiencePenalty = computeBroadAudiencePenalty({
+        sub,
+        semanticFit: fit.semanticFit,
+      });
+      const fitScore = fit.fitScore;
+      const riskScore = clamp(
+        computeBaseRiskScore(sub) + broadAudiencePenalty,
+      );
       const timeScore = clamp(sub.bestTimeScore);
       const totalScore = clamp(
         fitScore * 0.55 + timeScore * 0.25 - riskScore * 0.2,
       );
 
-      const reasons = [
-        `fit=${fitScore.toFixed(2)}`,
-        `risk=${riskScore.toFixed(2)}`,
-        `time=${timeScore.toFixed(2)}`,
-      ];
-      if (sub.policy?.promoAllowed === "DISALLOWED") {
-        reasons.push("strict promo policy");
-      }
-      if (sub.avgCommentsPerPost && sub.avgCommentsPerPost > 10) {
-        reasons.push("strong comment activity");
-      }
-      if (sub.activeUsers > 5000) {
-        reasons.push("healthy active audience");
-      }
+      const reasons = buildReasons({
+        fitScore,
+        riskScore,
+        timeScore,
+        broadAudiencePenalty,
+        fit,
+        sub,
+      });
 
       return {
         subredditId: sub.id,

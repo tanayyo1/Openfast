@@ -159,14 +159,22 @@ export function extractBrandKeywords(input: {
 
   for (const value of raw) {
     const phrase = value.trim().toLowerCase().replace(/\s+/g, " ");
-    if (phrase.length >= 3 && !seen.has(phrase)) {
+    const isSingleToken = !phrase.includes(" ");
+    const allowSingleTokenPhrase =
+      !isSingleToken || phrase.length <= 30 || SHORT_ALLOWED.has(phrase) || phrase.includes(".");
+    if (
+      phrase.length >= 3 &&
+      phrase.length <= 60 &&
+      allowSingleTokenPhrase &&
+      !seen.has(phrase)
+    ) {
       seen.add(phrase);
       keywords.push(phrase);
     }
 
     for (const token of tokenize(value)) {
       if (STOPWORDS.has(token)) continue;
-      if (token.length >= 3 || SHORT_ALLOWED.has(token)) {
+      if ((token.length >= 3 || SHORT_ALLOWED.has(token)) && token.length <= 30) {
         if (!seen.has(token)) {
           seen.add(token);
           keywords.push(token);
@@ -276,6 +284,18 @@ export async function buildProjectBrandMonitoringSnapshot(input: {
     projectUrl: project.url,
     goals: project.goals,
   });
+  if (keywords.length === 0) {
+    return {
+      projectId: project.id,
+      projectName: project.name,
+      lookbackDays: input.lookbackDays,
+      keywords,
+      summary: summaryFromItems([]),
+      count: 0,
+      items: [],
+    };
+  }
+
   const recommendationScope = await prisma.projectSubredditRecommendation.findMany({
     where: {
       workspaceId: input.workspaceId,

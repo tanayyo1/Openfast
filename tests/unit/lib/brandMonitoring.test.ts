@@ -25,6 +25,26 @@ describe("brand monitoring helpers", () => {
     expect(new Set(keywords).size).toBe(keywords.length);
   });
 
+  test("drops pathological long phrases/tokens from keyword set", () => {
+    const veryLongWord =
+      "thisisaverylongkeywordtokenwithmorethanthirtycharacters";
+    const veryLongPhrase =
+      "this phrase is intentionally very long and should be excluded from matching";
+
+    const keywords = extractBrandKeywords({
+      projectName: "Acme",
+      projectUrl: null,
+      goals: {
+        primary: veryLongPhrase,
+        tokens: [veryLongWord],
+      },
+    });
+
+    expect(keywords).toContain("acme");
+    expect(keywords).not.toContain(veryLongWord);
+    expect(keywords).not.toContain(veryLongPhrase);
+  });
+
   test("matches keywords with word boundaries", () => {
     const matches = detectMentionMatches(
       "Acme onboarding is broken for new users",

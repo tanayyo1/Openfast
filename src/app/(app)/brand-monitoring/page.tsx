@@ -23,7 +23,7 @@ function toneForSentiment(sentiment: MentionSentiment) {
 export default async function BrandMonitoringPage({
   searchParams,
 }: {
-  searchParams?: { projectId?: string };
+  searchParams?: { projectId?: string | string[] };
 }) {
   const session = await requireWorkspaceSession();
   const entitlements = await getWorkspaceEntitlements(session.workspaceId);
@@ -59,12 +59,15 @@ export default async function BrandMonitoringPage({
       id: true,
       name: true,
     },
-    take: 12,
+    take: 50,
   });
 
+  const requestedProjectId = Array.isArray(searchParams?.projectId)
+    ? searchParams?.projectId[0]
+    : searchParams?.projectId;
   const selectedProjectId =
-    searchParams?.projectId && projects.some((p) => p.id === searchParams.projectId)
-      ? searchParams.projectId
+    requestedProjectId && projects.some((p) => p.id === requestedProjectId)
+      ? requestedProjectId
       : projects[0]?.id ?? null;
 
   const snapshot = selectedProjectId
@@ -229,7 +232,11 @@ export default async function BrandMonitoringPage({
                 )}
               </div>
             </>
-          ) : null}
+          ) : (
+            <div className="rounded-[24px] border border-border bg-card/80 p-6 text-sm text-muted-foreground">
+              Unable to load monitoring snapshot for this project.
+            </div>
+          )}
         </>
       )}
     </div>

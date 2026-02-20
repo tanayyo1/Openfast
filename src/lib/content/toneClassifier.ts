@@ -96,11 +96,48 @@ const TONE_SYNONYMS: Record<string, ToneLabel> = {
   balanced: "neutral",
 };
 
+const NEGATION_WORDS = new Set(["not", "no", "without", "less"]);
+const NEGATION_FILLERS = new Set([
+  "a",
+  "an",
+  "as",
+  "be",
+  "being",
+  "bit",
+  "more",
+  "much",
+  "really",
+  "so",
+  "too",
+  "very",
+]);
+
 function countMatches(text: string, patterns: TonePattern[]) {
   return patterns.reduce((acc, pattern) => {
     const matches = text.match(pattern.pattern);
     return acc + (matches?.length ?? 0) * pattern.weight;
   }, 0);
+}
+
+function hasNegationPrefix(words: string[], toneWordIndex: number) {
+  // Look back a few words to catch phrases like:
+  // "not professional", "without being blunt", "not very casual".
+  for (let lookback = 1; lookback <= 3; lookback += 1) {
+    const negationIndex = toneWordIndex - lookback;
+    if (negationIndex < 0) break;
+    const candidate = words[negationIndex];
+    if (!NEGATION_WORDS.has(candidate)) continue;
+
+    let onlyFillersBetween = true;
+    for (let i = negationIndex + 1; i < toneWordIndex; i += 1) {
+      if (!NEGATION_FILLERS.has(words[i])) {
+        onlyFillersBetween = false;
+        break;
+      }
+    }
+    if (onlyFillersBetween) return true;
+  }
+  return false;
 }
 
 function clamp(n: number, min: number, max: number) {
@@ -115,8 +152,8 @@ export function normalizeExpectedTone(
   const direct = TONE_SYNONYMS[key];
   if (direct) return direct;
 
-  const tokens = key.split(/[^a-z]+/).filter((token) => token.length >= 3);
-  if (tokens.length === 0) return "neutral";
+  const words = key.match(/[a-z]+/g) ?? [];
+  if (words.length === 0) return "neutral";
 
   const counts: Record<ToneLabel, number> = {
     professional: 0,
@@ -126,9 +163,10 @@ export function normalizeExpectedTone(
     neutral: 0,
   };
   const firstSeen: Partial<Record<ToneLabel, number>> = {};
-  tokens.forEach((token, idx) => {
-    const mapped = TONE_SYNONYMS[token];
-    if (!mapped) return;
+  words.forEach((word, idx) => {
+    const mapped = TONE_SYNONYMS[word];
+    if (!mapped || mapped === "neutral") return;
+    if (hasNegationPrefix(words, idx)) return;
     counts[mapped] += 1;
     if (firstSeen[mapped] === undefined) firstSeen[mapped] = idx;
   });

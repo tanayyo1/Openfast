@@ -17,6 +17,14 @@ describe("tone classifier (RED-53)", () => {
     expect(normalizeExpectedTone("unknown")).toBe("neutral");
   });
 
+  test("handles negated tone phrases safely", () => {
+    expect(normalizeExpectedTone("not professional")).toBe("neutral");
+    expect(normalizeExpectedTone("not casual, professional")).toBe(
+      "professional",
+    );
+    expect(normalizeExpectedTone("without being blunt")).toBe("neutral");
+  });
+
   test("classifies direct content", () => {
     const out = classifyTone({
       title: "Here is the process",

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Sparkline } from "@/components/app/charts/Sparkline";
 import { getWorkspaceEntitlements } from "@/lib/billing/quota";
 import { getWorkspaceDashboardData } from "@/lib/analytics/dashboardData";
-import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+import { requireWorkspaceSessionForPage } from "@/lib/server/page-auth";
 
 function makePoints(value: number) {
   const base = Math.max(1, value);
@@ -29,7 +29,7 @@ function trendDelta(points: number[]) {
 }
 
 export default async function AnalyticsPage() {
-  const session = await requireWorkspaceSession();
+  const session = await requireWorkspaceSessionForPage();
   const entitlements = await getWorkspaceEntitlements(session.workspaceId);
 
   if (!entitlements.hasAdvancedAnalytics) {

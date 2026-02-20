@@ -447,7 +447,9 @@ describe("Integration smoke: full MVP user journey (DB-backed)", () => {
   // ---------------------------------------------------------------
   test("8. view analytics (dashboard + project + account)", async () => {
     // Dashboard
-    const dashRes = await getDashboardAnalytics();
+    const dashRes = await getDashboardAnalytics(
+      new Request("http://test.local/api/analytics/dashboard"),
+    );
     expect(dashRes.status).toBe(200);
     const dashJson = (await readJson(dashRes)) as {
       summary: { publishedCount: number; totalScore: number };

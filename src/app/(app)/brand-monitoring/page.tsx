@@ -6,7 +6,7 @@ import {
   type MentionUrgency,
   buildProjectBrandMonitoringSnapshot,
 } from "@/lib/brandMonitoring/monitor";
-import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+import { requireWorkspaceSessionForPage } from "@/lib/server/page-auth";
 
 function toneForUrgency(urgency: MentionUrgency) {
   if (urgency === "HIGH") return "border-red-300 bg-red-50 text-red-700";
@@ -25,7 +25,7 @@ export default async function BrandMonitoringPage({
 }: {
   searchParams?: { projectId?: string | string[] };
 }) {
-  const session = await requireWorkspaceSession();
+  const session = await requireWorkspaceSessionForPage();
   const entitlements = await getWorkspaceEntitlements(session.workspaceId);
   if (!entitlements.hasSmartFinder) {
     return (

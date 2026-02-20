@@ -11,6 +11,7 @@ const APP_PREFIXES = [
   "/approvals",
   "/scheduling",
   "/analytics",
+  "/brand-monitoring",
   "/health",
   "/opportunities",
   "/settings",
@@ -20,6 +21,19 @@ function isAppPath(pathname: string) {
   return APP_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
+}
+
+function hasSupabaseSessionCookie(request: NextRequest) {
+  return request.cookies.getAll().some((cookie) => {
+    const value = cookie.value?.trim();
+    if (!value || value === "deleted") return false;
+
+    if (cookie.name === "sb-access-token" || cookie.name === "sb-refresh-token") {
+      return true;
+    }
+
+    return cookie.name.startsWith("sb-") && cookie.name.endsWith("-auth-token");
+  });
 }
 
 // Allowed origins for CORS
@@ -59,7 +73,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Update Supabase session and get response
-  const response = await updateSession(request);
+  const { response, userId } = await updateSession(request);
 
   // Add CORS headers to API routes
   if (pathname.startsWith("/api/")) {
@@ -86,40 +100,8 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // Check for Supabase auth session (support all URL formats)
-  // Cookie formats: sb-[project-ref]-auth-token OR sb-access-token
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-
-  // Extract project ref from standard Supabase URL formats.
-  // Custom domains are NOT supported — use *.supabase.co or *.supabase.red.
-  // - https://xxx.supabase.co (production)
-  // - http://localhost:54321 (local)
-  // - https://xxx.supabase.red (preview)
-  let projectRef: string | undefined;
-
-  if (
-    supabaseUrl.includes("supabase.co") ||
-    supabaseUrl.includes("supabase.red")
-  ) {
-    const match = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\./);
-    projectRef = match?.[1];
-  } else if (supabaseUrl.includes(":54321")) {
-    // Local Supabase
-    projectRef = "local";
-  }
-
-  // Try project-specific cookie first, then fallback to generic
-  let authCookie = null;
-  if (projectRef) {
-    authCookie = request.cookies.get(`sb-${projectRef}-auth-token`);
-  }
-  if (!authCookie) {
-    authCookie =
-      request.cookies.get("sb-access-token") ||
-      request.cookies.get("sb-refresh-token");
-  }
-
-  if (!authCookie) {
+  const hasSessionCookie = hasSupabaseSessionCookie(request);
+  if (!hasSessionCookie || !userId) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", `${pathname}${search}`);
     return NextResponse.redirect(loginUrl);

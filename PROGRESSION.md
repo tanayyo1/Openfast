@@ -1,8 +1,8 @@
 # PROGRESSION.md - MediaFast Clone MVP Tracker
 
-> **Last Updated**: 2026-02-18
+> **Last Updated**: 2026-02-20
 > **Target**: `mediafast_clone_system_design_report.md`
-> **Current Estimate**: ~95% of MVP parity complete (all P0-P8 items done)
+> **Current Estimate**: ~96% of MVP parity complete (all P0-P8 items done; hardening pass merged)
 
 ---
 
@@ -33,6 +33,7 @@
 - [x] Reddit OAuth state cookie protection.
 - [x] Workspace scoping applied across implemented APIs.
 - [x] Human approval state machine for drafts before scheduling path.
+- [x] Analytics ingest hardened with auth/source validation, required anonymous session IDs, and dedicated ingest rate limits.
 
 ### Queue + Worker Baseline
 
@@ -54,6 +55,15 @@
 
 - [x] Unit tests: token crypto, Reddit errors/rate-limit, queue helpers, worker processors.
 - [x] Integration tests: projects, roadmaps/tasks, drafts approval flow, Reddit OAuth endpoints.
+
+### Recent Hardening Batch (Merged 2026-02-20, PR #101)
+
+- [x] Cron backlog checks made resilient to queue resolver failures and partial task failures.
+- [x] Billing checkout redirect handling tightened (success + cancel validation against allowed origins).
+- [x] Polar webhook workspace resolution hardened against ambiguous subscription identity lookups.
+- [x] Provider-level unique constraint enforced for subscription identity (`provider`, `provider_subscription_id`).
+- [x] Stripe webhook moved to explicit deprecated behavior (default `410`) with optional temporary legacy ack flag.
+- [x] Demo rewrite flow made consistent for `mode/tone/length` propagation and persisted rewrite params.
 
 ---
 
@@ -111,7 +121,7 @@
 
 ## P5 - Billing / Entitlements
 
-- [x] Implement Stripe checkout + webhook processing.
+- [x] Implement billing checkout + webhook processing (Polar primary, Stripe deprecated endpoint retained for compatibility).
 - [x] Enforce plan quotas (projects, Reddit accounts, scheduled posts, AI generations).
 - [x] Add entitlement checks on all quota-sensitive APIs (quotas: projects, reddit_accounts, scheduled_posts, ai_generations; flags: hasAdvancedAnalytics on 5 analytics routes, hasSmartFinder on discover/recommend, roadmapDays on roadmap creation).
 
@@ -172,7 +182,7 @@
 
 ### Remaining from Original Plan
 
-- ~~P5: Billing/entitlements (Stripe)~~ DONE
+- ~~P5: Billing/entitlements (Stripe)~~ DONE (migrated to Polar)
 - ~~P6: Admin/ops~~ DONE
 - ~~P7: Queue/cron parity~~ DONE
 - ~~P8: Test coverage~~ DONE
@@ -190,4 +200,4 @@
 - [x] Risk checks block unsafe posting attempts.
 - [x] Free tools endpoints are live and rate-limited.
 
-> **All MVP checkboxes complete as of 2026-02-18.** Remaining work is Tier 2-4 differentiation features.
+> **All MVP checkboxes complete as of 2026-02-20.** Remaining work is Tier 2-4 differentiation features and ongoing hardening.

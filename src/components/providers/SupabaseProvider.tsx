@@ -4,6 +4,7 @@ import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { User, Session, SupabaseClient } from "@supabase/supabase-js";
+import { toFriendlyAuthError } from "@/lib/supabase/auth-errors";
 
 type SupabaseContext = {
   supabase: SupabaseClient | null;
@@ -11,6 +12,7 @@ type SupabaseContext = {
   session: Session | null;
   isLoading: boolean;
   isConfigured: boolean;
+  initError: string | null;
 };
 
 const Context = createContext<SupabaseContext | undefined>(undefined);
@@ -19,6 +21,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [initError, setInitError] = useState<string | null>(null);
   const router = useRouter();
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -33,18 +36,31 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   }, [isConfigured, supabaseUrl, supabaseAnonKey]);
 
   useEffect(() => {
+    let isActive = true;
+
     if (!supabase) {
       setIsLoading(false);
       return;
     }
 
     const getSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!isActive) return;
+        setSession(session);
+        setUser(session?.user ?? null);
+        setInitError(null);
+      } catch (err) {
+        if (!isActive) return;
+        setSession(null);
+        setUser(null);
+        setInitError(toFriendlyAuthError(err));
+      } finally {
+        if (!isActive) return;
+        setIsLoading(false);
+      }
     };
 
     getSession();
@@ -52,10 +68,12 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isActive) return;
       setSession(session);
       setUser(session?.user ?? null);
 
       if (event === "SIGNED_IN") {
+        setInitError(null);
         router.refresh();
       }
       if (event === "SIGNED_OUT") {
@@ -64,13 +82,14 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
+      isActive = false;
       subscription.unsubscribe();
     };
   }, [supabase, router]);
 
   return (
     <Context.Provider
-      value={{ supabase, user, session, isLoading, isConfigured }}
+      value={{ supabase, user, session, isLoading, isConfigured, initError }}
     >
       {children}
     </Context.Provider>

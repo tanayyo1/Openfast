@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { MaxWidth } from "@/components/public/MaxWidth";
 import { useSupabase } from "@/components/providers/SupabaseProvider";
+import { toFriendlyAuthError } from "@/lib/supabase/auth-errors";
 
 function setDemoAuthCookie() {
   document.cookie = `rf_demo_auth=1; Path=/; Max-Age=${60 * 60 * 24 * 30}`;
@@ -12,7 +13,7 @@ function setDemoAuthCookie() {
 
 export default function SignupPage() {
   const router = useRouter();
-  const { supabase } = useSupabase();
+  const { supabase, initError } = useSupabase();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,6 +45,7 @@ export default function SignupPage() {
               if (!supabase) {
                 // Allow local UI testing without Supabase configured.
                 if (process.env.NODE_ENV !== "production") {
+                  setLoading(false);
                   setDemoAuthCookie();
                   router.push("/onboarding");
                   return;
@@ -54,53 +56,59 @@ export default function SignupPage() {
                 return;
               }
 
-              const { data, error } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                  data: {
-                    name,
+              try {
+                const { data, error } = await supabase.auth.signUp({
+                  email,
+                  password,
+                  options: {
+                    data: {
+                      name,
+                    },
                   },
-                },
-              });
-
-              setLoading(false);
-
-              if (error) {
-                setError(error.message);
-                return;
-              }
-
-              if (
-                data.user &&
-                data.user.identities &&
-                data.user.identities.length === 0
-              ) {
-                setError(
-                  "This email is already registered. Please sign in instead.",
-                );
-                return;
-              }
-
-              // Check if email confirmation is required
-              if (data.session) {
-                // Auto-confirmed (email confirmation disabled)
-                // Sync user to our database
-                const syncRes = await fetch("/api/auth/sync", {
-                  method: "POST",
                 });
 
-                if (!syncRes.ok) {
-                  console.error("Failed to sync user to database");
-                  // Still redirect - auth worked, sync can happen later
+                if (error) {
+                  setError(toFriendlyAuthError(error));
+                  return;
                 }
 
-                router.push("/onboarding");
-              } else {
-                // Email confirmation required
-                setMessage(
-                  "Check your email for a confirmation link to complete your registration.",
-                );
+                if (
+                  data.user &&
+                  data.user.identities &&
+                  data.user.identities.length === 0
+                ) {
+                  setError(
+                    "This email is already registered. Please sign in instead.",
+                  );
+                  return;
+                }
+
+                // Check if email confirmation is required
+                if (data.session) {
+                  // Auto-confirmed (email confirmation disabled)
+                  // Sync user to our database. If sync fails, keep onboarding flow.
+                  try {
+                    const syncRes = await fetch("/api/auth/sync", {
+                      method: "POST",
+                    });
+                    if (!syncRes.ok) {
+                      console.error("Failed to sync user to database");
+                    }
+                  } catch (syncError) {
+                    console.error("Sync error:", syncError);
+                  }
+
+                  router.push("/onboarding");
+                } else {
+                  // Email confirmation required
+                  setMessage(
+                    "Check your email for a confirmation link to complete your registration.",
+                  );
+                }
+              } catch (err) {
+                setError(toFriendlyAuthError(err));
+              } finally {
+                setLoading(false);
               }
             }}
           >
@@ -146,6 +154,11 @@ export default function SignupPage() {
             {error ? (
               <p className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {error}
+              </p>
+            ) : null}
+            {!error && initError ? (
+              <p className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
+                {initError}
               </p>
             ) : null}
             {message ? (

@@ -72,6 +72,8 @@ const TOKEN_STOPWORDS = new Set([
   "into",
   "is",
   "it",
+  "no",
+  "not",
   "of",
   "on",
   "or",
@@ -92,6 +94,41 @@ const TOKEN_STOPWORDS = new Set([
   "without",
   "you",
   "your",
+]);
+
+const NEGATION_PATTERN =
+  /\b(?:not|never|avoid|avoiding|without|exclude|excluding|ban|banned|dont|don't|do\s+not)\b|\bno\s+[a-z0-9_]/;
+
+const POSITIVE_CONSTRAINT_PATTERN =
+  /\b(?:include|including|with|prefer|preferred|focus|focused|target|targeting|prioritize|prioritise|want|needs?)\b/;
+
+const CONSTRAINT_CONTROL_TOKENS = new Set([
+  "avoid",
+  "avoiding",
+  "without",
+  "exclude",
+  "excluding",
+  "ban",
+  "banned",
+  "not",
+  "never",
+  "no",
+  "dont",
+  "don",
+  "do",
+  "include",
+  "including",
+  "prefer",
+  "preferred",
+  "focus",
+  "focused",
+  "target",
+  "targeting",
+  "prioritize",
+  "prioritise",
+  "want",
+  "need",
+  "needs",
 ]);
 
 const BROAD_SUBREDDIT_NAMES = new Set([
@@ -140,19 +177,26 @@ function collectStringValues(input: unknown, depth = 0): string[] {
 function extractConstraintSignals(constraints: unknown) {
   const requiredTokens = new Set<string>();
   const avoidedTokens = new Set<string>();
-  const hasNegation = (text: string) =>
-    /\b(?:no|not|never|avoid|avoiding|without|exclude|excluding|ban|banned|do\s+not|don't|dont)\b/.test(
-      text,
-    );
-  const clauses = collectStringValues(constraints)
+  const segments = collectStringValues(constraints)
     .slice(0, 80)
     .flatMap((text) => text.split(/[.;,\n]+/))
+    .flatMap((text) => text.split(/\b(?:but|however|except)\b/))
     .map((text) => text.trim().toLowerCase())
     .filter((text) => text.length > 0);
-  for (const clause of clauses) {
-    const tokens = tokenize(clause);
+
+  for (const segment of segments) {
+    const tokens = tokenize(segment).filter(
+      (token) => !CONSTRAINT_CONTROL_TOKENS.has(token),
+    );
     if (tokens.length === 0) continue;
-    if (hasNegation(clause)) {
+
+    const negationPos = segment.search(NEGATION_PATTERN);
+    const positivePos = segment.search(POSITIVE_CONSTRAINT_PATTERN);
+    const isAvoided =
+      negationPos !== -1 &&
+      (positivePos === -1 || negationPos < positivePos);
+
+    if (isAvoided) {
       for (const token of tokens) avoidedTokens.add(token);
       continue;
     }

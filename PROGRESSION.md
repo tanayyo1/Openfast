@@ -2,7 +2,7 @@
 
 > **Last Updated**: 2026-02-20
 > **Target**: `mediafast_clone_system_design_report.md`
-> **Current Estimate**: ~98% of overall parity complete (MVP complete; Tier 2 complete; Tier 3/4 backlog remains)
+> **Current Estimate**: ~99% of overall parity complete (MVP complete; Tier 2 complete; Tier 3/4 backlog remains)
 
 ---
 
@@ -71,6 +71,12 @@
 - [x] Ranking edge-case hardening merged (constraint-negation handling, 2-letter niche tokens like `ai`, unknown-policy conservative risk handling).
 - [x] Compatibility hardening merged for roadmap reason summaries when recommendation reasons are stored as arrays.
 - [x] Added regression tests for ranking + roadmap reason edge cases.
+
+### Recent Comment Automation Batch (RED-59)
+
+- [x] Added Smart Post Finder opportunity feed API: `GET /api/projects/:id/opportunities` (workspace-scoped project access + recommendation-scoped thread filtering + score/risk/velocity labels).
+- [x] Added automation API: `POST /api/tasks/from-opportunity` (creates COMMENT task from opportunity, creates COMMENT draft scaffold, and queues content generation variants).
+- [x] Added route-level tests for both opportunity feed and task-from-opportunity flows, including queue-unavailable fallback behavior.
 
 ---
 
@@ -181,7 +187,8 @@
 
 - RED-54: Reddit profile optimization checklist and guide (DONE - checklist scoring API + onboarding guide section)
 - RED-57: Demand scorecard (DONE - project demand scorecard API from recommendation + pain-point signals + onboarding guide)
-- RED-59, RED-60, RED-61
+- RED-59: Comment automation (DONE - opportunity feed + create comment task/draft automation APIs + tests)
+- RED-60, RED-61
 
 ### Tier 4 - Post-MVP (Backlog, Low priority)
 
@@ -207,4 +214,4 @@
 - [x] Risk checks block unsafe posting attempts.
 - [x] Free tools endpoints are live and rate-limited.
 
-> **All MVP checkboxes complete as of 2026-02-20.** Remaining work is Tier 3-4 backlog and ongoing hardening/perf polish.
+> **All MVP checkboxes complete as of 2026-02-20.** Remaining work is Tier 3-4 backlog (primarily RED-60/61 + Tier 4 items) and ongoing hardening/perf polish.

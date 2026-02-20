@@ -1,0 +1,273 @@
+import { Prisma, RecommendationStatus, TaskType } from "@prisma/client";
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { enqueueContentGenerateJob } from "@/lib/queue/enqueue";
+import { prisma } from "@/lib/prisma";
+import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+
+const createFromOpportunitySchema = z.object({
+  projectId: z.string().min(1),
+  opportunityId: z.string().min(1),
+  roadmapId: z.string().min(1).optional(),
+  variantCount: z.coerce.number().int().min(3).max(5).default(3),
+  tone: z.string().trim().min(1).max(80).optional(),
+  length: z.enum(["short", "medium", "long"]).default("short"),
+});
+
+function authError(err: unknown) {
+  const code = err instanceof Error ? err.message : "UNAUTHORIZED";
+  const status = code === "WORKSPACE_REQUIRED" ? 400 : 401;
+  return NextResponse.json({ error: "Unauthorized", code }, { status });
+}
+
+function taskTitleFromThread(title: string) {
+  const normalized = title.trim().replace(/\s+/g, " ");
+  if (normalized.length <= 110) return `Comment on: ${normalized}`;
+  return `Comment on: ${normalized.slice(0, 107)}...`;
+}
+
+export async function POST(req: Request) {
+  let session;
+  try {
+    session = await requireWorkspaceSession();
+  } catch (err) {
+    return authError(err);
+  }
+
+  let json: unknown = {};
+  try {
+    json = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body", code: "BAD_JSON" },
+      { status: 400 },
+    );
+  }
+
+  const parsed = createFromOpportunitySchema.safeParse(json);
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: "Invalid input",
+        code: "VALIDATION_ERROR",
+        details: parsed.error.flatten(),
+      },
+      { status: 400 },
+    );
+  }
+
+  const payload = parsed.data;
+  const project = await prisma.project.findFirst({
+    where: {
+      id: payload.projectId,
+      workspaceId: session.workspaceId,
+      status: { not: "ARCHIVED" },
+    },
+    select: { id: true, name: true },
+  });
+  if (!project) {
+    return NextResponse.json(
+      { error: "Project not found", code: "PROJECT_NOT_FOUND" },
+      { status: 404 },
+    );
+  }
+
+  const recommendations = await prisma.projectSubredditRecommendation.findMany({
+    where: {
+      workspaceId: session.workspaceId,
+      projectId: project.id,
+      status: { in: [RecommendationStatus.SELECTED, RecommendationStatus.CANDIDATE] },
+    },
+    select: {
+      subredditId: true,
+      fitScore: true,
+      compositeScore: true,
+      subreddit: { select: { name: true, title: true } },
+    },
+    orderBy: [{ status: "asc" }, { compositeScore: "desc" }],
+    take: 20,
+  });
+  if (recommendations.length === 0) {
+    return NextResponse.json(
+      {
+        error: "No recommended subreddits available for this project",
+        code: "RECOMMENDATIONS_REQUIRED",
+      },
+      { status: 409 },
+    );
+  }
+
+  const recommendationBySubreddit = new Map(
+    recommendations.map((item) => [item.subredditId, item]),
+  );
+  const opportunity = await prisma.threadCandidate.findFirst({
+    where: {
+      id: payload.opportunityId,
+      subredditId: { in: recommendations.map((item) => item.subredditId) },
+      status: "ACTIVE",
+      expiresAt: { gt: new Date() },
+    },
+    include: {
+      subreddit: {
+        select: { id: true, name: true, title: true },
+      },
+    },
+  });
+  if (!opportunity) {
+    return NextResponse.json(
+      { error: "Opportunity not found", code: "OPPORTUNITY_NOT_FOUND" },
+      { status: 404 },
+    );
+  }
+
+  const roadmap = payload.roadmapId
+    ? await prisma.roadmap.findFirst({
+        where: {
+          id: payload.roadmapId,
+          workspaceId: session.workspaceId,
+          projectId: project.id,
+          status: "ACTIVE",
+        },
+        select: { id: true },
+      })
+    : await prisma.roadmap.findFirst({
+        where: {
+          workspaceId: session.workspaceId,
+          projectId: project.id,
+          status: "ACTIVE",
+        },
+        select: { id: true },
+        orderBy: [{ createdAt: "desc" }],
+      });
+  if (!roadmap) {
+    return NextResponse.json(
+      {
+        error: "No active roadmap found for this project",
+        code: "ACTIVE_ROADMAP_REQUIRED",
+      },
+      { status: 409 },
+    );
+  }
+
+  const latestTask = await prisma.roadmapTask.findFirst({
+    where: {
+      workspaceId: session.workspaceId,
+      roadmapId: roadmap.id,
+    },
+    select: { dayIndex: true },
+    orderBy: [{ dayIndex: "desc" }],
+  });
+  const dayIndex = (latestTask?.dayIndex ?? 0) + 1;
+  const recommendation = recommendationBySubreddit.get(opportunity.subredditId);
+  const task = await prisma.roadmapTask.create({
+    data: {
+      workspaceId: session.workspaceId,
+      roadmapId: roadmap.id,
+      dayIndex,
+      type: TaskType.COMMENT,
+      subredditId: opportunity.subredditId,
+      fitScore: recommendation?.fitScore ?? null,
+      title: taskTitleFromThread(opportunity.title),
+      instructions:
+        `Reply with a value-first comment on this thread:\n` +
+        `${opportunity.permalink}\n\n` +
+        `Focus on actionable help tied to ${project.name}. Avoid promotional language and direct pitches.`,
+      priority: 3,
+      status: "PENDING",
+    },
+    select: {
+      id: true,
+      roadmapId: true,
+      dayIndex: true,
+      type: true,
+      subredditId: true,
+      fitScore: true,
+      title: true,
+      instructions: true,
+      status: true,
+      createdAt: true,
+    },
+  });
+
+  const draft = await prisma.draft.create({
+    data: {
+      workspaceId: session.workspaceId,
+      projectId: project.id,
+      taskId: task.id,
+      subredditId: opportunity.subredditId,
+      type: "COMMENT",
+      title: null,
+      body:
+        `Thread context: ${opportunity.title}\n` +
+        `Permalink: ${opportunity.permalink}\n\n` +
+        `Draft a concise, practical comment that helps the OP and fits subreddit norms.`,
+      mediaUrls: [],
+      variants: Prisma.DbNull,
+      generationParams: {
+        queued: true,
+        source: "opportunity_automation",
+        opportunityId: opportunity.id,
+        opportunityScore: opportunity.score,
+        threadTitle: opportunity.title,
+        threadPermalink: opportunity.permalink,
+      },
+      status: "DRAFT",
+      riskScore: 0,
+      riskReasons: [],
+      suggestedFixes: Prisma.DbNull,
+    },
+    select: {
+      id: true,
+      taskId: true,
+      projectId: true,
+      subredditId: true,
+      type: true,
+      title: true,
+      body: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  try {
+    const job = await enqueueContentGenerateJob({
+      workspaceId: session.workspaceId,
+      taskId: task.id,
+      draftId: draft.id,
+      mode: "GENERATE",
+      variantCount: payload.variantCount,
+      tone: payload.tone ?? "helpful",
+      length: payload.length,
+      sourceDraftId: null,
+    });
+
+    return NextResponse.json(
+      {
+        projectId: project.id,
+        opportunityId: opportunity.id,
+        task,
+        draft,
+        queued: true,
+        queue: {
+          id: job.id,
+          mode: "GENERATE",
+        },
+      },
+      { status: 202 },
+    );
+  } catch {
+    return NextResponse.json(
+      {
+        projectId: project.id,
+        opportunityId: opportunity.id,
+        task,
+        draft,
+        queued: false,
+        warning:
+          "Comment draft scaffold created but content generation queue is unavailable.",
+      },
+      { status: 201 },
+    );
+  }
+}

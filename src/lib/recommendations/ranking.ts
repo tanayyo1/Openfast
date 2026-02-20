@@ -51,16 +51,33 @@ type GoalIntent = {
 };
 
 const TOKEN_STOPWORDS = new Set([
+  "a",
   "about",
+  "an",
   "after",
   "and",
   "are",
+  "as",
+  "at",
+  "be",
   "but",
+  "by",
+  "do",
   "for",
   "from",
   "have",
   "how",
+  "if",
+  "in",
   "into",
+  "is",
+  "it",
+  "no",
+  "not",
+  "of",
+  "on",
+  "or",
+  "our",
   "that",
   "the",
   "their",
@@ -68,9 +85,50 @@ const TOKEN_STOPWORDS = new Set([
   "they",
   "this",
   "those",
+  "to",
+  "up",
+  "via",
+  "was",
+  "we",
   "with",
   "without",
+  "you",
   "your",
+]);
+
+const NEGATION_PATTERN =
+  /\b(?:not|never|avoid|avoiding|without|exclude|excluding|ban|banned|dont|don't|do\s+not)\b|\bno\s+[a-z0-9_]/;
+
+const POSITIVE_CONSTRAINT_PATTERN =
+  /\b(?:include|including|with|prefer|preferred|focus|focused|target|targeting|prioritize|prioritise|want|needs?)\b/;
+
+const CONSTRAINT_CONTROL_TOKENS = new Set([
+  "avoid",
+  "avoiding",
+  "without",
+  "exclude",
+  "excluding",
+  "ban",
+  "banned",
+  "not",
+  "never",
+  "no",
+  "dont",
+  "don",
+  "do",
+  "include",
+  "including",
+  "prefer",
+  "preferred",
+  "focus",
+  "focused",
+  "target",
+  "targeting",
+  "prioritize",
+  "prioritise",
+  "want",
+  "need",
+  "needs",
 ]);
 
 const BROAD_SUBREDDIT_NAMES = new Set([
@@ -99,7 +157,7 @@ function tokenize(text: string): string[] {
   return text
     .toLowerCase()
     .split(/[^a-z0-9]+/)
-    .filter((token) => token.length >= 3 && !TOKEN_STOPWORDS.has(token));
+    .filter((token) => token.length >= 2 && !TOKEN_STOPWORDS.has(token));
 }
 
 function collectStringValues(input: unknown, depth = 0): string[] {
@@ -114,6 +172,37 @@ function collectStringValues(input: unknown, depth = 0): string[] {
       .flatMap((value) => collectStringValues(value, depth + 1));
   }
   return [];
+}
+
+function extractConstraintSignals(constraints: unknown) {
+  const requiredTokens = new Set<string>();
+  const avoidedTokens = new Set<string>();
+  const segments = collectStringValues(constraints)
+    .slice(0, 80)
+    .flatMap((text) => text.split(/[.;,\n]+/))
+    .flatMap((text) => text.split(/\b(?:but|however|except)\b/))
+    .map((text) => text.trim().toLowerCase())
+    .filter((text) => text.length > 0);
+
+  for (const segment of segments) {
+    const tokens = tokenize(segment).filter(
+      (token) => !CONSTRAINT_CONTROL_TOKENS.has(token),
+    );
+    if (tokens.length === 0) continue;
+
+    const negationPos = segment.search(NEGATION_PATTERN);
+    const positivePos = segment.search(POSITIVE_CONSTRAINT_PATTERN);
+    const isAvoided =
+      negationPos !== -1 &&
+      (positivePos === -1 || negationPos < positivePos);
+
+    if (isAvoided) {
+      for (const token of tokens) avoidedTokens.add(token);
+      continue;
+    }
+    for (const token of tokens) requiredTokens.add(token);
+  }
+  return { requiredTokens, avoidedTokens };
 }
 
 function buildProjectTokenWeights(project: ProjectInput) {
@@ -132,24 +221,42 @@ function buildProjectTokenWeights(project: ProjectInput) {
       .slice(0, 80),
     1.15,
   );
-  apply(
-    collectStringValues(project.constraints)
-      .flatMap((text) => tokenize(text))
-      .slice(0, 80),
-    0.9,
+  const { requiredTokens, avoidedTokens } = extractConstraintSignals(
+    project.constraints,
   );
-  return weights;
+  apply(Array.from(requiredTokens), 0.8);
+  for (const token of avoidedTokens) {
+    weights.delete(token);
+  }
+  return { weights, avoidedTokens };
 }
 
-function overlapScore(projectTokenWeights: Map<string, number>, subText: string) {
+function overlapScore(input: {
+  projectTokenWeights: Map<string, number>;
+  avoidedTokens: Set<string>;
+  subText: string;
+}) {
+  const { projectTokenWeights, avoidedTokens, subText } = input;
   if (projectTokenWeights.size === 0) {
-    return { score: 0, matchedWeight: 0, totalWeight: 0, matchedKeywordCount: 0 };
+    const subTokens = new Set(tokenize(subText));
+    let matchedAvoidedCount = 0;
+    for (const token of avoidedTokens) {
+      if (subTokens.has(token)) matchedAvoidedCount += 1;
+    }
+    return {
+      score: 0,
+      matchedWeight: 0,
+      totalWeight: 0,
+      matchedKeywordCount: 0,
+      matchedAvoidedCount,
+    };
   }
 
   const subTokens = new Set(tokenize(subText));
   let matchedWeight = 0;
   let totalWeight = 0;
   let matchedKeywordCount = 0;
+  let matchedAvoidedCount = 0;
   for (const [token, weight] of projectTokenWeights) {
     totalWeight += weight;
     if (subTokens.has(token)) {
@@ -157,11 +264,15 @@ function overlapScore(projectTokenWeights: Map<string, number>, subText: string)
       matchedKeywordCount += 1;
     }
   }
+  for (const token of avoidedTokens) {
+    if (subTokens.has(token)) matchedAvoidedCount += 1;
+  }
   return {
     score: clamp(matchedWeight / Math.max(totalWeight, 0.0001)),
     matchedWeight,
     totalWeight,
     matchedKeywordCount,
+    matchedAvoidedCount,
   };
 }
 
@@ -205,20 +316,28 @@ function computeGoalFit(input: {
   return tracks.reduce((sum, score) => sum + score, 0) / tracks.length;
 }
 
+function computeRiskProxy(sub: SubredditInput) {
+  if (!sub.policy) return 0.6;
+  if (sub.policy.promoAllowed === "DISALLOWED") return 0.9;
+  if (sub.policy.promoAllowed === "CONTEXTUAL_ONLY") return 0.55;
+  if (sub.policy.promoAllowed === "UNKNOWN") return 0.65;
+  if (sub.policy.linkPolicy === "UNKNOWN") return 0.45;
+  return 0.2;
+}
+
 function computeFitBreakdown(project: ProjectInput, sub: SubredditInput) {
-  const projectTokenWeights = buildProjectTokenWeights(project);
+  const projectTokens = buildProjectTokenWeights(project);
   const text = `${sub.name} ${sub.title} ${sub.description ?? ""}`;
-  const overlap = overlapScore(projectTokenWeights, text);
+  const overlap = overlapScore({
+    projectTokenWeights: projectTokens.weights,
+    avoidedTokens: projectTokens.avoidedTokens,
+    subText: text,
+  });
   const semanticFit = overlap.score;
   const audienceFit = normalize(sub.activeUsers, 40_000);
   const cadenceFit = normalize(sub.avgPostsPerDay ?? 0, 120);
   const conversationFit = normalize(sub.avgCommentsPerPost ?? 0, 20);
-  const riskProxy =
-    sub.policy?.promoAllowed === "DISALLOWED"
-      ? 0.9
-      : sub.policy?.promoAllowed === "CONTEXTUAL_ONLY"
-        ? 0.5
-        : 0.2;
+  const riskProxy = computeRiskProxy(sub);
   const goalIntent = detectGoalIntent(project.goals);
   const goalFit = computeGoalFit({
     goalIntent,
@@ -228,8 +347,9 @@ function computeFitBreakdown(project: ProjectInput, sub: SubredditInput) {
     riskProxy,
   });
   const goalFitCapped = semanticFit < 0.2 ? Math.min(goalFit, 0.45) : goalFit;
+  const constraintMismatchPenalty = clamp(overlap.matchedAvoidedCount * 0.08, 0, 0.24);
   const fitScore = clamp(
-    semanticFit * 0.58 + goalFitCapped * 0.3 + cadenceFit * 0.12,
+    semanticFit * 0.58 + goalFitCapped * 0.3 + cadenceFit * 0.12 - constraintMismatchPenalty,
   );
   return {
     fitScore,
@@ -239,21 +359,32 @@ function computeFitBreakdown(project: ProjectInput, sub: SubredditInput) {
     cadenceFit,
     conversationFit,
     matchedKeywordCount: overlap.matchedKeywordCount,
-    keywordCount: projectTokenWeights.size,
+    keywordCount: projectTokens.weights.size,
+    matchedAvoidedCount: overlap.matchedAvoidedCount,
+    constraintMismatchPenalty,
     goalIntent,
   };
 }
 
 function computeBaseRiskScore(sub: SubredditInput) {
   let risk = 0.15;
-  if (sub.policy?.promoAllowed === "DISALLOWED") risk += 0.45;
-  else if (sub.policy?.promoAllowed === "CONTEXTUAL_ONLY") risk += 0.2;
+  if (!sub.policy) {
+    risk += 0.2;
+  } else if (sub.policy.promoAllowed === "DISALLOWED") {
+    risk += 0.45;
+  } else if (sub.policy.promoAllowed === "CONTEXTUAL_ONLY") {
+    risk += 0.2;
+  } else if (sub.policy.promoAllowed === "UNKNOWN") {
+    risk += 0.14;
+  }
 
   if (
     sub.policy?.linkPolicy === "DISALLOWED_EVERYWHERE" ||
     sub.policy?.linkPolicy === "DISALLOWED_IN_POSTS"
   ) {
     risk += 0.2;
+  } else if (sub.policy?.linkPolicy === "UNKNOWN") {
+    risk += 0.08;
   }
   if (sub.policy?.selfPromoAllowed === false) risk += 0.1;
   if (sub.policy?.affiliateAllowed === false) risk += 0.05;
@@ -313,8 +444,15 @@ function buildReasons(input: {
   if (input.broadAudiencePenalty > 0) {
     reasons.push("Applied broad-audience penalty due to weak niche specificity.");
   }
+  if (input.fit.matchedAvoidedCount > 0) {
+    reasons.push(
+      `Constraint conflict detected (${input.fit.matchedAvoidedCount} avoided keyword matches).`,
+    );
+  }
   if (input.sub.policy?.promoAllowed === "DISALLOWED") {
     reasons.push("Strict promo policy increases execution risk.");
+  } else if (!input.sub.policy || input.sub.policy.promoAllowed === "UNKNOWN") {
+    reasons.push("Moderation policy data is incomplete; risk adjusted conservatively.");
   }
   if (input.sub.avgCommentsPerPost && input.sub.avgCommentsPerPost > 10) {
     reasons.push("Strong comment activity.");

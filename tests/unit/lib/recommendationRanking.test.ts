@@ -149,4 +149,321 @@ describe("rankSubreddits", () => {
     expect(broad).toBeDefined();
     expect(broad?.reasons.join(" ")).toMatch(/broad-audience penalty/i);
   });
+
+  test("does not reward subreddits that match explicitly avoided constraints", () => {
+    const ranked = rankSubreddits(
+      {
+        niche: "saas analytics",
+        goals: { primary: "traffic" },
+        constraints: { avoid: "avoid crypto and nft communities" },
+      },
+      [
+        {
+          id: "crypto",
+          name: "cryptomarkets",
+          title: "Crypto Markets",
+          description: "Crypto and nft growth discussions",
+          subscribers: 1200000,
+          activeUsers: 20000,
+          avgPostsPerDay: 220,
+          avgCommentsPerPost: 18,
+          bestTimeScore: 0.92,
+          policy: {
+            promoAllowed: "ALLOWED",
+            linkPolicy: "ALLOWED",
+            selfPromoAllowed: true,
+            affiliateAllowed: true,
+          },
+        },
+        {
+          id: "saas",
+          name: "saas",
+          title: "SaaS",
+          description: "B2B saas analytics and growth",
+          subscribers: 90000,
+          activeUsers: 2200,
+          avgPostsPerDay: 24,
+          avgCommentsPerPost: 9,
+          bestTimeScore: 0.7,
+          policy: {
+            promoAllowed: "CONTEXTUAL_ONLY",
+            linkPolicy: "ALLOWED",
+            selfPromoAllowed: true,
+            affiliateAllowed: true,
+          },
+        },
+      ],
+      5,
+    );
+
+    expect(ranked[0]?.subredditId).toBe("saas");
+    const crypto = ranked.find((item) => item.subredditId === "crypto");
+    expect(crypto?.reasons.join(" ")).toMatch(/constraint conflict/i);
+  });
+
+  test("supports two-letter intent tokens like ai", () => {
+    const ranked = rankSubreddits(
+      {
+        niche: "ai workflow tools",
+        goals: { primary: "traffic" },
+        constraints: null,
+      },
+      [
+        {
+          id: "ai",
+          name: "aitools",
+          title: "AI Tools",
+          description: "AI automation and tool discussions",
+          subscribers: 110000,
+          activeUsers: 2100,
+          avgPostsPerDay: 22,
+          avgCommentsPerPost: 7,
+          bestTimeScore: 0.7,
+          policy: {
+            promoAllowed: "ALLOWED",
+            linkPolicy: "ALLOWED",
+            selfPromoAllowed: true,
+            affiliateAllowed: true,
+          },
+        },
+        {
+          id: "generic",
+          name: "productivity",
+          title: "Productivity",
+          description: "general productivity habits",
+          subscribers: 110000,
+          activeUsers: 2100,
+          avgPostsPerDay: 22,
+          avgCommentsPerPost: 7,
+          bestTimeScore: 0.7,
+          policy: {
+            promoAllowed: "ALLOWED",
+            linkPolicy: "ALLOWED",
+            selfPromoAllowed: true,
+            affiliateAllowed: true,
+          },
+        },
+      ],
+      5,
+    );
+
+    const ai = ranked.find((item) => item.subredditId === "ai");
+    const generic = ranked.find((item) => item.subredditId === "generic");
+    expect(ai).toBeDefined();
+    expect(generic).toBeDefined();
+    expect(ai!.fitScore).toBeGreaterThan(generic!.fitScore);
+  });
+
+  test("treats unknown moderation policy as higher risk than explicit allowed policy", () => {
+    const ranked = rankSubreddits(
+      {
+        niche: "saas conversion",
+        goals: { primary: "conversion" },
+        constraints: null,
+      },
+      [
+        {
+          id: "allowed",
+          name: "saasgrowth",
+          title: "SaaS Growth",
+          description: "saas conversion growth",
+          subscribers: 150000,
+          activeUsers: 3000,
+          avgPostsPerDay: 30,
+          avgCommentsPerPost: 10,
+          bestTimeScore: 0.7,
+          policy: {
+            promoAllowed: "ALLOWED",
+            linkPolicy: "ALLOWED",
+            selfPromoAllowed: true,
+            affiliateAllowed: true,
+          },
+        },
+        {
+          id: "unknown",
+          name: "saasbuilders",
+          title: "SaaS Builders",
+          description: "saas conversion growth",
+          subscribers: 150000,
+          activeUsers: 3000,
+          avgPostsPerDay: 30,
+          avgCommentsPerPost: 10,
+          bestTimeScore: 0.7,
+          policy: {
+            promoAllowed: "UNKNOWN",
+            linkPolicy: "UNKNOWN",
+            selfPromoAllowed: true,
+            affiliateAllowed: true,
+          },
+        },
+      ],
+      5,
+    );
+
+    const allowed = ranked.find((item) => item.subredditId === "allowed");
+    const unknown = ranked.find((item) => item.subredditId === "unknown");
+    expect(allowed).toBeDefined();
+    expect(unknown).toBeDefined();
+    expect(unknown!.riskScore).toBeGreaterThan(allowed!.riskScore);
+  });
+
+  test("handles mixed avoid/include constraints split by contrast words", () => {
+    const ranked = rankSubreddits(
+      {
+        niche: "saas marketing",
+        goals: { primary: "traffic" },
+        constraints: { text: "avoid crypto but include analytics communities" },
+      },
+      [
+        {
+          id: "analytics",
+          name: "analytics",
+          title: "Analytics",
+          description: "analytics discussions for saas marketers",
+          subscribers: 100000,
+          activeUsers: 2200,
+          avgPostsPerDay: 25,
+          avgCommentsPerPost: 8,
+          bestTimeScore: 0.7,
+          policy: {
+            promoAllowed: "ALLOWED",
+            linkPolicy: "ALLOWED",
+            selfPromoAllowed: true,
+            affiliateAllowed: true,
+          },
+        },
+        {
+          id: "crypto",
+          name: "crypto",
+          title: "Crypto",
+          description: "crypto investing and marketing",
+          subscribers: 100000,
+          activeUsers: 2200,
+          avgPostsPerDay: 25,
+          avgCommentsPerPost: 8,
+          bestTimeScore: 0.7,
+          policy: {
+            promoAllowed: "ALLOWED",
+            linkPolicy: "ALLOWED",
+            selfPromoAllowed: true,
+            affiliateAllowed: true,
+          },
+        },
+      ],
+      5,
+    );
+
+    expect(ranked[0]?.subredditId).toBe("analytics");
+    const analytics = ranked.find((item) => item.subredditId === "analytics");
+    const crypto = ranked.find((item) => item.subredditId === "crypto");
+    expect(analytics).toBeDefined();
+    expect(crypto).toBeDefined();
+    expect(analytics!.reasons.join(" ")).not.toMatch(/constraint conflict/i);
+    expect(crypto!.reasons.join(" ")).toMatch(/constraint conflict/i);
+  });
+
+  test("does not treat 'not' marker word as an avoided keyword token", () => {
+    const ranked = rankSubreddits(
+      {
+        niche: "saas",
+        goals: { primary: "traffic" },
+        constraints: { text: "not crypto" },
+      },
+      [
+        {
+          id: "contains-not",
+          name: "saas_one",
+          title: "SaaS One",
+          description: "this subreddit is not for memes, mostly saas",
+          subscribers: 90000,
+          activeUsers: 1800,
+          avgPostsPerDay: 20,
+          avgCommentsPerPost: 8,
+          bestTimeScore: 0.7,
+          policy: {
+            promoAllowed: "ALLOWED",
+            linkPolicy: "ALLOWED",
+            selfPromoAllowed: true,
+            affiliateAllowed: true,
+          },
+        },
+        {
+          id: "clean",
+          name: "saas_two",
+          title: "SaaS Two",
+          description: "mostly saas founders",
+          subscribers: 90000,
+          activeUsers: 1800,
+          avgPostsPerDay: 20,
+          avgCommentsPerPost: 8,
+          bestTimeScore: 0.7,
+          policy: {
+            promoAllowed: "ALLOWED",
+            linkPolicy: "ALLOWED",
+            selfPromoAllowed: true,
+            affiliateAllowed: true,
+          },
+        },
+      ],
+      5,
+    );
+
+    const containsNot = ranked.find((item) => item.subredditId === "contains-not");
+    const clean = ranked.find((item) => item.subredditId === "clean");
+    expect(containsNot).toBeDefined();
+    expect(clean).toBeDefined();
+    expect(containsNot!.fitScore).toBeCloseTo(clean!.fitScore, 8);
+    expect(containsNot!.reasons.join(" ")).not.toMatch(/constraint conflict/i);
+  });
+
+  test("does not treat no-code as a negation phrase", () => {
+    const ranked = rankSubreddits(
+      {
+        niche: "saas",
+        goals: { primary: "traffic" },
+        constraints: { audience: "no-code founders" },
+      },
+      [
+        {
+          id: "nocode",
+          name: "nocode",
+          title: "No Code Builders",
+          description: "no code founders building saas products",
+          subscribers: 90000,
+          activeUsers: 1800,
+          avgPostsPerDay: 20,
+          avgCommentsPerPost: 8,
+          bestTimeScore: 0.7,
+          policy: {
+            promoAllowed: "ALLOWED",
+            linkPolicy: "ALLOWED",
+            selfPromoAllowed: true,
+            affiliateAllowed: true,
+          },
+        },
+        {
+          id: "saas",
+          name: "saas",
+          title: "SaaS",
+          description: "mostly saas product growth",
+          subscribers: 90000,
+          activeUsers: 1800,
+          avgPostsPerDay: 20,
+          avgCommentsPerPost: 8,
+          bestTimeScore: 0.7,
+          policy: {
+            promoAllowed: "ALLOWED",
+            linkPolicy: "ALLOWED",
+            selfPromoAllowed: true,
+            affiliateAllowed: true,
+          },
+        },
+      ],
+      5,
+    );
+
+    expect(ranked[0]?.subredditId).toBe("nocode");
+    const nocode = ranked.find((item) => item.subredditId === "nocode");
+    expect(nocode?.reasons.join(" ")).not.toMatch(/constraint conflict/i);
+  });
 });

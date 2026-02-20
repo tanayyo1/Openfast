@@ -71,6 +71,7 @@ describe("billing checkout route", () => {
         body: JSON.stringify({
           plan: "PRO",
           successUrl: "https://app.example.com/dashboard?billing=ok",
+          cancelUrl: "https://app.example.com/pricing?billing=cancelled",
         }),
       }),
     );
@@ -89,6 +90,8 @@ describe("billing checkout route", () => {
       expect.objectContaining({
         products: ["product_pro_uuid"],
         customerEmail: "owner@test.com",
+        successUrl: "https://app.example.com/dashboard?billing=ok",
+        returnUrl: "https://app.example.com/pricing?billing=cancelled",
         metadata: expect.objectContaining({
           workspaceId: "ws_1",
           userId: "u_1",
@@ -139,6 +142,23 @@ describe("billing checkout route", () => {
         body: JSON.stringify({
           plan: "PRO",
           successUrl: "https://evil.example.com/pwn",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("INVALID_REDIRECT_URL");
+  });
+
+  test("rejects cancelUrl outside allowed origins", async () => {
+    const res = await checkout(
+      new Request("http://test.local/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: "PRO",
+          cancelUrl: "https://evil.example.com/cancel",
         }),
       }),
     );

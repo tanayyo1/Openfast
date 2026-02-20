@@ -13,7 +13,7 @@ jest.mock("@/lib/prisma", () => ({
     subscription: {
       upsert: jest.fn(),
       updateMany: jest.fn(),
-      findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     workspace: {
       update: jest.fn(),
@@ -42,7 +42,7 @@ const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
   subscription: {
     upsert: jest.Mock;
     updateMany: jest.Mock;
-    findFirst: jest.Mock;
+    findMany: jest.Mock;
   };
   workspace: {
     update: jest.Mock;
@@ -74,7 +74,7 @@ describe("polar webhook route", () => {
 
     mockedPrisma.subscription.upsert.mockResolvedValue(undefined);
     mockedPrisma.subscription.updateMany.mockResolvedValue(undefined);
-    mockedPrisma.subscription.findFirst.mockResolvedValue(null);
+    mockedPrisma.subscription.findMany.mockResolvedValue([]);
     mockedPrisma.workspace.update.mockResolvedValue(undefined);
     mockedPrisma.workspaceEntitlement.upsert.mockResolvedValue(undefined);
     mockedPrisma.$transaction.mockImplementation(async (ops: unknown[]) =>
@@ -336,9 +336,9 @@ describe("polar webhook route", () => {
 
   test("resolves workspaceId from subscription lookup when metadata is missing", async () => {
     mockedPlanFromProduct.mockReturnValue("PRO");
-    mockedPrisma.subscription.findFirst.mockResolvedValue({
-      workspaceId: "ws_from_db",
-    });
+    mockedPrisma.subscription.findMany.mockResolvedValue([
+      { workspaceId: "ws_from_db" },
+    ]);
     mockedValidateEvent.mockReturnValue({
       type: "subscription.updated",
       data: {
@@ -356,15 +356,42 @@ describe("polar webhook route", () => {
     const res = await webhook(makeRequest());
     expect(res.status).toBe(200);
 
-    expect(mockedPrisma.subscription.findFirst).toHaveBeenCalledWith({
+    expect(mockedPrisma.subscription.findMany).toHaveBeenCalledWith({
       where: { provider: "polar", providerSubscriptionId: "polar_sub_1" },
       select: { workspaceId: true },
+      take: 2,
     });
     expect(mockedPrisma.subscription.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { workspaceId: "ws_from_db" },
       }),
     );
+  });
+
+  test("skips subscription update when provider subscription lookup is ambiguous", async () => {
+    mockedPrisma.subscription.findMany.mockResolvedValue([
+      { workspaceId: "ws_1" },
+      { workspaceId: "ws_2" },
+    ]);
+    mockedValidateEvent.mockReturnValue({
+      type: "subscription.updated",
+      data: {
+        id: "polar_sub_dup",
+        status: "active",
+        customerId: "polar_cus_1",
+        productId: "product_pro_uuid",
+        currentPeriodStart: "2026-02-01T00:00:00Z",
+        currentPeriodEnd: "2026-03-01T00:00:00Z",
+        cancelAtPeriodEnd: false,
+        metadata: {},
+      },
+    });
+
+    const res = await webhook(makeRequest());
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { skipped: string };
+    expect(json.skipped).toBe("ambiguous_provider_subscription");
+    expect(mockedPrisma.subscription.upsert).not.toHaveBeenCalled();
   });
 
   test("handles mixed-case status values from Polar", async () => {

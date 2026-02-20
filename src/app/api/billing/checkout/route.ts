@@ -127,12 +127,27 @@ export async function POST(req: Request) {
   }
   const appOrigin = allowedOrigins.values().next().value as string;
   const successFallback = `${appOrigin}/dashboard?billing=success`;
+  const cancelFallback = `${appOrigin}/pricing?billing=cancelled`;
   const successUrl = resolveRedirectUrl(
     parsed.data.successUrl,
     successFallback,
     allowedOrigins,
   );
   if (!successUrl) {
+    return NextResponse.json(
+      {
+        error: "Redirect URL must match application origin",
+        code: "INVALID_REDIRECT_URL",
+      },
+      { status: 400 },
+    );
+  }
+  const cancelUrl = resolveRedirectUrl(
+    parsed.data.cancelUrl,
+    cancelFallback,
+    allowedOrigins,
+  );
+  if (!cancelUrl) {
     return NextResponse.json(
       {
         error: "Redirect URL must match application origin",
@@ -149,6 +164,7 @@ export async function POST(req: Request) {
       products: [productId],
       customerEmail: workspace.owner.email,
       successUrl,
+      returnUrl: cancelUrl,
       metadata: {
         workspaceId: workspace.id,
         userId: session.user.id,

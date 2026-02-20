@@ -165,6 +165,7 @@ model Subscription {
   // Relations
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+  @@unique([provider, providerSubscriptionId], map: "subscriptions_provider_provider_subscription_id_key")
   @@map("subscriptions")
 }
 

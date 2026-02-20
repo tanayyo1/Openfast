@@ -8,6 +8,7 @@ const APP_PREFIXES = [
   "/roadmaps",
   "/tasks",
   "/content",
+  "/landing-pages",
   "/approvals",
   "/scheduling",
   "/ads",

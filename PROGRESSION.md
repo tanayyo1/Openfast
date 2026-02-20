@@ -2,7 +2,7 @@
 
 > **Last Updated**: 2026-02-20
 > **Target**: `mediafast_clone_system_design_report.md`
-> **Current Estimate**: ~99% of overall parity complete (MVP complete; Tier 2 complete; Tier 3 complete for planned scope; Tier 4 backlog remains)
+> **Current Estimate**: ~99% of overall parity complete (MVP complete; Tier 2 complete; Tier 3 complete for planned scope; Tier 4 RED-58 shipped, with RED-52 external sync follow-up remaining)
 
 ---
 
@@ -107,6 +107,14 @@
 - [x] Added workspace-scoped campaign APIs: list/create/get/update with cursor pagination, transition guards, and activation requirements.
 - [x] Added in-app Reddit Ads management surface (`/ads`) with campaign creation and lifecycle actions.
 - [x] Added RED-52 unit + integration test coverage, including archived-project activation and inactive-account pause edge cases.
+
+### Recent Landing Page Generator Batch (RED-58)
+
+- [x] Added landing page draft data model + migration (`landing_page_drafts`) with workspace/project scoping.
+- [x] Added workspace-scoped project APIs for landing page generation/list/update (`/api/projects/:id/landing-pages` and `/api/projects/:id/landing-pages/:landingPageId`).
+- [x] Added reusable generation service (`src/lib/landingPages/generate.ts`) with OpenAI-first generation and deterministic fallback mode.
+- [x] Added app surface at `/landing-pages` for generating, reviewing, and archiving landing page drafts.
+- [x] Added RED-58 unit + integration tests, including includeArchived query parsing regression coverage.
 
 ---
 
@@ -226,7 +234,7 @@
 - RED-36: Analytics rollup foundation (DONE - daily workspace rollups + dashboard rollup read/fallback + cron trigger + tests)
 - RED-37: Analytics UI live data (DONE - dashboard + project analytics pages now server-backed, no demo-store dependency)
 - RED-38: Analytics time-series follow-up (DONE - daily workspace/project trend services + API surfaces + UI sparkline integration + tests)
-- RED-52 (DONE for MVP foundation: campaign planning/lifecycle; external ad network sync remains backlog), RED-58 (landing page gen)
+- RED-52 (DONE for MVP foundation: campaign planning/lifecycle; external ad network sync remains backlog), RED-58 (DONE - landing page generator API + app UI + tests)
 
 ### Remaining from Original Plan
 

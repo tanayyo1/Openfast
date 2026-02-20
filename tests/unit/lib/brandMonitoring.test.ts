@@ -3,6 +3,7 @@ import {
   detectMentionMatches,
   detectMentionSentiment,
   extractBrandKeywords,
+  passesMentionPrecisionGate,
 } from "@/lib/brandMonitoring/monitor";
 
 describe("brand monitoring helpers", () => {
@@ -54,6 +55,16 @@ describe("brand monitoring helpers", () => {
     expect(matches).not.toContain("board");
   });
 
+  test("matches multi-word phrases with boundaries", () => {
+    const matches = detectMentionMatches(
+      "Anyone using acme onboarding flow in production?",
+      ["acme onboarding", "me onboarding f"],
+    );
+
+    expect(matches).toContain("acme onboarding");
+    expect(matches).not.toContain("me onboarding f");
+  });
+
   test("detects sentiment markers", () => {
     expect(detectMentionSentiment("Why Acme onboarding is broken")).toBe(
       "NEGATIVE",
@@ -62,6 +73,35 @@ describe("brand monitoring helpers", () => {
       "POSITIVE",
     );
     expect(detectMentionSentiment("Acme onboarding checklist")).toBe("NEUTRAL");
+  });
+
+  test("does not classify substring false positives as negative", () => {
+    expect(detectMentionSentiment("We audited tissue samples for research")).toBe(
+      "NEUTRAL",
+    );
+  });
+
+  test("precision gate requires anchor or multiple context matches", () => {
+    expect(
+      passesMentionPrecisionGate({
+        matchedKeywords: ["onboarding"],
+        anchorKeywords: ["acme", "acme.ai"],
+      }),
+    ).toBe(false);
+
+    expect(
+      passesMentionPrecisionGate({
+        matchedKeywords: ["acme"],
+        anchorKeywords: ["acme", "acme.ai"],
+      }),
+    ).toBe(true);
+
+    expect(
+      passesMentionPrecisionGate({
+        matchedKeywords: ["onboarding", "activation"],
+        anchorKeywords: ["acme", "acme.ai"],
+      }),
+    ).toBe(true);
   });
 
   test("scores urgency using sentiment + velocity + opportunity score", () => {

@@ -59,6 +59,12 @@ const POSITIVE_MARKERS = [
   "win",
 ];
 
+type KeywordGroups = {
+  anchors: string[];
+  context: string[];
+  all: string[];
+};
+
 export type MentionSentiment = "POSITIVE" | "NEUTRAL" | "NEGATIVE";
 export type MentionUrgency = "LOW" | "MEDIUM" | "HIGH";
 
@@ -144,20 +150,33 @@ function tokenize(input: string) {
     .filter(Boolean);
 }
 
-export function extractBrandKeywords(input: {
+function pushKeyword(input: {
+  bucket: string[];
+  seen: Set<string>;
+  value: string;
+  maxLength: number;
+}) {
+  const normalized = input.value.trim().toLowerCase().replace(/\s+/g, " ");
+  if (normalized.length < 3 || normalized.length > input.maxLength) return;
+  if (input.seen.has(normalized)) return;
+  input.seen.add(normalized);
+  input.bucket.push(normalized);
+}
+
+function buildKeywordGroups(input: {
   projectName: string;
   projectUrl: string | null;
   goals: unknown;
-}) {
-  const raw: string[] = [];
-  raw.push(input.projectName);
-  raw.push(...hostCandidates(input.projectUrl));
-  collectTextValues(input.goals, raw);
+}): KeywordGroups {
+  const anchorsRaw: string[] = [input.projectName, ...hostCandidates(input.projectUrl)];
+  const contextRaw: string[] = [];
+  collectTextValues(input.goals, contextRaw);
 
-  const keywords: string[] = [];
+  const anchors: string[] = [];
+  const context: string[] = [];
   const seen = new Set<string>();
 
-  for (const value of raw) {
+  for (const value of anchorsRaw) {
     const phrase = value.trim().toLowerCase().replace(/\s+/g, " ");
     const isSingleToken = !phrase.includes(" ");
     const allowSingleTokenPhrase =
@@ -169,7 +188,7 @@ export function extractBrandKeywords(input: {
       !seen.has(phrase)
     ) {
       seen.add(phrase);
-      keywords.push(phrase);
+      anchors.push(phrase);
     }
 
     for (const token of tokenize(value)) {
@@ -177,22 +196,51 @@ export function extractBrandKeywords(input: {
       if ((token.length >= 3 || SHORT_ALLOWED.has(token)) && token.length <= 30) {
         if (!seen.has(token)) {
           seen.add(token);
-          keywords.push(token);
+          anchors.push(token);
         }
       }
     }
   }
 
-  return keywords.slice(0, 20);
+  for (const value of contextRaw) {
+    const phrase = value.trim().toLowerCase().replace(/\s+/g, " ");
+    if (phrase.includes(" ")) {
+      pushKeyword({ bucket: context, seen, value: phrase, maxLength: 60 });
+    }
+    for (const token of tokenize(value)) {
+      if (STOPWORDS.has(token)) continue;
+      if (token.length <= 30) {
+        pushKeyword({ bucket: context, seen, value: token, maxLength: 30 });
+      }
+    }
+  }
+
+  const all = [...anchors, ...context].slice(0, 20);
+  return {
+    anchors: anchors.slice(0, 12),
+    context: context.slice(0, 20),
+    all,
+  };
+}
+
+export function extractBrandKeywords(input: {
+  projectName: string;
+  projectUrl: string | null;
+  goals: unknown;
+}) {
+  return buildKeywordGroups(input).all;
 }
 
 export function detectMentionMatches(title: string, keywords: string[]) {
-  const lowerTitle = title.toLowerCase();
   const matches: string[] = [];
 
   for (const keyword of keywords) {
     if (keyword.includes(" ")) {
-      if (lowerTitle.includes(keyword)) matches.push(keyword);
+      const phrasePattern = new RegExp(
+        `(^|\\W)${escapeRegex(keyword).replace(/\s+/g, "\\s+")}(\\W|$)`,
+        "i",
+      );
+      if (phrasePattern.test(title)) matches.push(keyword);
       continue;
     }
 
@@ -203,10 +251,30 @@ export function detectMentionMatches(title: string, keywords: string[]) {
   return [...new Set(matches)].slice(0, 6);
 }
 
+export function passesMentionPrecisionGate(input: {
+  matchedKeywords: string[];
+  anchorKeywords: string[];
+}) {
+  const anchorSet = new Set(input.anchorKeywords);
+  const anchorMatches = input.matchedKeywords.filter((keyword) =>
+    anchorSet.has(keyword),
+  );
+  if (anchorMatches.length >= 1) return true;
+  return input.matchedKeywords.length >= 2;
+}
+
+function containsMarkerWord(title: string, marker: string) {
+  const pattern = new RegExp(`\\b${escapeRegex(marker)}\\w*\\b`, "i");
+  return pattern.test(title);
+}
+
 export function detectMentionSentiment(title: string): MentionSentiment {
-  const lower = title.toLowerCase();
-  const hasNegative = NEGATIVE_MARKERS.some((token) => lower.includes(token));
-  const hasPositive = POSITIVE_MARKERS.some((token) => lower.includes(token));
+  const hasNegative = NEGATIVE_MARKERS.some((token) =>
+    containsMarkerWord(title, token),
+  );
+  const hasPositive = POSITIVE_MARKERS.some((token) =>
+    containsMarkerWord(title, token),
+  );
 
   if (hasNegative && !hasPositive) return "NEGATIVE";
   if (hasPositive && !hasNegative) return "POSITIVE";
@@ -279,11 +347,12 @@ export async function buildProjectBrandMonitoringSnapshot(input: {
   });
   if (!project) return null;
 
-  const keywords = extractBrandKeywords({
+  const keywordGroups = buildKeywordGroups({
     projectName: project.name,
     projectUrl: project.url,
     goals: project.goals,
   });
+  const keywords = keywordGroups.all;
   if (keywords.length === 0) {
     return {
       projectId: project.id,
@@ -339,6 +408,14 @@ export async function buildProjectBrandMonitoringSnapshot(input: {
   for (const item of candidates) {
     const matchedKeywords = detectMentionMatches(item.title, keywords);
     if (matchedKeywords.length === 0) continue;
+    if (
+      !passesMentionPrecisionGate({
+        matchedKeywords,
+        anchorKeywords: keywordGroups.anchors,
+      })
+    ) {
+      continue;
+    }
     const sentiment = detectMentionSentiment(item.title);
     const urgency = computeMentionUrgency({
       sentiment,

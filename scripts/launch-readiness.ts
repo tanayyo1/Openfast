@@ -5,8 +5,10 @@
 
 import { execSync } from "child_process";
 import Redis from "ioredis";
+import { loadEnvConfig } from "@next/env";
 import { prisma } from "@/lib/prisma";
 import { getTokenKeyring } from "@/lib/security/tokenCrypto";
+import { loadLocalEnvOverrides } from "./lib/loadLocalEnv";
 
 type CheckStatus = "PASS" | "WARN" | "FAIL";
 
@@ -15,6 +17,9 @@ type CheckResult = {
   status: CheckStatus;
   detail: string;
 };
+
+loadEnvConfig(process.cwd());
+loadLocalEnvOverrides();
 
 function env(name: string) {
   const value = process.env[name];

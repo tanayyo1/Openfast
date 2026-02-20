@@ -4,7 +4,9 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { loadEnvConfig } from "@next/env";
 import { getTokenKeyring } from "@/lib/security/tokenCrypto";
+import { loadLocalEnvOverrides } from "./lib/loadLocalEnv";
 
 function validateRedditRedirectUri(raw: string) {
   try {
@@ -14,6 +16,9 @@ function validateRedditRedirectUri(raw: string) {
     return false;
   }
 }
+
+loadEnvConfig(process.cwd());
+loadLocalEnvOverrides();
 
 async function verifySetup() {
   console.log("🔍 Verifying Auth Setup...\n");

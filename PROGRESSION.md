@@ -86,6 +86,13 @@
 - [x] Wired daily rollup execution into cron scheduler (`daily_analytics_rollups`) with partial-failure alerting.
 - [x] Added regression tests for rollup persistence/batch edge cases and dashboard route stale-rollup fallback.
 
+### Recent Analytics UI Live Data Batch (RED-37)
+
+- [x] Replaced `/analytics` page demo-store metrics with workspace-scoped server-backed analytics data using rollup/live fallback source metadata.
+- [x] Replaced `/analytics/projects/:id` demo-store view with live project analytics from published item snapshots and scheduled status aggregates.
+- [x] Extracted shared analytics libraries for reuse across API + UI (`src/lib/analytics/dashboardData.ts`, `src/lib/analytics/projectSnapshot.ts`) to keep route/page data logic consistent.
+- [x] Updated analytics route tests and reran analytics + e2e smoke coverage after refactor.
+
 ---
 
 ## 2) What Is Partial
@@ -202,7 +209,8 @@
 ### Tier 4 - Post-MVP (Backlog, Low priority)
 
 - RED-36: Analytics rollup foundation (DONE - daily workspace rollups + dashboard rollup read/fallback + cron trigger + tests)
-- RED-37/38: Analytics pipeline follow-up backlog
+- RED-37: Analytics UI live data (DONE - dashboard + project analytics pages now server-backed, no demo-store dependency)
+- RED-38: Analytics pipeline follow-up backlog
 - RED-52 (Reddit Ads), RED-58 (landing page gen)
 
 ### Remaining from Original Plan

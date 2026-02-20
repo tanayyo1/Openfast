@@ -1,69 +1,128 @@
-"use client";
-
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useMemo } from "react";
 import { BarMeter } from "@/components/app/charts/BarMeter";
 import { SimpleTable } from "@/components/app/tables/SimpleTable";
-import { useDemoStore } from "@/stores/demoStore";
+import { getWorkspaceEntitlements } from "@/lib/billing/quota";
+import { computeProjectAnalyticsSnapshot } from "@/lib/analytics/projectSnapshot";
+import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 
 type Row = {
-  post: string;
+  permalink: string;
   subreddit: string;
   score: string;
   comments: string;
   status: string;
 };
 
-function scoreForStatus(status: string) {
-  if (status === "Published")
-    return { score: "42", comments: "18", status: "Live" };
-  if (status === "Scheduled")
-    return { score: "-", comments: "-", status: "Scheduled" };
-  if (status === "Failed")
-    return { score: "0", comments: "0", status: "Removed" };
-  return { score: "-", comments: "-", status: status };
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: value % 1 === 0 ? 0 : 1,
+  }).format(value);
 }
 
-export default function AnalyticsProjectPage() {
-  const params = useParams<{ id: string }>();
-  const projectId = params?.id ? decodeURIComponent(params.id) : "";
+export default async function AnalyticsProjectPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const session = await requireWorkspaceSession();
+  const entitlements = await getWorkspaceEntitlements(session.workspaceId);
+  let projectId = params.id;
+  try {
+    projectId = decodeURIComponent(params.id);
+  } catch {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold">Invalid project id</h1>
+        <Link href="/analytics" className="text-sm underline">
+          Back to analytics
+        </Link>
+      </div>
+    );
+  }
 
-  const project = useDemoStore((state) =>
-    state.projects.find((p) => p.id === projectId),
+  if (!entitlements.hasAdvancedAnalytics) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Analytics
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold">Project analytics</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Advanced analytics is available on paid plans.
+          </p>
+        </div>
+        <div className="rounded-[24px] border border-border bg-card/80 p-8">
+          <p className="text-sm font-semibold">Upgrade required</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Upgrade your plan to unlock project-level analytics.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/pricing"
+              className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
+            >
+              View plans
+            </Link>
+            <Link
+              href="/analytics"
+              className="rounded-full border border-border px-5 py-2 text-sm font-semibold"
+            >
+              Back
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const snapshot = await computeProjectAnalyticsSnapshot(
+    session.workspaceId,
+    projectId,
   );
-  const tasks = useDemoStore((state) =>
-    state.tasks.filter((t) => t.projectId === projectId),
-  );
-  const drafts = useDemoStore((state) => state.drafts);
+  if (!snapshot) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold">Project not found</h1>
+        <Link href="/analytics" className="text-sm underline">
+          Back to analytics
+        </Link>
+      </div>
+    );
+  }
 
-  const rows: Row[] = useMemo(() => {
-    return tasks
-      .filter((task) => task.draftId)
-      .map((task) => {
-        const draft = drafts.find((d) => d.taskId === task.id);
-        const meta = scoreForStatus(task.status);
-        return {
-          post: draft?.editedTitle ?? `${task.type} draft`,
-          subreddit: task.subreddit,
-          score: meta.score,
-          comments: meta.comments,
-          status: meta.status,
-        };
-      });
-  }, [drafts, tasks]);
+  const rows: Row[] = snapshot.items.map((item) => {
+    const latest = item.latestSnapshot;
+    return {
+      permalink: item.permalink,
+      subreddit: `r/${item.subreddit.name}`,
+      score: latest ? String(latest.score) : "-",
+      comments: latest ? String(latest.numComments) : "-",
+      status: latest ? (latest.isRemoved ? "Removed" : "Live") : "No snapshot",
+    };
+  });
 
-  const approvedCount = tasks.filter(
-    (t) =>
-      t.status === "Approved" ||
-      t.status === "Scheduled" ||
-      t.status === "Published",
-  ).length;
-  const publishedCount = tasks.filter((t) => t.status === "Published").length;
-  const approvalRate =
-    tasks.length === 0 ? 0 : Math.round((approvedCount / tasks.length) * 100);
+  const attemptedCount =
+    snapshot.summary.publishedStatusCount +
+    snapshot.summary.failedCount +
+    snapshot.summary.cancelledCount;
   const publishSuccess =
-    tasks.length === 0 ? 0 : Math.round((publishedCount / tasks.length) * 100);
+    attemptedCount === 0
+      ? 0
+      : Math.round(
+          (snapshot.summary.publishedStatusCount / attemptedCount) * 100,
+        );
+  const removalRate =
+    snapshot.summary.publishedCount === 0
+      ? 0
+      : Math.round(
+          (snapshot.summary.removedCount / snapshot.summary.publishedCount) *
+            100,
+        );
+  const engagementSignal = Math.min(
+    100,
+    Math.round(snapshot.summary.avgComments * 12),
+  );
 
   return (
     <div className="space-y-8">
@@ -72,11 +131,9 @@ export default function AnalyticsProjectPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Analytics
           </p>
-          <h1 className="mt-3 text-3xl font-semibold">
-            {project?.name ?? "Project"}
-          </h1>
+          <h1 className="mt-3 text-3xl font-semibold">{snapshot.project.name}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Demo metrics derived from scheduled and published tasks.
+            Live project metrics from latest published snapshot data.
           </p>
         </div>
         <Link
@@ -91,23 +148,26 @@ export default function AnalyticsProjectPage() {
         <div className="rounded-[24px] border border-border bg-card/80 p-6">
           <p className="text-sm font-semibold">This week</p>
           <div className="mt-4 space-y-4">
-            <BarMeter label="Approval rate" value={approvalRate} />
             <BarMeter label="Publish success" value={publishSuccess} />
-            <BarMeter
-              label="First hour engagement"
-              value={Math.min(100, publishedCount * 20)}
-            />
+            <BarMeter label="Removal rate" value={removalRate} />
+            <BarMeter label="Engagement signal" value={engagementSignal} />
           </div>
         </div>
         <div className="rounded-[24px] border border-border bg-background/70 p-6 lg:col-span-2">
-          <p className="text-sm font-semibold">Posts</p>
+          <p className="text-sm font-semibold">Published items</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Filter by subreddit and time window in the next phase.
+            {formatNumber(snapshot.summary.publishedCount)} published •{" "}
+            {formatNumber(snapshot.summary.totalScore)} total score •{" "}
+            {formatNumber(snapshot.summary.totalComments)} total comments
           </p>
           <div className="mt-4">
             <SimpleTable<Row>
               columns={[
-                { key: "post", header: "Post", render: (row) => row.post },
+                {
+                  key: "permalink",
+                  header: "Permalink",
+                  render: (row) => row.permalink,
+                },
                 {
                   key: "sub",
                   header: "Subreddit",
@@ -125,7 +185,7 @@ export default function AnalyticsProjectPage() {
                   render: (row) => row.status,
                 },
               ]}
-              getRowKey={(row) => `${row.subreddit}-${row.post}`}
+              getRowKey={(row) => `${row.subreddit}-${row.permalink}`}
               rows={rows}
             />
           </div>
@@ -133,13 +193,25 @@ export default function AnalyticsProjectPage() {
       </div>
 
       <div className="rounded-[24px] border border-border bg-card/80 p-6">
-        <p className="text-sm font-semibold">Time window insights (preview)</p>
+        <p className="text-sm font-semibold">Project summary</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { label: "Tue 09:00", value: "High" },
-            { label: "Thu 13:00", value: "High" },
-            { label: "Sat 10:00", value: "Medium" },
-            { label: "Sun 18:00", value: "Low" },
+            {
+              label: "Scheduled",
+              value: formatNumber(snapshot.summary.scheduledCount),
+            },
+            {
+              label: "Publishing",
+              value: formatNumber(snapshot.summary.publishingCount),
+            },
+            {
+              label: "Failed",
+              value: formatNumber(snapshot.summary.failedCount),
+            },
+            {
+              label: "Cancelled",
+              value: formatNumber(snapshot.summary.cancelledCount),
+            },
           ].map((item) => (
             <div
               key={item.label}

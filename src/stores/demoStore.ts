@@ -55,6 +55,17 @@ export type DemoDraftVariant = {
   notes: string[];
 };
 
+export type DemoRewriteMode = "REWRITE" | "COMPLIANCE";
+export type DemoRewriteLength = "short" | "medium" | "long";
+
+export type DemoRewriteParams = {
+  mode: DemoRewriteMode;
+  tone: string | null;
+  length: DemoRewriteLength;
+  variantCount: number;
+  sourceDraftId: string;
+};
+
 export type DemoDraft = {
   id: string;
   taskId: string;
@@ -66,6 +77,7 @@ export type DemoDraft = {
   editedTitle: string;
   editedBody: string;
   createdAt: string;
+  generationParams?: DemoRewriteParams;
 };
 
 type DemoState = {
@@ -99,6 +111,9 @@ type DemoState = {
   }) => void;
   rewriteDraft: (input: {
     draftId: string;
+    mode: DemoRewriteMode;
+    tone?: string;
+    length: DemoRewriteLength;
     variantCount?: number;
   }) => string;
   requestApproval: (input: { taskId: string }) => void;
@@ -174,6 +189,49 @@ function seedVariants(subreddit: string): DemoDraftVariant[] {
       notes: ["Generic enough for strict subs", "Discussion-led", "No hype"],
     },
   ];
+}
+
+function targetLength(length: DemoRewriteLength): number {
+  if (length === "short") return 220;
+  if (length === "long") return 900;
+  return 520;
+}
+
+function trimBodyToLength(body: string, length: DemoRewriteLength): string {
+  const max = targetLength(length);
+  if (body.length <= max) return body;
+  return `${body.slice(0, max - 1).trimEnd()}…`;
+}
+
+function rewriteVariant(
+  variant: DemoDraftVariant,
+  input: {
+    mode: DemoRewriteMode;
+    tone: string | null;
+    length: DemoRewriteLength;
+  },
+  index: number,
+): DemoDraftVariant {
+  const toneLabel = input.tone ?? "neutral";
+  const modeLabel =
+    input.mode === "COMPLIANCE"
+      ? "Compliance-focused rewrite with softer claims and safer language."
+      : "Rewrite focused on clarity and stronger discussion hooks.";
+  const suffix = `\n\n${modeLabel}\nTone: ${toneLabel}.`;
+  const riskDelta = input.mode === "COMPLIANCE" ? -8 : -2;
+  const titlePrefix = input.mode === "COMPLIANCE" ? "Safer:" : "Rewrite:";
+
+  return {
+    title: `${titlePrefix} ${variant.title}`,
+    body: trimBodyToLength(`${variant.body}${suffix}`, input.length),
+    riskScore: Math.max(5, variant.riskScore + riskDelta + index),
+    notes: [
+      ...variant.notes,
+      `Mode: ${input.mode}`,
+      `Tone: ${toneLabel}`,
+      `Length: ${input.length}`,
+    ],
+  };
 }
 
 export const useDemoStore = create<DemoState>()(
@@ -288,16 +346,22 @@ export const useDemoStore = create<DemoState>()(
         }));
       },
 
-      rewriteDraft: ({ draftId, variantCount = 3 }) => {
+      rewriteDraft: ({ draftId, mode, tone, length, variantCount = 3 }) => {
         const source = get().drafts.find((d) => d.id === draftId);
         if (!source) return "";
 
+        const normalizedTone = tone?.trim() ? tone.trim() : null;
         const newId = makeId("draft");
         const pool = seedVariants(source.subreddit);
         // Repeat pool entries to fill requested count (pool has 3 items)
         const variants = Array.from(
           { length: variantCount },
-          (_, i) => pool[i % pool.length],
+          (_, i) =>
+            rewriteVariant(
+              pool[i % pool.length],
+              { mode, tone: normalizedTone, length },
+              i,
+            ),
         );
         const selected = variants[0];
 
@@ -312,6 +376,13 @@ export const useDemoStore = create<DemoState>()(
           editedTitle: selected.title,
           editedBody: selected.body,
           createdAt: nowIso(),
+          generationParams: {
+            mode,
+            tone: normalizedTone,
+            length,
+            variantCount,
+            sourceDraftId: source.id,
+          },
         };
 
         set((state) => ({

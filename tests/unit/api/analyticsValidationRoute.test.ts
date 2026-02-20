@@ -56,6 +56,17 @@ describe("analytics validation route", () => {
     expect(mockedValidation.validateAnalyticsPipeline).not.toHaveBeenCalled();
   });
 
+  test("returns 403 when user is not workspace admin", async () => {
+    mockedAdminGuards.requireWorkspaceAdminSession.mockRejectedValue(
+      new Error("FORBIDDEN"),
+    );
+
+    const res = await getAnalyticsValidation();
+    expect(res.status).toBe(403);
+    expect(mockedQuota.getWorkspaceEntitlements).not.toHaveBeenCalled();
+    expect(mockedValidation.validateAnalyticsPipeline).not.toHaveBeenCalled();
+  });
+
   test("returns 403 when advanced analytics is not enabled", async () => {
     mockedQuota.getWorkspaceEntitlements.mockResolvedValue({
       hasAdvancedAnalytics: false,

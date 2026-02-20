@@ -1,9 +1,8 @@
-"use client";
-
 import Link from "next/link";
-import { useMemo } from "react";
 import { Sparkline } from "@/components/app/charts/Sparkline";
-import { useDemoStore } from "@/stores/demoStore";
+import { getWorkspaceEntitlements } from "@/lib/billing/quota";
+import { getWorkspaceDashboardData } from "@/lib/analytics/dashboardData";
+import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 
 function makePoints(value: number) {
   const base = Math.max(1, value);
@@ -18,36 +17,72 @@ function makePoints(value: number) {
   ];
 }
 
-export default function AnalyticsPage() {
-  const projects = useDemoStore((state) => state.projects);
-  const tasks = useDemoStore((state) => state.tasks);
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: value % 1 === 0 ? 0 : 1,
+  }).format(value);
+}
 
-  const projectCards = useMemo(() => {
-    return projects.map((project) => {
-      const projectTasks = tasks.filter((t) => t.projectId === project.id);
-      const published = projectTasks.filter(
-        (t) => t.status === "Published",
-      ).length;
-      const scheduled = projectTasks.filter(
-        (t) => t.status === "Scheduled",
-      ).length;
-      const approvals = projectTasks.filter(
-        (t) => t.status === "Needs approval",
-      ).length;
-      const score = published * 12 + scheduled * 3;
+export default async function AnalyticsPage() {
+  const session = await requireWorkspaceSession();
+  const entitlements = await getWorkspaceEntitlements(session.workspaceId);
 
-      return {
-        id: project.id,
-        name: project.name,
-        metric: `${published} published, ${scheduled} scheduled`,
-        points: makePoints(score),
-        change:
-          approvals > 0
-            ? `${approvals} approvals pending`
-            : "No approvals pending",
-      };
-    });
-  }, [projects, tasks]);
+  if (!entitlements.hasAdvancedAnalytics) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Analytics
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold">Performance overview</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Advanced analytics is available on paid plans.
+          </p>
+        </div>
+        <div className="rounded-[24px] border border-border bg-card/80 p-8">
+          <p className="text-sm font-semibold">Upgrade required</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Upgrade your plan to unlock workspace and project analytics.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/pricing"
+              className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
+            >
+              View plans
+            </Link>
+            <Link
+              href="/dashboard"
+              className="rounded-full border border-border px-5 py-2 text-sm font-semibold"
+            >
+              Dashboard
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const dashboard = await getWorkspaceDashboardData(session.workspaceId);
+  const projectCards = dashboard.byProject.map((project) => {
+    const scoreSignal =
+      project.totalScore + project.avgComments * 2 + project.scheduledCount;
+    const snapshotState = project.publishedCount
+      ? `${project.publishedCount} published, ${project.scheduledCount} scheduled`
+      : `${project.scheduledCount} scheduled, no publishes yet`;
+    const riskLine =
+      project.failedCount > 0 || project.removedCount > 0
+        ? `${project.failedCount} failed, ${project.removedCount} removed`
+        : "No failures or removals";
+
+    return {
+      id: project.projectId,
+      name: project.projectName,
+      metric: snapshotState,
+      points: makePoints(Math.round(scoreSignal)),
+      change: riskLine,
+    };
+  });
 
   return (
     <div className="space-y-8">
@@ -57,8 +92,48 @@ export default function AnalyticsPage() {
         </p>
         <h1 className="mt-3 text-3xl font-semibold">Performance overview</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Demo analytics. Backend metrics and rollups will replace these values.
+          Source:{" "}
+          {dashboard.source === "rollup"
+            ? "daily rollup"
+            : "live workspace snapshot"}{" "}
+          • Generated at {new Date(dashboard.generatedAt).toLocaleString()}.
         </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        {[
+          {
+            label: "Projects",
+            value: formatNumber(dashboard.summary.projectCount),
+            detail: "Active projects in workspace",
+          },
+          {
+            label: "Published",
+            value: formatNumber(dashboard.summary.publishedCount),
+            detail: `${formatNumber(dashboard.summary.removedCount)} removed`,
+          },
+          {
+            label: "Avg score",
+            value: formatNumber(dashboard.summary.avgScore),
+            detail: `${formatNumber(dashboard.summary.totalScore)} total`,
+          },
+          {
+            label: "Avg comments",
+            value: formatNumber(dashboard.summary.avgComments),
+            detail: `${formatNumber(dashboard.summary.totalComments)} total`,
+          },
+        ].map((item) => (
+          <div
+            key={item.label}
+            className="rounded-[24px] border border-border bg-card/80 p-5"
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              {item.label}
+            </p>
+            <p className="mt-3 text-3xl font-semibold">{item.value}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{item.detail}</p>
+          </div>
+        ))}
       </div>
 
       {projectCards.length === 0 ? (

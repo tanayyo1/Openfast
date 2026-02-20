@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { computeWorkspaceDashboardSnapshot } from "@/lib/analytics/dashboardSnapshot";
-import { getLatestWorkspaceDailyRollup } from "@/lib/analytics/rollups";
+import { getWorkspaceDashboardData } from "@/lib/analytics/dashboardData";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 import { getWorkspaceEntitlements } from "@/lib/billing/quota";
 
@@ -28,26 +27,11 @@ export async function GET() {
     );
   }
 
-  const latestRollup = await getLatestWorkspaceDailyRollup(session.workspaceId);
-  const rollupAgeMs = latestRollup
-    ? Date.now() - latestRollup.ingestedAt.getTime()
-    : Number.POSITIVE_INFINITY;
-  const useRollup = rollupAgeMs <= 36 * 60 * 60 * 1000;
-
-  if (latestRollup && useRollup) {
-    return NextResponse.json({
-      source: "rollup",
-      generatedAt: latestRollup.payload.generatedAt,
-      summary: latestRollup.payload.summary,
-      byProject: latestRollup.payload.byProject,
-    });
-  }
-
-  const snapshot = await computeWorkspaceDashboardSnapshot(session.workspaceId);
+  const dashboard = await getWorkspaceDashboardData(session.workspaceId);
   return NextResponse.json({
-    source: "live",
-    generatedAt: new Date().toISOString(),
-    summary: snapshot.summary,
-    byProject: snapshot.byProject,
+    source: dashboard.source,
+    generatedAt: dashboard.generatedAt,
+    summary: dashboard.summary,
+    byProject: dashboard.byProject,
   });
 }

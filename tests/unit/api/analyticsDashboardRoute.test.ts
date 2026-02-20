@@ -6,12 +6,8 @@ jest.mock("@/lib/billing/quota", () => ({
   getWorkspaceEntitlements: jest.fn(),
 }));
 
-jest.mock("@/lib/analytics/rollups", () => ({
-  getLatestWorkspaceDailyRollup: jest.fn(),
-}));
-
-jest.mock("@/lib/analytics/dashboardSnapshot", () => ({
-  computeWorkspaceDashboardSnapshot: jest.fn(),
+jest.mock("@/lib/analytics/dashboardData", () => ({
+  getWorkspaceDashboardData: jest.fn(),
 }));
 
 import { GET as getDashboardAnalytics } from "@/app/api/analytics/dashboard/route";
@@ -22,11 +18,10 @@ const mockedGuards = jest.requireMock("@/lib/server/auth-guards") as {
 const mockedQuota = jest.requireMock("@/lib/billing/quota") as {
   getWorkspaceEntitlements: jest.Mock;
 };
-const mockedRollups = jest.requireMock("@/lib/analytics/rollups") as {
-  getLatestWorkspaceDailyRollup: jest.Mock;
-};
-const mockedSnapshot = jest.requireMock("@/lib/analytics/dashboardSnapshot") as {
-  computeWorkspaceDashboardSnapshot: jest.Mock;
+const mockedDashboardData = jest.requireMock(
+  "@/lib/analytics/dashboardData",
+) as {
+  getWorkspaceDashboardData: jest.Mock;
 };
 
 async function readJson(res: Response) {
@@ -34,10 +29,9 @@ async function readJson(res: Response) {
   return text ? JSON.parse(text) : null;
 }
 
-function buildRollupPayload() {
+function buildDashboardData(source: "rollup" | "live") {
   return {
-    workspaceId: "ws_1",
-    forDate: "2026-02-20",
+    source,
     generatedAt: "2026-02-20T04:00:00.000Z",
     summary: {
       projectCount: 2,
@@ -80,23 +74,9 @@ describe("analytics dashboard route", () => {
     mockedQuota.getWorkspaceEntitlements.mockResolvedValue({
       hasAdvancedAnalytics: true,
     });
-    mockedRollups.getLatestWorkspaceDailyRollup.mockResolvedValue(null);
-    mockedSnapshot.computeWorkspaceDashboardSnapshot.mockResolvedValue({
-      summary: {
-        projectCount: 1,
-        publishedCount: 1,
-        removedCount: 0,
-        totalScore: 10,
-        avgScore: 10,
-        totalComments: 2,
-        avgComments: 2,
-        scheduledCount: 0,
-        publishingCount: 0,
-        failedCount: 0,
-        cancelledCount: 0,
-      },
-      byProject: [],
-    });
+    mockedDashboardData.getWorkspaceDashboardData.mockResolvedValue(
+      buildDashboardData("live"),
+    );
   });
 
   test("returns 401 on unauthorized session", async () => {
@@ -114,17 +94,13 @@ describe("analytics dashboard route", () => {
 
     const res = await getDashboardAnalytics();
     expect(res.status).toBe(403);
-    expect(mockedRollups.getLatestWorkspaceDailyRollup).not.toHaveBeenCalled();
-    expect(mockedSnapshot.computeWorkspaceDashboardSnapshot).not.toHaveBeenCalled();
+    expect(mockedDashboardData.getWorkspaceDashboardData).not.toHaveBeenCalled();
   });
 
   test("uses fresh rollup payload when available", async () => {
-    mockedRollups.getLatestWorkspaceDailyRollup.mockResolvedValue({
-      id: "rollup_ws_1_2026-02-20",
-      eventTs: new Date("2026-02-20T00:00:00.000Z"),
-      ingestedAt: new Date(Date.now() - 60 * 60 * 1000),
-      payload: buildRollupPayload(),
-    });
+    mockedDashboardData.getWorkspaceDashboardData.mockResolvedValue(
+      buildDashboardData("rollup"),
+    );
 
     const res = await getDashboardAnalytics();
     const body = (await readJson(res)) as {
@@ -137,23 +113,22 @@ describe("analytics dashboard route", () => {
     expect(body.source).toBe("rollup");
     expect(body.generatedAt).toBe("2026-02-20T04:00:00.000Z");
     expect(body.summary.totalScore).toBe(42);
-    expect(mockedSnapshot.computeWorkspaceDashboardSnapshot).not.toHaveBeenCalled();
+    expect(mockedDashboardData.getWorkspaceDashboardData).toHaveBeenCalledWith(
+      "ws_1",
+    );
   });
 
   test("falls back to live snapshot when rollup is stale", async () => {
-    mockedRollups.getLatestWorkspaceDailyRollup.mockResolvedValue({
-      id: "rollup_ws_1_2026-02-18",
-      eventTs: new Date("2026-02-18T00:00:00.000Z"),
-      ingestedAt: new Date(Date.now() - 40 * 60 * 60 * 1000),
-      payload: buildRollupPayload(),
-    });
+    mockedDashboardData.getWorkspaceDashboardData.mockResolvedValue(
+      buildDashboardData("live"),
+    );
 
     const res = await getDashboardAnalytics();
     const body = (await readJson(res)) as { source: string };
 
     expect(res.status).toBe(200);
     expect(body.source).toBe("live");
-    expect(mockedSnapshot.computeWorkspaceDashboardSnapshot).toHaveBeenCalledWith(
+    expect(mockedDashboardData.getWorkspaceDashboardData).toHaveBeenCalledWith(
       "ws_1",
     );
   });

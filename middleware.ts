@@ -10,6 +10,7 @@ const APP_PREFIXES = [
   "/content",
   "/approvals",
   "/scheduling",
+  "/ads",
   "/analytics",
   "/brand-monitoring",
   "/health",

@@ -101,6 +101,13 @@
 - [x] Upgraded `/analytics` and `/analytics/projects/:id` pages to render backend-driven trend sparklines from time-series data.
 - [x] Added and updated analytics unit tests for trend clamping/mapping and loader integration (`tests/unit/lib/trends.test.ts`, `tests/unit/lib/dashboardData.test.ts`, `tests/unit/lib/projectSnapshot.test.ts`).
 
+### Recent Reddit Ads Foundation Batch (RED-52)
+
+- [x] Added Reddit Ads campaign data model + migration (`reddit_ad_campaigns`) with workspace/project/account relations and status/objective enums.
+- [x] Added workspace-scoped campaign APIs: list/create/get/update with cursor pagination, transition guards, and activation requirements.
+- [x] Added in-app Reddit Ads management surface (`/ads`) with campaign creation and lifecycle actions.
+- [x] Added RED-52 unit + integration test coverage, including archived-project activation and inactive-account pause edge cases.
+
 ---
 
 ## 2) What Is Partial
@@ -219,7 +226,7 @@
 - RED-36: Analytics rollup foundation (DONE - daily workspace rollups + dashboard rollup read/fallback + cron trigger + tests)
 - RED-37: Analytics UI live data (DONE - dashboard + project analytics pages now server-backed, no demo-store dependency)
 - RED-38: Analytics time-series follow-up (DONE - daily workspace/project trend services + API surfaces + UI sparkline integration + tests)
-- RED-52 (Reddit Ads), RED-58 (landing page gen)
+- RED-52 (DONE for MVP foundation: campaign planning/lifecycle; external ad network sync remains backlog), RED-58 (landing page gen)
 
 ### Remaining from Original Plan
 

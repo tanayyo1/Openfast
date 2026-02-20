@@ -8,6 +8,7 @@ const navItems = [
   { label: "Content", href: "/content" },
   { label: "Approvals", href: "/approvals" },
   { label: "Scheduling", href: "/scheduling" },
+  { label: "Reddit Ads", href: "/ads" },
   { label: "Analytics", href: "/analytics" },
   { label: "Brand monitoring", href: "/brand-monitoring" },
   { label: "Opportunities", href: "/opportunities" },

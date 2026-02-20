@@ -8,6 +8,12 @@ describe("tone classifier (RED-53)", () => {
   test("normalizes tone aliases", () => {
     expect(normalizeExpectedTone("formal")).toBe("professional");
     expect(normalizeExpectedTone("conversational")).toBe("friendly");
+    expect(normalizeExpectedTone("helpful")).toBe("friendly");
+    expect(normalizeExpectedTone("empathetic")).toBe("friendly");
+    expect(normalizeExpectedTone("professional but friendly")).toBe(
+      "professional",
+    );
+    expect(normalizeExpectedTone("friendly and concise")).toBe("friendly");
     expect(normalizeExpectedTone("unknown")).toBe("neutral");
   });
 
@@ -35,6 +41,18 @@ describe("tone classifier (RED-53)", () => {
     expect(out.fixes.length).toBeGreaterThan(0);
   });
 
+  test("applies mismatch penalty for helpful tone alias", () => {
+    const out = evaluateToneAlignment({
+      expectedTone: "helpful",
+      title: "Hey folks",
+      body: "I'm gonna share a quick casual update lol.",
+    });
+
+    expect(out.expectedTone).toBe("friendly");
+    expect(out.detectedTone).toBe("casual");
+    expect(out.penalty).toBeGreaterThan(0);
+  });
+
   test("keeps penalty zero when neutral tone is expected", () => {
     const out = evaluateToneAlignment({
       expectedTone: "neutral",
@@ -43,5 +61,14 @@ describe("tone classifier (RED-53)", () => {
     });
 
     expect(out.penalty).toBe(0);
+  });
+
+  test("does not misclassify first-time wording as direct instructions", () => {
+    const out = classifyTone({
+      title: "First-time founder notes",
+      body: "Sharing a methodology and framework with practical analysis.",
+    });
+
+    expect(out.tone).toBe("professional");
   });
 });

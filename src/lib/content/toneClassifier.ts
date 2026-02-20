@@ -21,28 +21,54 @@ export type ToneAlignmentResult = {
   fixes: Array<{ issue: string; fix: string }>;
 };
 
-const TONE_PATTERNS: Record<ToneLabel, RegExp[]> = {
+type TonePattern = {
+  pattern: RegExp;
+  weight: number;
+};
+
+const TONE_PATTERNS: Record<ToneLabel, TonePattern[]> = {
   professional: [
-    /\bstrategy\b/g,
-    /\bframework\b/g,
-    /\banalysis\b/g,
-    /\bapproach\b/g,
-    /\boptimi[sz]e\b/g,
+    { pattern: /\bstrategy\b/g, weight: 1.2 },
+    { pattern: /\bframework\b/g, weight: 1.2 },
+    { pattern: /\banalysis\b/g, weight: 1.2 },
+    { pattern: /\bapproach\b/g, weight: 1.0 },
+    { pattern: /\boptimi[sz]e\b/g, weight: 1.0 },
+    { pattern: /\broadmap\b/g, weight: 1.1 },
+    { pattern: /\bmethodology\b/g, weight: 1.2 },
   ],
   friendly: [
-    /\bthanks\b/g,
-    /\bhappy\b/g,
-    /\bappreciate\b/g,
-    /\bcurious\b/g,
-    /\bwould love\b/g,
+    { pattern: /\bthanks\b/g, weight: 1.0 },
+    { pattern: /\bhappy\b/g, weight: 0.9 },
+    { pattern: /\bappreciate\b/g, weight: 1.0 },
+    { pattern: /\bcurious\b/g, weight: 0.9 },
+    { pattern: /\bwould love\b/g, weight: 1.1 },
+    { pattern: /\bhelpful\b/g, weight: 1.1 },
+    { pattern: /\bfeel free\b/g, weight: 0.9 },
   ],
-  casual: [/\bhey\b/g, /\bgonna\b/g, /\bpretty\b/g, /\bkinda\b/g, /\blol\b/g],
+  casual: [
+    { pattern: /\bhey\b/g, weight: 1.0 },
+    { pattern: /\bgonna\b/g, weight: 1.2 },
+    { pattern: /\bpretty\b/g, weight: 0.7 },
+    { pattern: /\bkinda\b/g, weight: 1.1 },
+    { pattern: /\blol\b/g, weight: 1.2 },
+    { pattern: /\bawesome\b/g, weight: 0.7 },
+  ],
   direct: [
-    /\bhere is\b/g,
-    /\bdo this\b/g,
-    /\bfirst\b/g,
-    /\bnext\b/g,
-    /\bavoid\b/g,
+    { pattern: /\bhere is\b/g, weight: 1.0 },
+    { pattern: /\bdo this\b/g, weight: 1.3 },
+    {
+      pattern:
+        /\bfirst(?:\s+(?:do|start|step|identify|define|focus|try)|\s*[,:\-])/g,
+      weight: 1.2,
+    },
+    {
+      pattern:
+        /\bnext(?:\s+(?:do|step|identify|define|focus|try)|\s*[,:\-])/g,
+      weight: 1.2,
+    },
+    { pattern: /\bavoid\b/g, weight: 0.9 },
+    { pattern: /\bstart with\b/g, weight: 1.1 },
+    { pattern: /\bstep\s+\d+\b/g, weight: 1.3 },
   ],
   neutral: [],
 };
@@ -54,18 +80,26 @@ const TONE_SYNONYMS: Record<string, ToneLabel> = {
   friendly: "friendly",
   warm: "friendly",
   conversational: "friendly",
+  helpful: "friendly",
+  supportive: "friendly",
+  empathetic: "friendly",
+  empathic: "friendly",
+  approachable: "friendly",
   casual: "casual",
   relaxed: "casual",
+  informal: "casual",
   direct: "direct",
   concise: "direct",
+  actionable: "direct",
+  blunt: "direct",
   neutral: "neutral",
   balanced: "neutral",
 };
 
-function countMatches(text: string, patterns: RegExp[]) {
+function countMatches(text: string, patterns: TonePattern[]) {
   return patterns.reduce((acc, pattern) => {
-    const matches = text.match(pattern);
-    return acc + (matches?.length ?? 0);
+    const matches = text.match(pattern.pattern);
+    return acc + (matches?.length ?? 0) * pattern.weight;
   }, 0);
 }
 
@@ -78,7 +112,37 @@ export function normalizeExpectedTone(
 ): ToneLabel {
   if (!input) return "neutral";
   const key = input.trim().toLowerCase();
-  return TONE_SYNONYMS[key] ?? "neutral";
+  const direct = TONE_SYNONYMS[key];
+  if (direct) return direct;
+
+  const tokens = key.split(/[^a-z]+/).filter((token) => token.length >= 3);
+  if (tokens.length === 0) return "neutral";
+
+  const counts: Record<ToneLabel, number> = {
+    professional: 0,
+    friendly: 0,
+    casual: 0,
+    direct: 0,
+    neutral: 0,
+  };
+  const firstSeen: Partial<Record<ToneLabel, number>> = {};
+  tokens.forEach((token, idx) => {
+    const mapped = TONE_SYNONYMS[token];
+    if (!mapped) return;
+    counts[mapped] += 1;
+    if (firstSeen[mapped] === undefined) firstSeen[mapped] = idx;
+  });
+
+  const ranked = (Object.entries(counts) as Array<[ToneLabel, number]>)
+    .filter(([tone, count]) => count > 0 && tone !== "neutral")
+    .sort((a, b) => {
+      if (b[1] !== a[1]) return b[1] - a[1];
+      const aFirst = firstSeen[a[0]] ?? Number.MAX_SAFE_INTEGER;
+      const bFirst = firstSeen[b[0]] ?? Number.MAX_SAFE_INTEGER;
+      return aFirst - bFirst;
+    });
+
+  return ranked[0]?.[0] ?? "neutral";
 }
 
 export function classifyTone(input: {

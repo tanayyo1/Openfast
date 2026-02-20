@@ -38,18 +38,39 @@ function currentPeriodEndFallback(): Date {
 async function resolveWorkspaceId(
   metadata: Record<string, unknown> | null | undefined,
   providerSubscriptionId: string | null | undefined,
-): Promise<string | null> {
+): Promise<{
+  workspaceId: string | null;
+  skipped: "no_workspace_id" | "ambiguous_provider_subscription";
+}> {
   const fromMeta = metadata?.workspaceId;
-  if (typeof fromMeta === "string" && fromMeta) return fromMeta;
+  if (typeof fromMeta === "string" && fromMeta) {
+    return { workspaceId: fromMeta, skipped: "no_workspace_id" };
+  }
 
   if (providerSubscriptionId) {
-    const existing = await prisma.subscription.findFirst({
+    const matches = await prisma.subscription.findMany({
       where: { provider: "polar", providerSubscriptionId },
       select: { workspaceId: true },
+      take: 2,
     });
-    if (existing) return existing.workspaceId;
+    if (matches.length === 1) {
+      return {
+        workspaceId: matches[0].workspaceId,
+        skipped: "no_workspace_id",
+      };
+    }
+    if (matches.length > 1) {
+      console.error("[polar-webhook] ambiguous_provider_subscription", {
+        providerSubscriptionId,
+        matches: matches.length,
+      });
+      return {
+        workspaceId: null,
+        skipped: "ambiguous_provider_subscription",
+      };
+    }
   }
-  return null;
+  return { workspaceId: null, skipped: "no_workspace_id" };
 }
 
 function resolvePlan(
@@ -107,10 +128,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    const workspaceId = await resolveWorkspaceId(metadata, null);
-    if (!workspaceId) {
-      return NextResponse.json({ ok: true, skipped: "no_workspace_id" });
+    const workspace = await resolveWorkspaceId(metadata, null);
+    if (!workspace.workspaceId) {
+      return NextResponse.json({ ok: true, skipped: workspace.skipped });
     }
+    const workspaceId = workspace.workspaceId;
 
     const plan = resolvePlan(data.productId as string | null, metadata);
     const periodEnd = currentPeriodEndFallback();
@@ -152,13 +174,14 @@ export async function POST(req: Request) {
     event.type === "subscription.updated" ||
     event.type === "subscription.active"
   ) {
-    const workspaceId = await resolveWorkspaceId(
+    const workspace = await resolveWorkspaceId(
       metadata,
       data.id as string | null,
     );
-    if (!workspaceId) {
-      return NextResponse.json({ ok: true, skipped: "no_workspace_id" });
+    if (!workspace.workspaceId) {
+      return NextResponse.json({ ok: true, skipped: workspace.skipped });
     }
+    const workspaceId = workspace.workspaceId;
 
     const nextStatus = safeStatus(data.status as string | undefined);
     const periodStart = data.currentPeriodStart
@@ -205,13 +228,14 @@ export async function POST(req: Request) {
     event.type === "subscription.canceled" ||
     event.type === "subscription.revoked"
   ) {
-    const workspaceId = await resolveWorkspaceId(
+    const workspace = await resolveWorkspaceId(
       metadata,
       data.id as string | null,
     );
-    if (!workspaceId) {
-      return NextResponse.json({ ok: true, skipped: "no_workspace_id" });
+    if (!workspace.workspaceId) {
+      return NextResponse.json({ ok: true, skipped: workspace.skipped });
     }
+    const workspaceId = workspace.workspaceId;
 
     await prisma.subscription.updateMany({
       where: { workspaceId },

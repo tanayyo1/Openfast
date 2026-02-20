@@ -135,27 +135,28 @@ export async function runBacklogCheck() {
     1000,
   );
 
-  const queues = [
-    { name: "reddit.publish", queue: getPublishQueue() },
-    { name: "content.generate", queue: getContentGenerateQueue() },
-    { name: "reddit.metrics_fetch", queue: getMetricsFetchQueue() },
-    { name: "subreddit.ingest", queue: getSubredditIngestQueue() },
+  const queueResolvers = [
+    { name: "reddit.publish", getQueue: getPublishQueue },
+    { name: "content.generate", getQueue: getContentGenerateQueue },
+    { name: "reddit.metrics_fetch", getQueue: getMetricsFetchQueue },
+    { name: "subreddit.ingest", getQueue: getSubredditIngestQueue },
     {
       name: "subreddit.compute_time_windows",
-      queue: getSubredditComputeTimeWindowsQueue(),
+      getQueue: getSubredditComputeTimeWindowsQueue,
     },
     {
       name: "recommendations.generate",
-      queue: getRecommendationsGenerateQueue(),
+      getQueue: getRecommendationsGenerateQueue,
     },
-    { name: "roadmap.generate", queue: getRoadmapGenerateQueue() },
-    { name: "risk.account_health", queue: getRiskAccountHealthQueue() },
-    { name: "risk.visibility_check", queue: getRiskVisibilityCheckQueue() },
-    { name: "dead.letter", queue: getDeadLetterQueue() },
+    { name: "roadmap.generate", getQueue: getRoadmapGenerateQueue },
+    { name: "risk.account_health", getQueue: getRiskAccountHealthQueue },
+    { name: "risk.visibility_check", getQueue: getRiskVisibilityCheckQueue },
+    { name: "dead.letter", getQueue: getDeadLetterQueue },
   ];
 
-  for (const { name, queue } of queues) {
+  for (const { name, getQueue } of queueResolvers) {
     try {
+      const queue = getQueue();
       const counts = await queue.getJobCounts("waiting", "failed");
       if (counts.waiting >= backlogThreshold) {
         await emitOpsAlert({
@@ -184,6 +185,24 @@ export async function runBacklogCheck() {
         },
       }).catch(() => undefined);
     }
+  }
+}
+
+async function runCronTask(taskName: string, fn: () => Promise<void>) {
+  try {
+    await fn();
+    return true;
+  } catch (err: unknown) {
+    await emitOpsAlert({
+      type: "cron.task_failed",
+      level: "error",
+      message: `Cron task failed: ${taskName}`,
+      details: {
+        task: taskName,
+        error: err instanceof Error ? err.message : String(err),
+      },
+    }).catch(() => undefined);
+    return false;
   }
 }
 
@@ -216,30 +235,46 @@ export function startCronScheduler() {
     const metricsBucket = `${day}:${hour}:${Math.floor(minute / 30)}`;
 
     if (state.lastMetricsBucket !== metricsBucket) {
-      state.lastMetricsBucket = metricsBucket;
-      await runMetricsRefresh(now);
+      const ok = await runCronTask("metrics_refresh", () =>
+        runMetricsRefresh(now),
+      );
+      if (ok) {
+        state.lastMetricsBucket = metricsBucket;
+      }
     }
 
     if (hour === 1 && minute < 10 && state.lastIngestDay !== day) {
-      state.lastIngestDay = day;
-      await runDailyIngest(now);
+      const ok = await runCronTask("daily_ingest", () => runDailyIngest(now));
+      if (ok) {
+        state.lastIngestDay = day;
+      }
     }
 
     if (hour === 2 && minute < 10 && state.lastWindowsDay !== day) {
-      state.lastWindowsDay = day;
-      await runDailyTimeWindows(now);
+      const ok = await runCronTask("daily_time_windows", () =>
+        runDailyTimeWindows(now),
+      );
+      if (ok) {
+        state.lastWindowsDay = day;
+      }
     }
 
     if (hour === 3 && minute < 10 && state.lastReminderDay !== day) {
-      state.lastReminderDay = day;
-      await runDailyHealthAndReminders(now);
+      const ok = await runCronTask("daily_health_and_reminders", () =>
+        runDailyHealthAndReminders(now),
+      );
+      if (ok) {
+        state.lastReminderDay = day;
+      }
     }
 
     // Check queue backlogs every 10 minutes.
     const backlogBucket = `${day}:${hour}:${Math.floor(minute / 10)}`;
     if (state.lastBacklogBucket !== backlogBucket) {
-      state.lastBacklogBucket = backlogBucket;
-      await runBacklogCheck();
+      const ok = await runCronTask("backlog_check", runBacklogCheck);
+      if (ok) {
+        state.lastBacklogBucket = backlogBucket;
+      }
     }
   };
 

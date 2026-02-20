@@ -46,6 +46,9 @@ export default function DraftPage() {
     try {
       const newId = rewriteDraft({
         draftId,
+        mode: opts.mode,
+        tone: opts.tone,
+        length: opts.length,
         variantCount: opts.variantCount,
       });
       if (!newId) {

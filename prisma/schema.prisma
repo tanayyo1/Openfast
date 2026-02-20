@@ -59,6 +59,7 @@ model Workspace {
   healthSnapshots AccountHealthSnapshot[]
   visibilityChecks VisibilityCheck[]
   redditAdCampaigns RedditAdCampaign[]
+  landingPageDrafts LandingPageDraft[]
 
   @@map("workspaces")
 }
@@ -195,6 +196,7 @@ model Project {
   recommendations ProjectSubredditRecommendation[]
   painPoints      ProjectPainPoint[]
   redditAdCampaigns RedditAdCampaign[]
+  landingPageDrafts LandingPageDraft[]
 
   @@index([workspaceId])
   @@map("projects")
@@ -538,6 +540,35 @@ model RedditAdCampaign {
   @@index([workspaceId, status, startAt])
   @@unique([workspaceId, externalCampaignId], map: "reddit_ad_campaigns_workspace_id_external_campaign_id_key")
   @@map("reddit_ad_campaigns")
+}
+
+model LandingPageDraft {
+  id             String   @id @default(cuid())
+  workspaceId    String   @map("workspace_id")
+  projectId      String   @map("project_id")
+  name           String
+  primaryKeyword String   @map("primary_keyword")
+  slug           String
+  audience       String
+  tone           String
+  ctaText        String   @map("cta_text")
+  headline       String
+  subheadline    String   @db.Text
+  sections       Json
+  metaTitle      String?  @map("meta_title")
+  metaDescription String? @map("meta_description")
+  source         String   @default("fallback")
+  archivedAt     DateTime? @map("archived_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, projectId, createdAt])
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, slug])
+  @@map("landing_page_drafts")
 }
 
 model PublishedItem {

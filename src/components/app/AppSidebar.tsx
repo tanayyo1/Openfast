@@ -6,6 +6,7 @@ const navItems = [
   { label: "Onboarding", href: "/onboarding" },
   { label: "Roadmaps", href: "/roadmaps" },
   { label: "Content", href: "/content" },
+  { label: "Landing Pages", href: "/landing-pages" },
   { label: "Approvals", href: "/approvals" },
   { label: "Scheduling", href: "/scheduling" },
   { label: "Reddit Ads", href: "/ads" },

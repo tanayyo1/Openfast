@@ -2,7 +2,7 @@
 
 > **Last Updated**: 2026-02-20
 > **Target**: `mediafast_clone_system_design_report.md`
-> **Current Estimate**: ~99% of overall parity complete (MVP complete; Tier 2 complete; Tier 3 largely complete; Tier 4 backlog remains)
+> **Current Estimate**: ~99% of overall parity complete (MVP complete; Tier 2 complete; Tier 3 complete for planned scope; Tier 4 backlog remains)
 
 ---
 
@@ -189,7 +189,7 @@
 - RED-57: Demand scorecard (DONE - project demand scorecard API from recommendation + pain-point signals + onboarding guide)
 - RED-59: Comment automation (DONE - backend opportunity feed + create comment task/draft automation APIs + tests; additional UI polish can continue in Tier 3)
 - RED-60: Mobile preview (DONE - draft editor now includes a Reddit-style mobile preview card for post/comment drafts, with component tests)
-- RED-61: Brand monitoring
+- RED-61: Brand monitoring (DONE - `GET /api/projects/:id/brand-monitoring` with workspace + entitlement guardrails, keyword/sentiment/urgency scoring from thread candidates, and app surface at `/brand-monitoring`)
 
 ### Tier 4 - Post-MVP (Backlog, Low priority)
 
@@ -215,4 +215,4 @@
 - [x] Risk checks block unsafe posting attempts.
 - [x] Free tools endpoints are live and rate-limited.
 
-> **All MVP checkboxes complete as of 2026-02-20.** Remaining work is Tier 3-4 backlog (primarily RED-61 + Tier 4 items) and ongoing hardening/perf polish.
+> **All MVP checkboxes complete as of 2026-02-20.** Remaining work is Tier 4 backlog and ongoing hardening/perf polish.

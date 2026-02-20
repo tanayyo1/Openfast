@@ -106,6 +106,12 @@ export default function ProjectDetailPage() {
           >
             Analytics
           </Link>
+          <Link
+            href={`/brand-monitoring?projectId=${encodeURIComponent(project.id)}`}
+            className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
+          >
+            Brand monitoring
+          </Link>
         </div>
       </div>
 

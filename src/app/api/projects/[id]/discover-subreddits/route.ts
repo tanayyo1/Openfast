@@ -13,6 +13,8 @@ const querySchema = z.object({
   minSubscribers: z.coerce.number().int().min(0).default(1000),
 });
 
+const MAX_QUEUED_INGEST_NAMES = 10;
+
 function authError(err: unknown) {
   const code = err instanceof Error ? err.message : "UNAUTHORIZED";
   const status = code === "WORKSPACE_REQUIRED" ? 400 : 401;
@@ -27,6 +29,12 @@ function tokenizeSearch(input: string | undefined) {
     .map((t) => t.trim())
     .filter((t) => t.length >= 2)
     .slice(0, 8);
+}
+
+function normalizeSubredditName(input: string) {
+  const normalized = input.trim().toLowerCase().replace(/^r\//, "");
+  if (!/^[a-z0-9_]{3,21}$/.test(normalized)) return null;
+  return normalized;
 }
 
 export async function GET(req: Request, ctx: { params: { id: string } }) {
@@ -87,13 +95,17 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
   const tokens = tokenizeSearch(parsed.data.q);
   const searchConditions: Array<Record<string, unknown>> = [];
   const candidateNames = Array.from(
-    new Set([
-      ...candidateSubredditNamesForProject({
-        projectName: project.name,
-        niche: project.niche,
-      }),
-      ...tokens,
-    ]),
+    new Set(
+      [
+        ...candidateSubredditNamesForProject({
+          projectName: project.name,
+          niche: project.niche,
+        }),
+        ...tokens,
+      ]
+        .map((name) => normalizeSubredditName(name))
+        .filter((name): name is string => Boolean(name)),
+    ),
   );
   if (candidateNames.length > 0) {
     searchConditions.push({ name: { in: candidateNames } });
@@ -140,10 +152,12 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
     take: 60,
   });
 
-  const foundNames = new Set(discovered.map((sub) => sub.name.toLowerCase()));
+  const foundNames = new Set(
+    discovered.map((sub) => normalizeSubredditName(sub.name) ?? sub.name),
+  );
   const queuedIngestNames = candidateNames.filter(
     (name) => !foundNames.has(name),
-  );
+  ).slice(0, MAX_QUEUED_INGEST_NAMES);
   await Promise.all(
     queuedIngestNames.map((name) =>
       enqueueSubredditIngestJob({ subredditName: name }).catch(() => undefined),

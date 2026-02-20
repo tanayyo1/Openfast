@@ -174,4 +174,69 @@ describe("project subreddit discovery route (RED-62)", () => {
       subredditName: "saas",
     });
   });
+
+  test("does not queue invalid subreddit tokens from query text", async () => {
+    mockedPrisma.project.findFirst.mockResolvedValueOnce({
+      id: "p_1",
+      name: "Acme SaaS",
+      niche: "saas marketing",
+      goals: { primary: "traffic" },
+      constraints: null,
+    });
+
+    mockedPrisma.subredditCatalog.findMany.mockResolvedValueOnce([
+      {
+        id: "sub_1",
+        name: "startups",
+        title: "Startups",
+        description: "startup growth tactics",
+        subscribers: 1000000,
+        activeUsers: 15000,
+        avgPostsPerDay: 90,
+        avgCommentsPerPost: 20,
+        policy: {
+          promoAllowed: "CONTEXTUAL_ONLY",
+          linkPolicy: "DISALLOWED_IN_POSTS",
+          selfPromoAllowed: false,
+          affiliateAllowed: false,
+        },
+        timeSlots: [
+          { score: 0.82, dayOfWeek: 2, hourUtc: 14, sampleSize: 120 },
+        ],
+      },
+      {
+        id: "sub_2",
+        name: "saas",
+        title: "SaaS",
+        description: "software businesses",
+        subscribers: 150000,
+        activeUsers: 5000,
+        avgPostsPerDay: 40,
+        avgCommentsPerPost: 8,
+        policy: {
+          promoAllowed: "ALLOWED",
+          linkPolicy: "ALLOWED",
+          selfPromoAllowed: true,
+          affiliateAllowed: true,
+        },
+        timeSlots: [
+          { score: 0.61, dayOfWeek: 3, hourUtc: 16, sampleSize: 80 },
+        ],
+      },
+    ]);
+
+    const res = await discoverSubreddits(
+      new Request(
+        "http://test.local/api/projects/p_1/discover-subreddits?q=ai c++ !@#&limit=5",
+      ),
+      { params: { id: "p_1" } },
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as { queuedIngestNames: string[] };
+    expect(json.queuedIngestNames).toEqual([]);
+    expect(mockedQueue.enqueueSubredditIngestJob).not.toHaveBeenCalledWith({
+      subredditName: "ai",
+    });
+  });
 });

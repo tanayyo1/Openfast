@@ -1,6 +1,7 @@
 import { CandidateStatus, RecommendationStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getWorkspaceEntitlements } from "@/lib/billing/quota";
 import { prisma } from "@/lib/prisma";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 
@@ -33,6 +34,16 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
     session = await requireWorkspaceSession();
   } catch (err) {
     return authError(err);
+  }
+  const entitlements = await getWorkspaceEntitlements(session.workspaceId);
+  if (!entitlements.hasSmartFinder) {
+    return NextResponse.json(
+      {
+        error: "Smart Finder is available on paid plans",
+        code: "SMART_FINDER_REQUIRED",
+      },
+      { status: 403 },
+    );
   }
 
   const parsed = querySchema.safeParse(

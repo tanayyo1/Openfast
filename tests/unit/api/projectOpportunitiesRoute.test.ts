@@ -2,6 +2,10 @@ jest.mock("@/lib/server/auth-guards", () => ({
   requireWorkspaceSession: jest.fn(),
 }));
 
+jest.mock("@/lib/billing/quota", () => ({
+  getWorkspaceEntitlements: jest.fn(),
+}));
+
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     project: { findFirst: jest.fn() },
@@ -14,6 +18,9 @@ import { GET as listProjectOpportunities } from "@/app/api/projects/[id]/opportu
 
 const mockedGuards = jest.requireMock("@/lib/server/auth-guards") as {
   requireWorkspaceSession: jest.Mock;
+};
+const mockedQuota = jest.requireMock("@/lib/billing/quota") as {
+  getWorkspaceEntitlements: jest.Mock;
 };
 const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
   project: { findFirst: jest.Mock };
@@ -32,6 +39,16 @@ describe("project opportunities route (RED-59)", () => {
     mockedGuards.requireWorkspaceSession.mockResolvedValue({
       user: { id: "u_1" },
       workspaceId: "ws_1",
+    });
+    mockedQuota.getWorkspaceEntitlements.mockResolvedValue({
+      maxProjects: 5,
+      maxRedditAccounts: 5,
+      maxScheduledPosts: 100,
+      maxDraftsPerMonth: 500,
+      roadmapDays: 30,
+      hasAdvancedAnalytics: true,
+      hasSmartFinder: true,
+      hasTeamFeatures: true,
     });
   });
 
@@ -61,6 +78,29 @@ describe("project opportunities route (RED-59)", () => {
     expect(res.status).toBe(404);
     const json = (await readJson(res)) as { code: string };
     expect(json.code).toBe("PROJECT_NOT_FOUND");
+  });
+
+  test("returns 403 when smart finder entitlement is missing", async () => {
+    mockedQuota.getWorkspaceEntitlements.mockResolvedValueOnce({
+      maxProjects: 1,
+      maxRedditAccounts: 1,
+      maxScheduledPosts: 10,
+      maxDraftsPerMonth: 10,
+      roadmapDays: 7,
+      hasAdvancedAnalytics: false,
+      hasSmartFinder: false,
+      hasTeamFeatures: false,
+    });
+
+    const res = await listProjectOpportunities(
+      new Request("http://test.local/api/projects/p_1/opportunities"),
+      { params: { id: "p_1" } },
+    );
+
+    expect(res.status).toBe(403);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("SMART_FINDER_REQUIRED");
+    expect(mockedPrisma.project.findFirst).not.toHaveBeenCalled();
   });
 
   test("returns empty list when project has no selected/candidate recommendations", async () => {

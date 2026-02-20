@@ -58,6 +58,7 @@ model Workspace {
   painPoints      ProjectPainPoint[]
   healthSnapshots AccountHealthSnapshot[]
   visibilityChecks VisibilityCheck[]
+  redditAdCampaigns RedditAdCampaign[]
 
   @@map("workspaces")
 }
@@ -193,6 +194,7 @@ model Project {
   Draft       Draft[]
   recommendations ProjectSubredditRecommendation[]
   painPoints      ProjectPainPoint[]
+  redditAdCampaigns RedditAdCampaign[]
 
   @@index([workspaceId])
   @@map("projects")
@@ -227,6 +229,7 @@ model RedditAccount {
   publishedItems PublishedItem[]
   healthSnapshots AccountHealthSnapshot[]
   visibilityChecks VisibilityCheck[]
+  redditAdCampaigns RedditAdCampaign[]
 
   @@index([workspaceId])
   @@unique([workspaceId, redditUsername])
@@ -494,6 +497,47 @@ model ScheduledPost {
   @@index([workspaceId, scheduledAt])
   @@index([redditAccountId, scheduledAt])
   @@map("scheduled_posts")
+}
+
+model RedditAdCampaign {
+  id              String                @id @default(cuid())
+  workspaceId     String                @map("workspace_id")
+  projectId       String                @map("project_id")
+  redditAccountId String?               @map("reddit_account_id")
+
+  name              String
+  objective         RedditAdObjective     @default(TRAFFIC)
+  status            RedditAdCampaignStatus @default(DRAFT)
+  dailyBudgetCents  Int                  @map("daily_budget_cents")
+  lifetimeBudgetCents Int?               @map("lifetime_budget_cents")
+  startAt           DateTime?            @map("start_at")
+  endAt             DateTime?            @map("end_at")
+  targetSubreddits  String[]             @default([]) @map("target_subreddits")
+  targetCountries   String[]             @default([]) @map("target_countries")
+  interests         Json?
+
+  headline       String?
+  body           String?   @db.Text
+  destinationUrl String?   @map("destination_url")
+  ctaText        String?   @map("cta_text")
+
+  externalCampaignId String?   @map("external_campaign_id")
+  syncError          String?   @map("sync_error")
+  launchedAt         DateTime? @map("launched_at")
+  archivedAt         DateTime? @map("archived_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  redditAccount RedditAccount? @relation(fields: [redditAccountId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, projectId, status, createdAt])
+  @@index([workspaceId, status, startAt])
+  @@unique([workspaceId, externalCampaignId], map: "reddit_ad_campaigns_workspace_id_external_campaign_id_key")
+  @@map("reddit_ad_campaigns")
 }
 
 model PublishedItem {
@@ -931,6 +975,22 @@ enum RecommendationStatus {
   CANDIDATE
   SELECTED
   DISMISSED
+}
+
+enum RedditAdObjective {
+  AWARENESS
+  TRAFFIC
+  ENGAGEMENT
+  LEAD_GEN
+  CONVERSIONS
+}
+
+enum RedditAdCampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
 }
 
 enum ConversionType {

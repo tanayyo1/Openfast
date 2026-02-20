@@ -8,18 +8,29 @@ jest.mock("@/lib/ops/alerts", () => ({
 
 const mockGetJobCounts = jest.fn();
 const mockQueue = { getJobCounts: mockGetJobCounts };
+const mockGetPublishQueue = jest.fn(() => mockQueue);
+const mockGetContentGenerateQueue = jest.fn(() => mockQueue);
+const mockGetMetricsFetchQueue = jest.fn(() => mockQueue);
+const mockGetSubredditIngestQueue = jest.fn(() => mockQueue);
+const mockGetSubredditComputeTimeWindowsQueue = jest.fn(() => mockQueue);
+const mockGetRecommendationsGenerateQueue = jest.fn(() => mockQueue);
+const mockGetRoadmapGenerateQueue = jest.fn(() => mockQueue);
+const mockGetRiskAccountHealthQueue = jest.fn(() => mockQueue);
+const mockGetRiskVisibilityCheckQueue = jest.fn(() => mockQueue);
+const mockGetDeadLetterQueue = jest.fn(() => mockQueue);
 
 jest.mock("@/lib/queue/queues", () => ({
-  getPublishQueue: () => mockQueue,
-  getContentGenerateQueue: () => mockQueue,
-  getMetricsFetchQueue: () => mockQueue,
-  getSubredditIngestQueue: () => mockQueue,
-  getSubredditComputeTimeWindowsQueue: () => mockQueue,
-  getRecommendationsGenerateQueue: () => mockQueue,
-  getRoadmapGenerateQueue: () => mockQueue,
-  getRiskAccountHealthQueue: () => mockQueue,
-  getRiskVisibilityCheckQueue: () => mockQueue,
-  getDeadLetterQueue: () => mockQueue,
+  getPublishQueue: () => mockGetPublishQueue(),
+  getContentGenerateQueue: () => mockGetContentGenerateQueue(),
+  getMetricsFetchQueue: () => mockGetMetricsFetchQueue(),
+  getSubredditIngestQueue: () => mockGetSubredditIngestQueue(),
+  getSubredditComputeTimeWindowsQueue: () =>
+    mockGetSubredditComputeTimeWindowsQueue(),
+  getRecommendationsGenerateQueue: () => mockGetRecommendationsGenerateQueue(),
+  getRoadmapGenerateQueue: () => mockGetRoadmapGenerateQueue(),
+  getRiskAccountHealthQueue: () => mockGetRiskAccountHealthQueue(),
+  getRiskVisibilityCheckQueue: () => mockGetRiskVisibilityCheckQueue(),
+  getDeadLetterQueue: () => mockGetDeadLetterQueue(),
 }));
 
 import { parsePositiveInt, runBacklogCheck } from "@/workers/cronScheduler";
@@ -64,6 +75,16 @@ describe("runBacklogCheck", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env.QUEUE_BACKLOG_ALERT_THRESHOLD;
+    mockGetPublishQueue.mockImplementation(() => mockQueue);
+    mockGetContentGenerateQueue.mockImplementation(() => mockQueue);
+    mockGetMetricsFetchQueue.mockImplementation(() => mockQueue);
+    mockGetSubredditIngestQueue.mockImplementation(() => mockQueue);
+    mockGetSubredditComputeTimeWindowsQueue.mockImplementation(() => mockQueue);
+    mockGetRecommendationsGenerateQueue.mockImplementation(() => mockQueue);
+    mockGetRoadmapGenerateQueue.mockImplementation(() => mockQueue);
+    mockGetRiskAccountHealthQueue.mockImplementation(() => mockQueue);
+    mockGetRiskVisibilityCheckQueue.mockImplementation(() => mockQueue);
+    mockGetDeadLetterQueue.mockImplementation(() => mockQueue);
   });
 
   afterEach(() => {
@@ -156,5 +177,23 @@ describe("runBacklogCheck", () => {
       level: "error",
     });
     expect(failedChecks[0][0].details.error).toBe("Redis connection lost");
+  });
+
+  test("continues checks when queue getter throws before getJobCounts", async () => {
+    mockGetJobCounts.mockResolvedValue({ waiting: 0, failed: 0 });
+    mockGetRecommendationsGenerateQueue.mockImplementation(() => {
+      throw new Error("REDIS_NOT_CONFIGURED");
+    });
+
+    await runBacklogCheck();
+
+    // One queue getter failed, other 9 queues were queried successfully.
+    expect(mockGetJobCounts).toHaveBeenCalledTimes(9);
+    const failedChecks = mockEmitOpsAlert.mock.calls.filter(
+      (c: unknown[]) =>
+        (c[0] as { type: string }).type === "queue.backlog_check_failed",
+    );
+    expect(failedChecks.length).toBe(1);
+    expect(failedChecks[0][0].details.error).toBe("REDIS_NOT_CONFIGURED");
   });
 });

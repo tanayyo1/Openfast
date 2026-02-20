@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { runWorkspaceDailyRollups } from "@/lib/analytics/rollups";
 import {
   enqueueMetricsFetchJob,
   enqueueRiskAccountHealthJob,
@@ -210,6 +211,7 @@ type CronState = {
   lastIngestDay: string | null;
   lastWindowsDay: string | null;
   lastReminderDay: string | null;
+  lastAnalyticsRollupDay: string | null;
   lastMetricsBucket: string | null;
   lastBacklogBucket: string | null;
 };
@@ -223,6 +225,7 @@ export function startCronScheduler() {
     lastIngestDay: null,
     lastWindowsDay: null,
     lastReminderDay: null,
+    lastAnalyticsRollupDay: null,
     lastMetricsBucket: null,
     lastBacklogBucket: null,
   };
@@ -265,6 +268,28 @@ export function startCronScheduler() {
       );
       if (ok) {
         state.lastReminderDay = day;
+      }
+    }
+
+    if (hour === 4 && minute < 15 && state.lastAnalyticsRollupDay !== day) {
+      const ok = await runCronTask("daily_analytics_rollups", async () => {
+        const out = await runWorkspaceDailyRollups({ now });
+        if (out.failedWorkspaces.length > 0) {
+          await emitOpsAlert({
+            type: "analytics.rollup_partial_failure",
+            level: "warn",
+            message: "Daily analytics rollups completed with workspace failures",
+            details: {
+              forDate: out.forDate,
+              scannedWorkspaces: out.scannedWorkspaces,
+              persisted: out.persisted,
+              failedWorkspaceIds: out.failedWorkspaces,
+            },
+          });
+        }
+      });
+      if (ok) {
+        state.lastAnalyticsRollupDay = day;
       }
     }
 

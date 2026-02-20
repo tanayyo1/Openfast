@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { MobilePreviewCard } from "./MobilePreviewCard";
 import { PostStructurePanel } from "./PostStructurePanel";
 
 type Variant = {
@@ -12,6 +13,8 @@ type Variant = {
 
 type DraftEditorProps = {
   variants: Variant[];
+  taskType?: "Post" | "Comment";
+  subreddit?: string;
   initialSelectedIndex?: number;
   initialTitle?: string;
   initialBody?: string;
@@ -24,6 +27,8 @@ type DraftEditorProps = {
 
 export function DraftEditor({
   variants,
+  taskType = "Post",
+  subreddit = "r/subreddit",
   initialSelectedIndex = 0,
   initialTitle,
   initialBody,
@@ -167,6 +172,13 @@ export function DraftEditor({
               </button>
             ) : null}
           </div>
+
+          <MobilePreviewCard
+            taskType={taskType}
+            subreddit={subreddit}
+            title={title}
+            body={body}
+          />
         </div>
       </div>
     </div>

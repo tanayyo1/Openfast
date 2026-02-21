@@ -11,6 +11,7 @@ jest.mock("@/lib/prisma", () => ({
     },
     draft: {
       count: jest.fn(),
+      findFirst: jest.fn(),
     },
     scheduledPost: {
       count: jest.fn(),
@@ -21,6 +22,9 @@ jest.mock("@/lib/prisma", () => ({
     roadmap: {
       count: jest.fn(),
       findFirst: jest.fn(),
+    },
+    redditAccount: {
+      count: jest.fn(),
     },
   },
 }));
@@ -39,10 +43,11 @@ const mockedPageAuth = jest.requireMock("@/lib/server/page-auth") as {
 };
 const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
   project: { count: jest.Mock; findMany: jest.Mock; findFirst: jest.Mock };
-  draft: { count: jest.Mock };
+  draft: { count: jest.Mock; findFirst: jest.Mock };
   scheduledPost: { count: jest.Mock };
   roadmapTask: { findMany: jest.Mock };
   roadmap: { count: jest.Mock; findFirst: jest.Mock };
+  redditAccount: { count: jest.Mock };
 };
 
 describe("dashboard/projects page data loaders", () => {
@@ -55,12 +60,14 @@ describe("dashboard/projects page data loaders", () => {
 
     mockedPrisma.project.count.mockResolvedValue(0);
     mockedPrisma.draft.count.mockResolvedValue(0);
+    mockedPrisma.draft.findFirst.mockResolvedValue(null);
     mockedPrisma.scheduledPost.count.mockResolvedValue(0);
     mockedPrisma.roadmapTask.findMany.mockResolvedValue([]);
     mockedPrisma.project.findMany.mockResolvedValue([]);
     mockedPrisma.project.findFirst.mockResolvedValue(null);
     mockedPrisma.roadmap.count.mockResolvedValue(0);
     mockedPrisma.roadmap.findFirst.mockResolvedValue(null);
+    mockedPrisma.redditAccount.count.mockResolvedValue(0);
   });
 
   test("loadDashboardPageData propagates auth errors", async () => {
@@ -69,6 +76,31 @@ describe("dashboard/projects page data loaders", () => {
     );
 
     await expect(loadDashboardPageData()).rejects.toThrow("REDIRECT:/login");
+  });
+
+  test("loadDashboardPageData returns continue action from live state", async () => {
+    mockedPrisma.project.count.mockResolvedValue(1);
+    mockedPrisma.redditAccount.count.mockResolvedValue(1);
+    mockedPrisma.roadmap.count.mockResolvedValue(1);
+    mockedPrisma.draft.count
+      .mockResolvedValueOnce(2) // draftCount
+      .mockResolvedValueOnce(0) // pendingApprovals
+      .mockResolvedValueOnce(1); // approvedDraftCount
+    mockedPrisma.scheduledPost.count
+      .mockResolvedValueOnce(0) // scheduledCount
+      .mockResolvedValueOnce(0); // approvedScheduledCount
+    mockedPrisma.roadmapTask.findMany.mockResolvedValue([]);
+    mockedPrisma.project.findFirst.mockResolvedValue({ id: "proj_1" });
+    mockedPrisma.draft.findFirst.mockResolvedValue({ id: "draft_1" });
+
+    const data = await loadDashboardPageData();
+
+    expect(data.continueAction).toEqual({
+      title: "Schedule approved drafts",
+      detail: "1 approved draft ready to schedule.",
+      href: "/scheduling/calendar",
+      action: "Open scheduling",
+    });
   });
 
   test("loadProjectsPageData returns empty array for empty workspace", async () => {

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BarMeter } from "@/components/app/charts/BarMeter";
+import { HealthAccountActions } from "@/components/app/health/HealthAccountActions";
 import { getHealthGuardrailThresholds } from "@/lib/health/guardrails";
 import { prisma } from "@/lib/prisma";
 import { requireWorkspaceSessionForPage } from "@/lib/server/page-auth";
@@ -50,24 +51,47 @@ export default async function HealthPage() {
       safetyTier: true,
       healthSnapshots: {
         orderBy: { capturedAt: "desc" },
-        take: 1,
+        take: 5,
         select: {
+          id: true,
           healthScore: true,
           capturedAt: true,
         },
       },
       visibilityChecks: {
         orderBy: { checkedAt: "desc" },
-        take: 1,
+        take: 5,
         select: {
+          id: true,
           result: true,
           checkedAt: true,
+          permalink: true,
+          visibleLoggedOut: true,
         },
       },
     },
   });
 
   const accountIds = accounts.map((a) => a.id);
+  const latestPublishedItems = await prisma.publishedItem.findMany({
+    where: {
+      workspaceId: session.workspaceId,
+      redditAccountId: { in: accountIds },
+    },
+    orderBy: [{ createdAt: "desc" }],
+    select: {
+      redditAccountId: true,
+      permalink: true,
+    },
+    take: Math.max(100, accountIds.length * 4),
+  });
+  const latestPermalinkByAccount = new Map<string, string>();
+  for (const item of latestPublishedItems) {
+    if (!latestPermalinkByAccount.has(item.redditAccountId)) {
+      latestPermalinkByAccount.set(item.redditAccountId, item.permalink);
+    }
+  }
+
   const publishedCommentsByAccount = await prisma.publishedItem.groupBy({
     by: ["redditAccountId"],
     where: {
@@ -87,7 +111,7 @@ export default async function HealthPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Account health
+            Account Health
           </p>
           <h1 className="mt-3 text-3xl font-semibold">
             Protect delivery and trust
@@ -269,20 +293,24 @@ export default async function HealthPage() {
                   </ul>
                 </div>
 
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
-                  >
-                    Run visibility check
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-full border border-border px-5 py-2 text-sm font-semibold"
-                  >
-                    View history
-                  </button>
-                </div>
+                <HealthAccountActions
+                  accountId={account.id}
+                  latestPermalink={
+                    latestPermalinkByAccount.get(account.id) ?? null
+                  }
+                  visibilityHistory={account.visibilityChecks.map((item) => ({
+                    id: item.id,
+                    result: item.result,
+                    checkedAt: item.checkedAt.toISOString(),
+                    permalink: item.permalink,
+                    visibleLoggedOut: item.visibleLoggedOut,
+                  }))}
+                  healthHistory={account.healthSnapshots.map((item) => ({
+                    id: item.id,
+                    healthScore: item.healthScore,
+                    capturedAt: item.capturedAt.toISOString(),
+                  }))}
+                />
               </div>
             );
           })

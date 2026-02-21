@@ -67,7 +67,8 @@ export default function ConnectRedditPage() {
           Connect your Reddit account
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Demo-only UI. Backend OAuth will replace this flow.
+          Use local workspace mode to simulate account linking while live OAuth
+          access is pending.
         </p>
       </div>
 
@@ -94,7 +95,7 @@ export default function ConnectRedditPage() {
 
           <div className="mt-6 rounded-2xl border border-border bg-background/70 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Connect (demo)
+              Local mode connect
             </p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
@@ -141,7 +142,7 @@ export default function ConnectRedditPage() {
           </div>
 
           <p className="mt-4 text-xs text-muted-foreground">
-            Tokens are never stored in logs. Demo mode stores no real
+            Tokens are never stored in logs. Local mode stores no real
             credentials.
           </p>
         </div>

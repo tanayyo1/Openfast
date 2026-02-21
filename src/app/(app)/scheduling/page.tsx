@@ -23,8 +23,42 @@ type DraftItem = {
   status: "DRAFT" | "REVIEWING" | "APPROVED" | "REJECTED" | "ARCHIVED";
 };
 
+type QueueHealthLevel = "OK" | "WARNING" | "CRITICAL";
+
+type QueueHealthSnapshot = {
+  generatedAt: string;
+  level: QueueHealthLevel;
+  reasons: string[];
+  isIdle: boolean;
+  counts: {
+    queued: number;
+    dueNow: number;
+    overdue: number;
+    publishing: number;
+    stalePublishing: number;
+    failedRetryable: number;
+    failedPermanent: number;
+  };
+  schedule: {
+    nextRunAt: string | null;
+    oldestDueAt: string | null;
+  };
+};
+
 function label(status: ScheduledStatus) {
   return status.toLowerCase().replaceAll("_", " ");
+}
+
+function healthLabel(level: QueueHealthLevel) {
+  if (level === "CRITICAL") return "Critical";
+  if (level === "WARNING") return "Needs attention";
+  return "Healthy";
+}
+
+function healthTextClass(level: QueueHealthLevel) {
+  if (level === "CRITICAL") return "text-destructive";
+  if (level === "WARNING") return "text-amber-600 dark:text-amber-400";
+  return "text-green-700 dark:text-green-400";
 }
 
 export default function SchedulingPage() {
@@ -32,6 +66,10 @@ export default function SchedulingPage() {
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<ScheduledPostItem[]>([]);
   const [approvedDrafts, setApprovedDrafts] = useState<number>(0);
+  const [queueHealth, setQueueHealth] = useState<QueueHealthSnapshot | null>(
+    null,
+  );
+  const [queueHealthError, setQueueHealthError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,11 +77,13 @@ export default function SchedulingPage() {
     async function load() {
       setLoading(true);
       setError(null);
+      setQueueHealthError(null);
 
       try {
-        const [scheduledRes, draftsRes] = await Promise.all([
+        const [scheduledRes, draftsRes, healthRes] = await Promise.all([
           fetch("/api/scheduled-posts?limit=100", { cache: "no-store" }),
           fetch("/api/drafts?status=APPROVED&limit=100", { cache: "no-store" }),
+          fetch("/api/scheduling/queue-health", { cache: "no-store" }),
         ]);
 
         const scheduledJson = (await scheduledRes.json()) as
@@ -51,6 +91,9 @@ export default function SchedulingPage() {
           | undefined;
         const draftsJson = (await draftsRes.json()) as
           | { items?: DraftItem[]; error?: string }
+          | undefined;
+        const healthJson = (await healthRes.json()) as
+          | { health?: QueueHealthSnapshot; error?: string }
           | undefined;
 
         if (!scheduledRes.ok) {
@@ -66,11 +109,18 @@ export default function SchedulingPage() {
 
         setItems(scheduledJson?.items ?? []);
         setApprovedDrafts((draftsJson?.items ?? []).length);
+        if (healthRes.ok) {
+          setQueueHealth(healthJson?.health ?? null);
+        } else {
+          setQueueHealth(null);
+          setQueueHealthError(healthJson?.error ?? "Queue health unavailable");
+        }
       } catch (err) {
         if (cancelled) return;
         const message =
           err instanceof Error ? err.message : "Failed to load scheduling";
         setError(message);
+        setQueueHealth(null);
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -185,6 +235,52 @@ export default function SchedulingPage() {
             </p>
           </div>
         ))}
+      </div>
+
+      <div className="rounded-[24px] border border-border bg-background/70 p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <p className="text-sm font-semibold">Queue health</p>
+          {!loading && queueHealth ? (
+            <p className={`text-sm font-semibold ${healthTextClass(queueHealth.level)}`}>
+              {healthLabel(queueHealth.level)}
+            </p>
+          ) : null}
+        </div>
+        {loading ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Checking queue health...
+          </p>
+        ) : queueHealthError ? (
+          <p className="mt-2 text-sm text-muted-foreground">{queueHealthError}</p>
+        ) : queueHealth ? (
+          <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+            <p>
+              Queued: {queueHealth.counts.queued} • Due now:{" "}
+              {queueHealth.counts.dueNow} • Overdue: {queueHealth.counts.overdue}
+            </p>
+            <p>
+              Publishing: {queueHealth.counts.publishing} • Stale publishing:{" "}
+              {queueHealth.counts.stalePublishing}
+            </p>
+            <p>
+              Failures: {queueHealth.counts.failedRetryable} retryable,{" "}
+              {queueHealth.counts.failedPermanent} permanent
+            </p>
+            {queueHealth.schedule.oldestDueAt ? (
+              <p>
+                Oldest overdue item:{" "}
+                {new Date(queueHealth.schedule.oldestDueAt).toLocaleString()}
+              </p>
+            ) : null}
+            {queueHealth.reasons.length > 0 ? (
+              <p>{queueHealth.reasons[0]}</p>
+            ) : queueHealth.isIdle ? (
+              <p>Queue is idle right now.</p>
+            ) : (
+              <p>No worker-risk signals detected.</p>
+            )}
+          </div>
+        ) : null}
       </div>
 
       <div className="rounded-[24px] border border-border bg-background/70 p-6">

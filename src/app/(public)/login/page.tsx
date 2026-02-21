@@ -8,7 +8,7 @@ import { useSupabase } from "@/components/providers/SupabaseProvider";
 import { toFriendlyAuthError } from "@/lib/supabase/auth-errors";
 
 function setDemoAuthCookie() {
-  // Demo-only auth gate for the MVP frontend. Backend auth will replace this.
+  // Local-mode auth gate for non-production development environments.
   document.cookie = `rf_demo_auth=1; Path=/; Max-Age=${60 * 60 * 24 * 30}`;
 }
 
@@ -142,7 +142,7 @@ export default function LoginPage() {
                 }}
                 className="w-full rounded-full border border-border bg-background px-4 py-3 text-sm font-semibold transition hover:bg-muted"
               >
-                Demo sign in
+                Continue in local mode
               </button>
             ) : null}
           </form>

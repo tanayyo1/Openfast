@@ -86,6 +86,40 @@
 - [x] Replaced `useDemoStore` on `/content`, `/content/drafts/[id]`, `/tasks/[id]`, and `/approvals` with live API-backed draft/task/approval lifecycle flows and state-guarded actions.
 - [x] Replaced scheduling demo flows with live API actions on `/scheduling`, `/scheduling/calendar`, and `/scheduling/queue` (schedule, cancel, delete, and live status summaries).
 
+### Recent Onboarding Progress Hardening (RED-86)
+
+- [x] Replaced static onboarding checklist with workspace-backed progress states (complete/current/blocked) on `/onboarding`.
+- [x] Added deterministic next-step CTA driven by live workspace data (projects, active Reddit accounts, active roadmaps).
+- [x] Added workspace-missing guard state to prevent confusing dead-end actions while membership sync is incomplete.
+- [x] Added onboarding progress unit coverage (`tests/unit/lib/onboardingProgress.test.ts`) for all step transition edge cases.
+
+### Recent Dashboard Continue-Flow Hardening (RED-87)
+
+- [x] Added deterministic continuation logic (`src/lib/dashboardContinueAction.ts`) that prioritizes setup, approvals, scheduling, draft edits, task execution, queue monitoring, and analytics fallback.
+- [x] Wired `/dashboard` to render a live "Continue where you left off" card and dynamic primary CTA from workspace state.
+- [x] Added unit coverage (`tests/unit/lib/dashboardContinueAction.test.ts`) plus dashboard data loader coverage for continuation precedence/output.
+
+### Recent Header UX Cleanup (RED-88)
+
+- [x] Replaced placeholder workspace switcher/search/notifications with live workspace identity and functional actions only on the app header.
+- [x] Added mobile navigation menu (`src/components/app/AppMobileMenu.tsx`) and moved sidebar navigation to desktop-only rendering in `AppShell`.
+- [x] Centralized app navigation config in `src/components/app/navConfig.ts` to keep sidebar and mobile menu consistent.
+- [x] Added unit coverage for header data loading/plan labeling edge cases (`tests/unit/lib/appHeaderData.test.ts`).
+
+### Recent Copy + IA Cleanup (RED-89)
+
+- [x] Reorganized app navigation into grouped IA sections (Plan, Execution, Growth, Insights) with centralized config used by both sidebar and mobile menu.
+- [x] Standardized route/page naming to title case for key surfaces (`Brand Monitoring`, `Account Health`, `Workspace Actions`).
+- [x] Replaced ambiguous demo wording with explicit local-mode wording on auth/onboarding/settings flows to reduce user confusion during non-production runs.
+- [x] Added navigation config unit coverage (`tests/unit/lib/navConfig.test.ts`) for section order, route uniqueness, and critical label assertions.
+
+### Recent Queue/Worker Visibility Hardening (RED-90)
+
+- [x] Added workspace-scoped queue health API (`GET /api/scheduling/queue-health`) with strict workspace auth and resilient error handling.
+- [x] Added queue health service (`src/lib/ops/workspaceQueueHealth.ts`) that computes status counts, due/overdue/stale signals, and severity (`OK/WARNING/CRITICAL`) with configurable thresholds.
+- [x] Wired `/scheduling` and `/scheduling/queue` pages to display live queue health status/reasons alongside existing scheduling metrics.
+- [x] Added unit coverage for queue health severity derivation and route auth/error behavior (`tests/unit/lib/workspaceQueueHealth.test.ts`, `tests/unit/api/schedulingQueueHealthRoute.test.ts`).
+
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 
 - [x] RED-62 discovery ranking quality pass merged (intent weighting, broad-audience penalty refinement, reason quality improvements).

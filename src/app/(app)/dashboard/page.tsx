@@ -2,8 +2,14 @@ import Link from "next/link";
 import { loadDashboardPageData } from "@/lib/dashboardProjectsPageData";
 
 export default async function DashboardPage() {
-  const { projectCount, draftCount, pendingApprovals, scheduledCount, tasks } =
-    await loadDashboardPageData();
+  const {
+    projectCount,
+    draftCount,
+    pendingApprovals,
+    scheduledCount,
+    tasks,
+    continueAction,
+  } = await loadDashboardPageData();
 
   const stats = [
     {
@@ -51,10 +57,30 @@ export default async function DashboardPage() {
             Onboarding
           </Link>
           <Link
-            href="/roadmaps/generate"
+            href={continueAction.href}
             className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
           >
-            Generate roadmap
+            {continueAction.action}
+          </Link>
+        </div>
+      </div>
+
+      <div className="rounded-[24px] border border-border bg-background/70 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Continue where you left off
+            </p>
+            <p className="mt-2 text-lg font-semibold">{continueAction.title}</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {continueAction.detail}
+            </p>
+          </div>
+          <Link
+            href={continueAction.href}
+            className="rounded-full border border-border px-5 py-2 text-sm font-semibold transition hover:border-foreground/40"
+          >
+            {continueAction.action}
           </Link>
         </div>
       </div>

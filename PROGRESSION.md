@@ -92,6 +92,12 @@
 - [x] Added workspace-missing guard state to prevent confusing dead-end actions while membership sync is incomplete.
 - [x] Added onboarding progress unit coverage (`tests/unit/lib/onboardingProgress.test.ts`) for all step transition edge cases.
 
+### Recent Dashboard Continue-Flow Hardening (RED-87)
+
+- [x] Added deterministic continuation logic (`src/lib/dashboardContinueAction.ts`) that prioritizes setup, approvals, scheduling, draft edits, task execution, queue monitoring, and analytics fallback.
+- [x] Wired `/dashboard` to render a live "Continue where you left off" card and dynamic primary CTA from workspace state.
+- [x] Added unit coverage (`tests/unit/lib/dashboardContinueAction.test.ts`) plus dashboard data loader coverage for continuation precedence/output.
+
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 
 - [x] RED-62 discovery ranking quality pass merged (intent weighting, broad-audience penalty refinement, reason quality improvements).

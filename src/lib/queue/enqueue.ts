@@ -3,6 +3,7 @@ import {
   getContentGenerateQueue,
   getMetricsFetchQueue,
   getPublishQueue,
+  getRedditAdsSyncQueue,
   getRecommendationsGenerateQueue,
   getRiskAccountHealthQueue,
   getRiskVisibilityCheckQueue,
@@ -14,6 +15,7 @@ import {
   contentGenerateJobId,
   metricsFetchJobId,
   publishJobId,
+  redditAdsSyncJobId,
   recommendationsGenerateJobId,
   riskAccountHealthJobId,
   riskVisibilityCheckJobId,
@@ -28,6 +30,17 @@ export type PublishJobData = {
 
 export type MetricsFetchJobData = {
   publishedItemId: string;
+};
+
+export type RedditAdsSyncAction = "UPSERT" | "PAUSE" | "COMPLETE" | "ARCHIVE";
+
+export type RedditAdsSyncJobData = {
+  workspaceId: string;
+  campaignId: string;
+  status: string;
+  action: RedditAdsSyncAction;
+  trigger: "STATUS_CHANGE" | "CONFIG_CHANGE";
+  version: string;
 };
 
 export type ContentGenerateMode = "GENERATE" | "REWRITE" | "COMPLIANCE";
@@ -99,6 +112,24 @@ export async function enqueueMetricsFetchJob(
   const jobId = opts.jobId ?? metricsFetchJobId(data.publishedItemId);
 
   return queue.add("metrics_fetch", data, {
+    ...opts,
+    jobId,
+  });
+}
+
+export async function enqueueRedditAdsSyncJob(
+  data: RedditAdsSyncJobData,
+  opts: JobsOptions = {},
+) {
+  const queue = getRedditAdsSyncQueue();
+  const jobId =
+    opts.jobId ??
+    redditAdsSyncJobId({
+      campaignId: data.campaignId,
+      status: data.status,
+      version: data.version,
+    });
+  return queue.add("reddit_ads_sync", data, {
     ...opts,
     jobId,
   });

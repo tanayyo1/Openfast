@@ -2,7 +2,7 @@
 
 > **Last Updated**: 2026-02-21
 > **Target**: `mediafast_clone_system_design_report.md`
-> **Current Estimate**: ~99% of overall parity complete (MVP complete; Tier 2 complete; Tier 3 complete for planned scope; Tier 4 RED-58 shipped, with RED-52 external sync follow-up remaining)
+> **Current Estimate**: ~99% of overall parity complete (MVP complete; Tier 2 complete; Tier 3 complete for planned scope; Tier 4 planned items shipped; remaining work is optional hardening/polish)
 
 ---
 
@@ -37,7 +37,7 @@
 
 ### Queue + Worker Baseline
 
-- [x] Queues present: `reddit.publish`, `reddit.metrics_fetch`, `subreddit.ingest`, `subreddit.compute_time_windows`, `dead.letter`.
+- [x] Queues present: `reddit.publish`, `reddit.metrics_fetch`, `reddit.ads_sync`, `subreddit.ingest`, `subreddit.compute_time_windows`, `dead.letter`.
 - [x] Deterministic job IDs for idempotency.
 - [x] Worker process bootstrapping + DLQ forwarding for failed jobs.
 - [x] Unit tests for queue helpers and worker stubs.
@@ -162,6 +162,14 @@
 - [x] Added workspace-scoped campaign APIs: list/create/get/update with cursor pagination, transition guards, and activation requirements.
 - [x] Added in-app Reddit Ads management surface (`/ads`) with campaign creation and lifecycle actions.
 - [x] Added RED-52 unit + integration test coverage, including archived-project activation and inactive-account pause edge cases.
+
+### Recent Reddit Ads External Sync Batch (RED-52 follow-up)
+
+- [x] Added `reddit.ads_sync` queue plumbing + deterministic job IDs and enqueue helpers for campaign lifecycle/config sync events.
+- [x] Added async external sync worker path (`processRedditAdsSyncJob`) with stale-job protection, DLQ forwarding, and persisted `syncError` diagnostics.
+- [x] Added external sync adapter (`src/lib/redditAds/externalSync.ts`) with deterministic mock mode by default and optional webhook mode via env vars.
+- [x] Wired campaign PATCH flow to enqueue sync on meaningful ACTIVE/PAUSED/COMPLETED/ARCHIVED changes and expose sync state in `/ads` UI (`externalCampaignId`, `syncError`).
+- [x] Extended RED-52 tests for sync enqueue behavior and queue/id helper coverage.
 
 ### Recent Landing Page Generator Batch (RED-58)
 
@@ -289,7 +297,7 @@
 - RED-36: Analytics rollup foundation (DONE - daily workspace rollups + dashboard rollup read/fallback + cron trigger + tests)
 - RED-37: Analytics UI live data (DONE - dashboard + project analytics pages now server-backed, no demo-store dependency)
 - RED-38: Analytics time-series follow-up (DONE - daily workspace/project trend services + API surfaces + UI sparkline integration + tests)
-- RED-52 (DONE for MVP foundation: campaign planning/lifecycle; external ad network sync remains backlog), RED-58 (DONE - landing page generator API + app UI + tests)
+- RED-52 (DONE - campaign planning/lifecycle + external sync queue/worker path + sync-state surfacing), RED-58 (DONE - landing page generator API + app UI + tests)
 
 ### Remaining from Original Plan
 

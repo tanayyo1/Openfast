@@ -11,6 +11,7 @@ import { processRiskAccountHealthJob } from "./riskAccountHealth.worker";
 import { processRiskVisibilityCheckJob } from "./riskVisibilityCheck.worker";
 import { processRecommendationsGenerateJob } from "./recommendations.worker";
 import { processRoadmapGenerateJob } from "./roadmapGenerate.worker";
+import { processRedditAdsSyncJob } from "./redditAdsSync.worker";
 import { startCronScheduler } from "./cronScheduler";
 import { emitOpsAlert } from "@/lib/ops/alerts";
 
@@ -58,6 +59,10 @@ async function start() {
   );
   const roadmapGenerateConcurrency = parseWorkerConcurrency(
     "ROADMAP_GENERATE_WORKER_CONCURRENCY",
+    1,
+  );
+  const redditAdsSyncConcurrency = parseWorkerConcurrency(
+    "REDDIT_ADS_SYNC_WORKER_CONCURRENCY",
     1,
   );
 
@@ -134,6 +139,14 @@ async function start() {
     {
       connection,
       concurrency: roadmapGenerateConcurrency,
+    },
+  );
+  const redditAdsSyncWorker = new Worker(
+    QUEUE_NAMES.REDDIT_ADS_SYNC,
+    processRedditAdsSyncJob,
+    {
+      connection,
+      concurrency: redditAdsSyncConcurrency,
     },
   );
 
@@ -345,6 +358,22 @@ async function start() {
       },
     });
   });
+  redditAdsSyncWorker.on("failed", (job, err) => {
+    if (!job?.id) return;
+    forwardToDlq(QUEUE_NAMES.REDDIT_ADS_SYNC, job.id, err.message).catch(
+      (dlqErr) => console.error("DLQ forward failed:", dlqErr),
+    );
+    void emitOpsAlert({
+      type: "reddit_ads_sync.failed",
+      level: "warn",
+      message: "Reddit ads sync job failed",
+      details: {
+        queue: QUEUE_NAMES.REDDIT_ADS_SYNC,
+        jobId: String(job.id),
+        reason: err.message,
+      },
+    });
+  });
 
   let shuttingDown = false;
   const shutdown = async (signal: string) => {
@@ -362,6 +391,7 @@ async function start() {
       riskVisibilityCheckWorker.close(),
       recommendationsWorker.close(),
       roadmapGenerateWorker.close(),
+      redditAdsSyncWorker.close(),
       dlq.close(),
     ]);
     stopCronScheduler();
@@ -389,6 +419,7 @@ async function start() {
     riskVisibilityCheckWorker.waitUntilReady(),
     recommendationsWorker.waitUntilReady(),
     roadmapGenerateWorker.waitUntilReady(),
+    redditAdsSyncWorker.waitUntilReady(),
   ]);
 }
 

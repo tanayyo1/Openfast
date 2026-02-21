@@ -53,27 +53,28 @@ export default async function ProjectsPage() {
         </div>
       ) : (
         <div className="grid gap-4">
-          {projects.map((project) => (
-            <Link
-              key={project.id}
-              href={`/projects/${encodeURIComponent(project.id)}`}
-              className="rounded-[24px] border border-border bg-card/80 p-6 transition hover:border-foreground/40"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <p className="text-lg font-semibold">{project.name}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {goalsToList(project.goals).length > 0
-                      ? goalsToList(project.goals).join(", ")
-                      : "No goals set"}
-                  </p>
+          {projects.map((project) => {
+            const goals = goalsToList(project.goals);
+            return (
+              <Link
+                key={project.id}
+                href={`/projects/${encodeURIComponent(project.id)}`}
+                className="rounded-[24px] border border-border bg-card/80 p-6 transition hover:border-foreground/40"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="text-lg font-semibold">{project.name}</p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {goals.length > 0 ? goals.join(", ") : "No goals set"}
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
+                    {project.status.toLowerCase()}
+                  </span>
                 </div>
-                <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
-                  {project.status.toLowerCase()}
-                </span>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

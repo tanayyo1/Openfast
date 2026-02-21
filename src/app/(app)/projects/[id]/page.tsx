@@ -9,7 +9,12 @@ export default async function ProjectDetailPage({
 }: {
   params: { id: string };
 }) {
-  const projectId = decodeURIComponent(params.id ?? "");
+  let projectId = "";
+  try {
+    projectId = decodeURIComponent(params.id ?? "");
+  } catch {
+    projectId = "";
+  }
 
   const {
     project,

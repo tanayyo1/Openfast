@@ -10,7 +10,12 @@ export default async function ProjectSettingsPage({
 }: {
   params: { id: string };
 }) {
-  const projectId = decodeURIComponent(params.id ?? "");
+  let projectId = "";
+  try {
+    projectId = decodeURIComponent(params.id ?? "");
+  } catch {
+    projectId = "";
+  }
   const project = await loadProjectSettingsPageData(projectId);
 
   if (!project) {

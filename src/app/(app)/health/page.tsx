@@ -111,7 +111,7 @@ export default async function HealthPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Account health
+            Account Health
           </p>
           <h1 className="mt-3 text-3xl font-semibold">
             Protect delivery and trust

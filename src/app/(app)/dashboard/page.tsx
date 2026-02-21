@@ -45,8 +45,7 @@ export default async function DashboardPage() {
           </p>
           <h1 className="mt-3 text-3xl font-semibold">Workspace dashboard</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Follow the flow: project, connect, roadmap, task, draft, approve,
-            schedule, analytics.
+            Plan your next move, execute safely, then review outcomes.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -138,9 +137,9 @@ export default async function DashboardPage() {
         </div>
 
         <div className="rounded-[24px] border border-border bg-background/70 p-6">
-          <p className="text-sm font-semibold">Quick controls</p>
+          <p className="text-sm font-semibold">Workspace Actions</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Use Settings to manage workspace preferences or sign out.
+            Open core operational pages without leaving the dashboard.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link

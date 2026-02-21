@@ -10,7 +10,8 @@ import { requireWorkspaceSessionForPage } from "@/lib/server/page-auth";
 
 function toneForUrgency(urgency: MentionUrgency) {
   if (urgency === "HIGH") return "border-red-300 bg-red-50 text-red-700";
-  if (urgency === "MEDIUM") return "border-amber-300 bg-amber-50 text-amber-700";
+  if (urgency === "MEDIUM")
+    return "border-amber-300 bg-amber-50 text-amber-700";
   return "border-emerald-300 bg-emerald-50 text-emerald-700";
 }
 
@@ -32,11 +33,12 @@ export default async function BrandMonitoringPage({
       <div className="space-y-6">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Brand monitoring
+            Brand Monitoring
           </p>
           <h1 className="mt-3 text-3xl font-semibold">Smart Finder required</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Brand monitoring is available on paid plans with Smart Finder enabled.
+            Brand Monitoring is available on paid plans with Smart Finder
+            enabled.
           </p>
         </div>
         <Link
@@ -68,7 +70,7 @@ export default async function BrandMonitoringPage({
   const selectedProjectId =
     requestedProjectId && projects.some((p) => p.id === requestedProjectId)
       ? requestedProjectId
-      : projects[0]?.id ?? null;
+      : (projects[0]?.id ?? null);
 
   const snapshot = selectedProjectId
     ? await buildProjectBrandMonitoringSnapshot({
@@ -84,12 +86,14 @@ export default async function BrandMonitoringPage({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Brand monitoring
+            Brand Monitoring
           </p>
-          <h1 className="mt-3 text-3xl font-semibold">Track brand mentions in the wild</h1>
+          <h1 className="mt-3 text-3xl font-semibold">
+            Track brand mentions in the wild
+          </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Watch subreddit thread titles for brand and goal-related keywords, then prioritize
-            response opportunities.
+            Watch subreddit thread titles for brand and goal-related keywords,
+            then prioritize response opportunities.
           </p>
         </div>
         <Link
@@ -141,14 +145,20 @@ export default async function BrandMonitoringPage({
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                     Mentions found
                   </p>
-                  <p className="mt-3 text-3xl font-semibold">{snapshot.count}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">Last {snapshot.lookbackDays} days</p>
+                  <p className="mt-3 text-3xl font-semibold">
+                    {snapshot.count}
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Last {snapshot.lookbackDays} days
+                  </p>
                 </div>
                 <div className="rounded-[24px] border border-border bg-card/80 p-5">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                     Urgent mentions
                   </p>
-                  <p className="mt-3 text-3xl font-semibold">{snapshot.summary.high}</p>
+                  <p className="mt-3 text-3xl font-semibold">
+                    {snapshot.summary.high}
+                  </p>
                   <p className="mt-2 text-sm text-muted-foreground">
                     {snapshot.summary.medium} medium, {snapshot.summary.low} low
                   </p>
@@ -157,9 +167,12 @@ export default async function BrandMonitoringPage({
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                     Sentiment mix
                   </p>
-                  <p className="mt-3 text-3xl font-semibold">{snapshot.summary.negative}</p>
+                  <p className="mt-3 text-3xl font-semibold">
+                    {snapshot.summary.negative}
+                  </p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Negative, {snapshot.summary.neutral} neutral, {snapshot.summary.positive} positive
+                    Negative, {snapshot.summary.neutral} neutral,{" "}
+                    {snapshot.summary.positive} positive
                   </p>
                 </div>
               </div>
@@ -168,7 +181,9 @@ export default async function BrandMonitoringPage({
                 <p className="text-sm font-semibold">Keyword matches</p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {snapshot.keywords.length === 0 ? (
-                    <span className="text-sm text-muted-foreground">No project keywords detected.</span>
+                    <span className="text-sm text-muted-foreground">
+                      No project keywords detected.
+                    </span>
                   ) : (
                     snapshot.keywords.map((keyword) => (
                       <span
@@ -201,7 +216,9 @@ export default async function BrandMonitoringPage({
                           <p className="text-lg font-semibold">{item.title}</p>
                           <p className="mt-2 text-sm text-muted-foreground">
                             r/{item.subredditName}
-                            <span className="mx-2 text-muted-foreground/40">|</span>
+                            <span className="mx-2 text-muted-foreground/40">
+                              |
+                            </span>
                             by u/{item.author}
                           </p>
                         </div>

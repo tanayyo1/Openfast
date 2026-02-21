@@ -84,6 +84,7 @@
 - [x] Added page-level unit coverage for auth guard propagation, empty workspace state, and project not-found handling.
 - [x] Replaced `useDemoStore` on `/roadmaps`, `/roadmaps/[id]`, and `/roadmaps/generate` with workspace-scoped live data and API-backed roadmap generation.
 - [x] Replaced `useDemoStore` on `/content`, `/content/drafts/[id]`, `/tasks/[id]`, and `/approvals` with live API-backed draft/task/approval lifecycle flows and state-guarded actions.
+- [x] Replaced scheduling demo flows with live API actions on `/scheduling`, `/scheduling/calendar`, and `/scheduling/queue` (schedule, cancel, delete, and live status summaries).
 
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 

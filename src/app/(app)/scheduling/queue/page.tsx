@@ -37,6 +37,33 @@ type ScheduledPostItem = {
   };
 };
 
+type QueueHealthLevel = "OK" | "WARNING" | "CRITICAL";
+
+type QueueHealthSnapshot = {
+  generatedAt: string;
+  level: QueueHealthLevel;
+  reasons: string[];
+  isIdle: boolean;
+  counts: {
+    queued: number;
+    dueNow: number;
+    overdue: number;
+    publishing: number;
+    stalePublishing: number;
+    failedRetryable: number;
+    failedPermanent: number;
+  };
+  schedule: {
+    nextRunAt: string | null;
+    oldestDueAt: string | null;
+  };
+};
+
+type QueueHealthLoadResult = {
+  health: QueueHealthSnapshot | null;
+  error: string | null;
+};
+
 const CANCELLABLE = new Set<ScheduledStatus>([
   "SCHEDULED",
   "PENDING_APPROVAL",
@@ -55,41 +82,100 @@ function statusLabel(status: ScheduledStatus) {
   return status.toLowerCase().replaceAll("_", " ");
 }
 
+function healthLabel(level: QueueHealthLevel) {
+  if (level === "CRITICAL") return "Critical";
+  if (level === "WARNING") return "Needs attention";
+  return "Healthy";
+}
+
+function healthTextClass(level: QueueHealthLevel) {
+  if (level === "CRITICAL") return "text-destructive";
+  if (level === "WARNING") return "text-amber-600 dark:text-amber-400";
+  return "text-green-700 dark:text-green-400";
+}
+
 export default function SchedulingQueuePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
   const [items, setItems] = useState<ScheduledPostItem[]>([]);
+  const [queueHealth, setQueueHealth] = useState<QueueHealthSnapshot | null>(
+    null,
+  );
+  const [queueHealthError, setQueueHealthError] = useState<string | null>(null);
 
-  async function load() {
-    setLoading(true);
-    setError(null);
-
+  async function fetchQueueHealthSnapshot(): Promise<QueueHealthLoadResult> {
     try {
-      const res = await fetch("/api/scheduled-posts?limit=100", {
+      const res = await fetch("/api/scheduling/queue-health", {
         cache: "no-store",
       });
       const json = (await res.json()) as
-        | { items?: ScheduledPostItem[]; error?: string }
+        | { health?: QueueHealthSnapshot; error?: string }
         | undefined;
-
       if (!res.ok) {
-        throw new Error(json?.error ?? "Failed to load queue");
+        return {
+          health: null,
+          error: json?.error ?? "Queue health unavailable",
+        };
       }
-
-      setItems(json?.items ?? []);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to load queue";
-      setError(message);
-    } finally {
-      setLoading(false);
+      return { health: json?.health ?? null, error: null };
+    } catch {
+      return { health: null, error: "Queue health unavailable" };
     }
   }
 
+  async function refreshQueueHealth() {
+    const healthResult = await fetchQueueHealthSnapshot();
+    setQueueHealth(healthResult.health);
+    setQueueHealthError(healthResult.error);
+  }
+
   useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      setQueueHealthError(null);
+
+      try {
+        const [queueRes, healthResult] = await Promise.all([
+          fetch("/api/scheduled-posts?limit=100", {
+            cache: "no-store",
+          }),
+          fetchQueueHealthSnapshot(),
+        ]);
+        const queueJson = (await queueRes.json()) as
+          | { items?: ScheduledPostItem[]; error?: string }
+          | undefined;
+
+        if (!queueRes.ok) {
+          throw new Error(queueJson?.error ?? "Failed to load queue");
+        }
+
+        if (cancelled) return;
+        setItems(queueJson?.items ?? []);
+        setQueueHealth(healthResult.health);
+        setQueueHealthError(healthResult.error);
+      } catch (err) {
+        if (cancelled) return;
+        const message =
+          err instanceof Error ? err.message : "Failed to load queue";
+        setError(message);
+        setQueueHealth(null);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
     void load();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const sorted = useMemo(() => {
@@ -125,6 +211,7 @@ export default function SchedulingQueuePage() {
         ),
       );
       setNotice("Scheduled post cancelled.");
+      await refreshQueueHealth();
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to cancel scheduled post";
@@ -154,6 +241,7 @@ export default function SchedulingQueuePage() {
       }
       setItems((current) => current.filter((item) => item.id !== id));
       setNotice("Scheduled post deleted.");
+      await refreshQueueHealth();
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to delete scheduled post";
@@ -202,6 +290,52 @@ export default function SchedulingQueuePage() {
           {notice}
         </div>
       ) : null}
+
+      <div className="rounded-[24px] border border-border bg-card/80 p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <p className="text-sm font-semibold">Queue health</p>
+          {!loading && queueHealth ? (
+            <p className={`text-sm font-semibold ${healthTextClass(queueHealth.level)}`}>
+              {healthLabel(queueHealth.level)}
+            </p>
+          ) : null}
+        </div>
+        {loading ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Checking queue health...
+          </p>
+        ) : queueHealthError ? (
+          <p className="mt-2 text-sm text-muted-foreground">{queueHealthError}</p>
+        ) : queueHealth ? (
+          <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+            <p>
+              Queued: {queueHealth.counts.queued} • Due now:{" "}
+              {queueHealth.counts.dueNow} • Overdue: {queueHealth.counts.overdue}
+            </p>
+            <p>
+              Publishing: {queueHealth.counts.publishing} • Stale publishing:{" "}
+              {queueHealth.counts.stalePublishing}
+            </p>
+            <p>
+              Failures: {queueHealth.counts.failedRetryable} retryable,{" "}
+              {queueHealth.counts.failedPermanent} permanent
+            </p>
+            {queueHealth.schedule.nextRunAt ? (
+              <p>
+                Next run:{" "}
+                {new Date(queueHealth.schedule.nextRunAt).toLocaleString()}
+              </p>
+            ) : null}
+            {queueHealth.reasons.length > 0 ? (
+              <p>{queueHealth.reasons[0]}</p>
+            ) : queueHealth.isIdle ? (
+              <p>Queue is idle right now.</p>
+            ) : (
+              <p>No worker-risk signals detected.</p>
+            )}
+          </div>
+        ) : null}
+      </div>
 
       {loading ? (
         <div className="rounded-[24px] border border-border bg-card/80 p-8">

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { buildDashboardContinueAction } from "@/lib/dashboardContinueAction";
 import { requireWorkspaceSessionForPage } from "@/lib/server/page-auth";
 
 export function goalsToList(goals: unknown): string[] {
@@ -67,42 +68,102 @@ export async function loadDashboardPageData() {
   const session = await requireWorkspaceSessionForPage();
   const workspaceId = session.workspaceId;
 
-  const [projectCount, draftCount, pendingApprovals, scheduledCount, tasks] =
-    await Promise.all([
-      prisma.project.count({
-        where: { workspaceId, status: { not: "ARCHIVED" } },
-      }),
-      prisma.draft.count({
-        where: { workspaceId, status: { not: "ARCHIVED" } },
-      }),
-      prisma.draft.count({
-        where: { workspaceId, status: "REVIEWING" },
-      }),
-      prisma.scheduledPost.count({
-        where: {
-          workspaceId,
-          status: { in: ["SCHEDULED", "PENDING_APPROVAL", "PUBLISHING"] },
-        },
-      }),
-      prisma.roadmapTask.findMany({
-        where: {
-          workspaceId,
-          status: { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] },
-        },
-        include: {
-          subreddit: { select: { name: true } },
-          roadmap: { select: { startDate: true } },
-        },
-        orderBy: [
-          { priority: "desc" },
-          { dayIndex: "asc" },
-          { createdAt: "asc" },
-        ],
-        take: 5,
-      }),
-    ]);
+  const [
+    projectCount,
+    draftCount,
+    pendingApprovals,
+    scheduledCount,
+    tasks,
+    activeRedditAccountCount,
+    activeRoadmapCount,
+    latestProject,
+    latestEditableDraft,
+    approvedDraftCount,
+    approvedScheduledCount,
+  ] = await Promise.all([
+    prisma.project.count({
+      where: { workspaceId, status: { not: "ARCHIVED" } },
+    }),
+    prisma.draft.count({
+      where: { workspaceId, status: { not: "ARCHIVED" } },
+    }),
+    prisma.draft.count({
+      where: { workspaceId, status: "REVIEWING" },
+    }),
+    prisma.scheduledPost.count({
+      where: {
+        workspaceId,
+        status: { in: ["SCHEDULED", "PENDING_APPROVAL", "PUBLISHING"] },
+      },
+    }),
+    prisma.roadmapTask.findMany({
+      where: {
+        workspaceId,
+        status: { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] },
+      },
+      include: {
+        subreddit: { select: { name: true } },
+        roadmap: { select: { startDate: true } },
+      },
+      orderBy: [
+        { priority: "desc" },
+        { dayIndex: "asc" },
+        { createdAt: "asc" },
+      ],
+      take: 5,
+    }),
+    prisma.redditAccount.count({
+      where: { workspaceId, isActive: true },
+    }),
+    prisma.roadmap.count({
+      where: { workspaceId, status: "ACTIVE" },
+    }),
+    prisma.project.findFirst({
+      where: { workspaceId, status: { not: "ARCHIVED" } },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    }),
+    prisma.draft.findFirst({
+      where: { workspaceId, status: { in: ["DRAFT", "REJECTED"] } },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      select: { id: true },
+    }),
+    prisma.draft.count({
+      where: { workspaceId, status: "APPROVED" },
+    }),
+    prisma.scheduledPost.count({
+      where: {
+        workspaceId,
+        draft: { is: { status: "APPROVED" } },
+      },
+    }),
+  ]);
 
-  return { projectCount, draftCount, pendingApprovals, scheduledCount, tasks };
+  const approvedUnscheduledCount = Math.max(
+    approvedDraftCount - approvedScheduledCount,
+    0,
+  );
+
+  const continueAction = buildDashboardContinueAction({
+    projectCount,
+    activeRedditAccountCount,
+    activeRoadmapCount,
+    pendingApprovalCount: pendingApprovals,
+    approvedUnscheduledCount,
+    editableDraftId: latestEditableDraft?.id ?? null,
+    priorityTaskId: tasks[0]?.id ?? null,
+    hasQueuedScheduledPosts: scheduledCount > 0,
+    latestProjectId: latestProject?.id ?? null,
+  });
+
+  return {
+    projectCount,
+    draftCount,
+    pendingApprovals,
+    scheduledCount,
+    tasks,
+    continueAction,
+  };
 }
 
 export async function loadProjectsPageData() {

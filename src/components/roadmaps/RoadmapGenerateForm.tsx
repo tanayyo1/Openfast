@@ -149,17 +149,34 @@ export function RoadmapGenerateForm({
                   }),
                 });
 
-                const json = (await res.json()) as {
+                let json: {
                   roadmap?: { id: string };
                   error?: string;
                   code?: string;
-                };
-                if (!res.ok || !json.roadmap?.id) {
-                  setError(json.error ?? "Failed to generate roadmap.");
+                } | null = null;
+                try {
+                  json = (await res.json()) as {
+                    roadmap?: { id: string };
+                    error?: string;
+                    code?: string;
+                  };
+                } catch {
+                  json = null;
+                }
+                const roadmapId = json?.roadmap?.id ?? null;
+                if (!res.ok || !roadmapId) {
+                  setError(
+                    json?.error ??
+                      (res.status === 401
+                        ? "Please log in and retry."
+                        : res.status === 403
+                          ? "Your current plan cannot generate this roadmap horizon."
+                          : "Failed to generate roadmap."),
+                  );
                   return;
                 }
 
-                router.push(`/roadmaps/${encodeURIComponent(json.roadmap.id)}`);
+                router.push(`/roadmaps/${encodeURIComponent(roadmapId)}`);
               } catch {
                 setError("Network error while generating roadmap.");
               } finally {

@@ -135,3 +135,19 @@ export async function loadRoadmapGeneratePageData() {
 
   return { projects, accounts };
 }
+
+export function resolveInitialRoadmapProjectId(
+  projects: Array<{ id: string }>,
+  projectParam: string | string[] | undefined,
+) {
+  const requestedId =
+    typeof projectParam === "string"
+      ? projectParam
+      : Array.isArray(projectParam)
+        ? (projectParam[0] ?? "")
+        : "";
+
+  return projects.some((project) => project.id === requestedId)
+    ? requestedId
+    : (projects[0]?.id ?? "");
+}

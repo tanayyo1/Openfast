@@ -30,6 +30,7 @@ import {
   loadRoadmapDetailPageData,
   loadRoadmapGeneratePageData,
   loadRoadmapsPageData,
+  resolveInitialRoadmapProjectId,
   roadmapWindowLabel,
 } from "@/lib/roadmapsPageData";
 
@@ -115,5 +116,15 @@ describe("roadmaps page data loaders", () => {
     const label = roadmapWindowLabel(new Date("2026-02-21T00:00:00.000Z"), 3);
     expect(label).toContain("2/");
     expect(label).toContain("-");
+  });
+
+  test("resolveInitialRoadmapProjectId falls back to first project on unknown query", () => {
+    const projects = [{ id: "p_1" }, { id: "p_2" }];
+    expect(resolveInitialRoadmapProjectId(projects, "missing")).toBe("p_1");
+    expect(resolveInitialRoadmapProjectId(projects, "p_2")).toBe("p_2");
+    expect(resolveInitialRoadmapProjectId(projects, ["missing", "p_2"])).toBe(
+      "p_1",
+    );
+    expect(resolveInitialRoadmapProjectId([], "anything")).toBe("");
   });
 });

@@ -1,21 +1,24 @@
-"use client";
-
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useDemoStore } from "@/stores/demoStore";
+import {
+  loadRoadmapDetailPageData,
+  roadmapWindowLabel,
+} from "@/lib/roadmapsPageData";
 
-export default function RoadmapDetailPage() {
-  const params = useParams<{ id: string }>();
-  const roadmapId = params?.id ? decodeURIComponent(params.id) : "";
+export default async function RoadmapDetailPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  let roadmapId = "";
+  try {
+    roadmapId = decodeURIComponent(params.id ?? "");
+  } catch {
+    roadmapId = "";
+  }
 
-  const roadmap = useDemoStore((state) =>
-    state.roadmaps.find((item) => item.id === roadmapId),
-  );
-  const tasks = useDemoStore((state) =>
-    state.tasks.filter((task) => task.roadmapId === roadmapId),
-  );
+  const data = await loadRoadmapDetailPageData(roadmapId);
 
-  if (!roadmap) {
+  if (!data) {
     return (
       <div className="space-y-4">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
@@ -35,11 +38,8 @@ export default function RoadmapDetailPage() {
     );
   }
 
-  const pendingApprovals = tasks.filter(
-    (task) => task.status === "Needs approval",
-  ).length;
-  const scheduled = tasks.filter((task) => task.status === "Scheduled").length;
-  const flags = tasks.filter((task) => task.status === "Failed").length;
+  const { roadmap, tasks, pendingApprovals, scheduledCount, failureCount } =
+    data;
 
   return (
     <div className="space-y-8">
@@ -48,8 +48,12 @@ export default function RoadmapDetailPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Roadmap
           </p>
-          <h1 className="mt-3 text-3xl font-semibold">{roadmap.title}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{roadmap.window}</p>
+          <h1 className="mt-3 text-3xl font-semibold">
+            {roadmap.project.name} roadmap v{roadmap.version}
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {roadmapWindowLabel(roadmap.startDate, roadmap.horizonDays)}
+          </p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Link
@@ -81,14 +85,18 @@ export default function RoadmapDetailPage() {
               >
                 <div>
                   <p className="text-sm font-semibold">
-                    {task.type} in {task.subreddit}
+                    {task.type} in{" "}
+                    {task.subreddit ? `r/${task.subreddit.name}` : "general"}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Best-time window: {task.bestWindow}
+                    Day {task.dayIndex}
+                    {typeof task.estimatedTime === "number"
+                      ? ` | ${task.estimatedTime} min`
+                      : ""}
                   </p>
                 </div>
                 <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
-                  {task.status}
+                  {task.status.toLowerCase()}
                 </span>
               </Link>
             ))}
@@ -99,8 +107,8 @@ export default function RoadmapDetailPage() {
       <div className="grid gap-4 md:grid-cols-3">
         {[
           { label: "Drafts pending approval", value: String(pendingApprovals) },
-          { label: "Scheduled items", value: String(scheduled) },
-          { label: "Failures", value: String(flags) },
+          { label: "Scheduled items", value: String(scheduledCount) },
+          { label: "Failures", value: String(failureCount) },
         ].map((item) => (
           <div
             key={item.label}

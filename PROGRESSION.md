@@ -82,6 +82,7 @@
 
 - [x] Replaced `useDemoStore` on `/dashboard`, `/projects`, `/projects/[id]`, and `/projects/[id]/settings` with workspace-scoped server-side data from Prisma.
 - [x] Added page-level unit coverage for auth guard propagation, empty workspace state, and project not-found handling.
+- [x] Replaced `useDemoStore` on `/roadmaps`, `/roadmaps/[id]`, and `/roadmaps/generate` with workspace-scoped live data and API-backed roadmap generation.
 
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 

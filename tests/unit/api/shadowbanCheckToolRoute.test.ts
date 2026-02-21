@@ -80,6 +80,7 @@ describe("shadowban-check tool route", () => {
         checks: {
           redditProfileReachable: boolean;
           redditProfileStatus: number;
+          redditProfileTimedOut: boolean;
         };
         meta: { resetAfterSeconds: number };
       };
@@ -87,6 +88,7 @@ describe("shadowban-check tool route", () => {
       expect(json.result).toBe("SUSPICIOUS");
       expect(json.checks.redditProfileReachable).toBe(false);
       expect(json.checks.redditProfileStatus).toBe(404);
+      expect(json.checks.redditProfileTimedOut).toBe(false);
       expect(json.meta.resetAfterSeconds).toBe(60);
     } finally {
       fetchSpy.mockRestore();
@@ -108,7 +110,7 @@ describe("shadowban-check tool route", () => {
         new Request("http://test.local/api/tools/shadowban-check", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "test_user" }),
+          body: JSON.stringify({ username: "Test_User" }),
         }),
       );
 
@@ -120,6 +122,51 @@ describe("shadowban-check tool route", () => {
       expect(json.result).toBe("SUSPICIOUS");
       expect(json.checks.internalSampleSize).toBe(3);
       expect(json.checks.internalSuspiciousRate).toBeCloseTo(0.667, 3);
+      expect(mockedPrisma.visibilityCheck.findMany).toHaveBeenCalledWith({
+        where: {
+          redditAccount: {
+            redditUsername: {
+              equals: "test_user",
+              mode: "insensitive",
+            },
+          },
+        },
+        orderBy: { checkedAt: "desc" },
+        take: 10,
+        select: { result: true, checkedAt: true },
+      });
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  test("marks reddit profile timeout explicitly", async () => {
+    const abortError = new Error("aborted");
+    abortError.name = "AbortError";
+    const fetchSpy = jest.spyOn(global, "fetch").mockRejectedValue(abortError);
+
+    try {
+      const res = await postShadowbanCheckTool(
+        new Request("http://test.local/api/tools/shadowban-check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: "test_user" }),
+        }),
+      );
+
+      expect(res.status).toBe(200);
+      const json = (await readJson(res)) as {
+        result: string;
+        checks: {
+          redditProfileReachable: boolean;
+          redditProfileStatus: number | null;
+          redditProfileTimedOut: boolean;
+        };
+      };
+      expect(json.result).toBe("SUSPICIOUS");
+      expect(json.checks.redditProfileReachable).toBe(false);
+      expect(json.checks.redditProfileStatus).toBeNull();
+      expect(json.checks.redditProfileTimedOut).toBe(true);
     } finally {
       fetchSpy.mockRestore();
     }

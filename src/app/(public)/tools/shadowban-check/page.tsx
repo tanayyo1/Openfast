@@ -9,6 +9,7 @@ type ShadowbanCheckResponse = {
   checks: {
     redditProfileReachable: boolean;
     redditProfileStatus: number | null;
+    redditProfileTimedOut?: boolean;
     internalSampleSize: number;
     internalSuspiciousRate: number;
   };
@@ -127,9 +128,11 @@ export default function ShadowbanCheckPage() {
                   </p>
                   <p className="text-sm font-semibold">
                     {result
-                      ? result.checks.redditProfileReachable
-                        ? "Reachable"
-                        : "Unreachable"
+                      ? result.checks.redditProfileTimedOut
+                        ? "Timeout"
+                        : result.checks.redditProfileReachable
+                          ? "Reachable"
+                          : "Unreachable"
                       : "Unknown"}
                   </p>
                 </div>

@@ -23,6 +23,7 @@ export type OnboardingProgress = {
   completedCount: number;
   totalCount: number;
   nextAction: {
+    kind: "link" | "refresh";
     title: string;
     href: string;
     action: string;
@@ -86,6 +87,7 @@ export function buildOnboardingProgress(
       completedCount: 0,
       totalCount,
       nextAction: {
+        kind: "refresh",
         title: "Workspace setup pending",
         href: "/onboarding",
         action: "Refresh page",
@@ -154,6 +156,7 @@ export function buildOnboardingProgress(
       completedCount,
       totalCount,
       nextAction: {
+        kind: "link",
         title: "Onboarding complete",
         href: "/dashboard",
         action: "Open dashboard",
@@ -166,6 +169,7 @@ export function buildOnboardingProgress(
     completedCount,
     totalCount,
     nextAction: {
+      kind: "link",
       title: `Next: ${firstPending.title}`,
       href: firstPending.href,
       action: firstPending.action,

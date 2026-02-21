@@ -2,8 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { RoadmapStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { buildOnboardingProgress } from "@/lib/onboardingProgress";
+import {
+  buildOnboardingProgress,
+  type OnboardingStepStatus,
+} from "@/lib/onboardingProgress";
 import { requireSession } from "@/lib/server/auth-guards";
+import { RefreshNextActionButton } from "@/components/onboarding/RefreshNextActionButton";
 
 const LOGIN_REDIRECT_ERRORS = new Set([
   "SUPABASE_NOT_CONFIGURED",
@@ -11,7 +15,7 @@ const LOGIN_REDIRECT_ERRORS = new Set([
   "USER_NOT_SYNCED",
 ]);
 
-const statusTone: Record<string, string> = {
+const statusTone: Record<OnboardingStepStatus, string> = {
   complete: "border-emerald-300 bg-emerald-50 text-emerald-700",
   current: "border-blue-300 bg-blue-50 text-blue-700",
   blocked: "border-slate-300 bg-slate-50 text-slate-700",
@@ -95,12 +99,19 @@ export default async function OnboardingPage() {
               {progress.completedCount} of {progress.totalCount} steps complete.
             </p>
           </div>
-          <Link
-            href={progress.nextAction.href}
-            className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
-          >
-            {progress.nextAction.action}
-          </Link>
+          {progress.nextAction.kind === "refresh" ? (
+            <RefreshNextActionButton
+              label={progress.nextAction.action}
+              className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
+            />
+          ) : (
+            <Link
+              href={progress.nextAction.href}
+              className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
+            >
+              {progress.nextAction.action}
+            </Link>
+          )}
         </div>
       </div>
 

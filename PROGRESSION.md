@@ -112,6 +112,13 @@
 - [x] Replaced ambiguous demo wording with explicit local-mode wording on auth/onboarding/settings flows to reduce user confusion during non-production runs.
 - [x] Added navigation config unit coverage (`tests/unit/lib/navConfig.test.ts`) for section order, route uniqueness, and critical label assertions.
 
+### Recent Queue/Worker Visibility Hardening (RED-90)
+
+- [x] Added workspace-scoped queue health API (`GET /api/scheduling/queue-health`) with strict workspace auth and resilient error handling.
+- [x] Added queue health service (`src/lib/ops/workspaceQueueHealth.ts`) that computes status counts, due/overdue/stale signals, and severity (`OK/WARNING/CRITICAL`) with configurable thresholds.
+- [x] Wired `/scheduling` and `/scheduling/queue` pages to display live queue health status/reasons alongside existing scheduling metrics.
+- [x] Added unit coverage for queue health severity derivation and route auth/error behavior (`tests/unit/lib/workspaceQueueHealth.test.ts`, `tests/unit/api/schedulingQueueHealthRoute.test.ts`).
+
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 
 - [x] RED-62 discovery ranking quality pass merged (intent weighting, broad-audience penalty refinement, reason quality improvements).

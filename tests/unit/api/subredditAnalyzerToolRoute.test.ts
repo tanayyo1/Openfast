@@ -94,6 +94,24 @@ describe("subreddit-analyzer tool route", () => {
     });
   });
 
+  test("returns queued=false on cache miss when ingest queue is unavailable", async () => {
+    mockedPrisma.subredditCatalog.findFirst.mockResolvedValue(null);
+    mockedQueue.enqueueSubredditIngestJob.mockRejectedValue(
+      new Error("queue down"),
+    );
+
+    const res = await getSubredditAnalyzerTool(
+      new Request(
+        "http://test.local/api/tools/subreddit-analyzer?name=r/startups",
+      ),
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as { queued: boolean; message: string };
+    expect(json.queued).toBe(false);
+    expect(json.message).toContain("queue is unavailable");
+  });
+
   test("returns cached data and queues refresh when stale", async () => {
     mockedPrisma.subredditCatalog.findFirst.mockResolvedValue({
       id: "sub_1",
@@ -137,5 +155,42 @@ describe("subreddit-analyzer tool route", () => {
     expect(
       mockedQueue.enqueueSubredditComputeTimeWindowsJob,
     ).toHaveBeenCalledWith({ subredditId: "sub_1" });
+  });
+
+  test("returns cached data with queuedRefresh=false when refresh queue is unavailable", async () => {
+    mockedPrisma.subredditCatalog.findFirst.mockResolvedValue({
+      id: "sub_1",
+      name: "startups",
+      title: "Startups",
+      subscribers: 1000,
+      activeUsers: 120,
+      nsfw: false,
+      isRestricted: false,
+      isQuarantined: false,
+      lastFetchedAt: new Date(Date.now() - 26 * 60 * 60 * 1000),
+      policy: null,
+      rules: [{ fetchedAt: new Date() }],
+      timeSlots: [],
+    });
+    mockedQueue.enqueueSubredditIngestJob.mockRejectedValue(
+      new Error("queue down"),
+    );
+    mockedQueue.enqueueSubredditComputeTimeWindowsJob.mockRejectedValue(
+      new Error("queue down"),
+    );
+
+    const res = await getSubredditAnalyzerTool(
+      new Request(
+        "http://test.local/api/tools/subreddit-analyzer?name=startups",
+      ),
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as {
+      queuedRefresh: boolean;
+      refreshWarning: string | null;
+    };
+    expect(json.queuedRefresh).toBe(false);
+    expect(json.refreshWarning).toContain("Refresh queue unavailable");
   });
 });

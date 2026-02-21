@@ -98,6 +98,13 @@
 - [x] Wired `/dashboard` to render a live "Continue where you left off" card and dynamic primary CTA from workspace state.
 - [x] Added unit coverage (`tests/unit/lib/dashboardContinueAction.test.ts`) plus dashboard data loader coverage for continuation precedence/output.
 
+### Recent Header UX Cleanup (RED-88)
+
+- [x] Replaced placeholder workspace switcher/search/notifications with live workspace identity and functional actions only on the app header.
+- [x] Added mobile navigation menu (`src/components/app/AppMobileMenu.tsx`) and moved sidebar navigation to desktop-only rendering in `AppShell`.
+- [x] Centralized app navigation config in `src/components/app/navConfig.ts` to keep sidebar and mobile menu consistent.
+- [x] Added unit coverage for header data loading/plan labeling edge cases (`tests/unit/lib/appHeaderData.test.ts`).
+
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 
 - [x] RED-62 discovery ranking quality pass merged (intent weighting, broad-audience penalty refinement, reason quality improvements).

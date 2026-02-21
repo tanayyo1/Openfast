@@ -1,25 +1,5 @@
 import Link from "next/link";
-
-const navItems = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Projects", href: "/projects" },
-  { label: "Onboarding", href: "/onboarding" },
-  { label: "Roadmaps", href: "/roadmaps" },
-  { label: "Content", href: "/content" },
-  { label: "Landing Pages", href: "/landing-pages" },
-  { label: "Approvals", href: "/approvals" },
-  { label: "Scheduling", href: "/scheduling" },
-  { label: "Reddit Ads", href: "/ads" },
-  { label: "Analytics", href: "/analytics" },
-  { label: "Brand monitoring", href: "/brand-monitoring" },
-  { label: "Opportunities", href: "/opportunities" },
-  { label: "Account health", href: "/health" },
-];
-
-const quickLinks = [
-  { label: "Support", href: "/seo/guides/support" },
-  { label: "Roadmap", href: "/seo/guides/reddit-marketing" },
-];
+import { appNavItems, appQuickLinks } from "./navConfig";
 
 export function AppSidebar() {
   return (
@@ -35,7 +15,7 @@ export function AppSidebar() {
       </Link>
 
       <nav className="mt-10 space-y-2 text-sm">
-        {navItems.map((item) => (
+        {appNavItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -52,7 +32,7 @@ export function AppSidebar() {
           Quick links
         </p>
         <div className="mt-3 space-y-2">
-          {quickLinks.map((item) => (
+          {appQuickLinks.map((item) => (
             <Link
               key={item.href}
               href={item.href}

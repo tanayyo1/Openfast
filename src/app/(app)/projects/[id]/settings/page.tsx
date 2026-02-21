@@ -1,22 +1,17 @@
-"use client";
-
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useMemo } from "react";
-import { useDemoStore } from "@/stores/demoStore";
+import {
+  brandVoiceToText,
+  goalsToList,
+  loadProjectSettingsPageData,
+} from "@/lib/dashboardProjectsPageData";
 
-export default function ProjectSettingsPage() {
-  const params = useParams<{ id: string }>();
-  const projectId = params?.id ? decodeURIComponent(params.id) : "";
-
-  const project = useDemoStore((state) =>
-    state.projects.find((p) => p.id === projectId),
-  );
-
-  const goalsText = useMemo(() => {
-    if (!project) return "Not set";
-    return project.goals.length > 0 ? project.goals.join(", ") : "Not set";
-  }, [project]);
+export default async function ProjectSettingsPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const projectId = decodeURIComponent(params.id ?? "");
+  const project = await loadProjectSettingsPageData(projectId);
 
   if (!project) {
     return (
@@ -29,6 +24,8 @@ export default function ProjectSettingsPage() {
     );
   }
 
+  const goals = goalsToList(project.goals);
+
   return (
     <div className="space-y-8">
       <div>
@@ -37,7 +34,7 @@ export default function ProjectSettingsPage() {
         </p>
         <h1 className="mt-3 text-3xl font-semibold">{project.name}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Demo-only settings. Backend updates will replace this.
+          Workspace-scoped project configuration snapshot.
         </p>
       </div>
 
@@ -63,12 +60,14 @@ export default function ProjectSettingsPage() {
         <div className="mt-4">
           <p className="text-sm font-semibold">Brand voice</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            {project.brandVoice || "Not set"}
+            {brandVoiceToText(project.brandVoice)}
           </p>
         </div>
         <div className="mt-4">
           <p className="text-sm font-semibold">Goals</p>
-          <p className="mt-2 text-sm text-muted-foreground">{goalsText}</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {goals.length > 0 ? goals.join(", ") : "Not set"}
+          </p>
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">

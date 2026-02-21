@@ -78,6 +78,11 @@
 - [x] Wired `/tools/subreddit-analyzer` page to live API flow with queue/cached-state handling, risk/policy display, and input validation.
 - [x] Wired `/tools/shadowban-check` page to live API flow with visibility diagnostics, validation/error handling, and route-level edge-case tests.
 
+### Recent Core App Live-Data Wiring (2026-02-21)
+
+- [x] Replaced `useDemoStore` on `/dashboard`, `/projects`, `/projects/[id]`, and `/projects/[id]/settings` with workspace-scoped server-side data from Prisma.
+- [x] Added page-level unit coverage for auth guard propagation, empty workspace state, and project not-found handling.
+
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 
 - [x] RED-62 discovery ranking quality pass merged (intent weighting, broad-audience penalty refinement, reason quality improvements).

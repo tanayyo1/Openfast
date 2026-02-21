@@ -1,6 +1,74 @@
+"use client";
+
+import { FormEvent, useState } from "react";
 import { MaxWidth } from "@/components/public/MaxWidth";
 
+type AnalyzerResponse = {
+  queued?: boolean;
+  message?: string;
+  subreddit?: {
+    name: string;
+    title: string | null;
+    subscribers: number | null;
+    activeUsers: number | null;
+    nsfw: boolean;
+    isRestricted: boolean;
+    isQuarantined: boolean;
+  };
+  policy?: {
+    promoAllowed: boolean;
+    linkPolicy: string;
+    flairRequired: boolean;
+    noLinksInPosts: boolean;
+    textOnly: boolean;
+  } | null;
+  topTimeWindows?: Array<{ dayOfWeek: number; hourUtc: number; score: number }>;
+  staleHours?: number;
+  queuedRefresh?: boolean;
+};
+
+function toDayLabel(dayOfWeek: number) {
+  const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  return labels[dayOfWeek] ?? `Day ${dayOfWeek}`;
+}
+
 export default function SubredditAnalyzerPage() {
+  const [subreddit, setSubreddit] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<AnalyzerResponse | null>(null);
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    setResult(null);
+
+    const normalized = subreddit.trim();
+    if (!normalized) {
+      setError("Subreddit name is required.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await fetch(
+        `/api/tools/subreddit-analyzer?name=${encodeURIComponent(normalized)}`,
+      );
+      const json = (await res.json()) as AnalyzerResponse & { error?: string };
+
+      if (!res.ok) {
+        setError(json.error ?? "Failed to analyze subreddit.");
+        return;
+      }
+
+      setResult(json);
+    } catch {
+      setError("Network error while analyzing subreddit. Please retry.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   return (
     <div className="pb-20 pt-16">
       <MaxWidth>
@@ -13,7 +81,10 @@ export default function SubredditAnalyzerPage() {
             <p className="mt-4 text-sm text-muted-foreground">
               Check rules, activity, and best-time windows before you post.
             </p>
-            <div className="mt-8 rounded-[24px] border border-border bg-card/80 p-6">
+            <form
+              className="mt-8 rounded-[24px] border border-border bg-card/80 p-6"
+              onSubmit={onSubmit}
+            >
               <label className="text-sm font-semibold" htmlFor="subreddit">
                 Subreddit name
               </label>
@@ -21,69 +92,126 @@ export default function SubredditAnalyzerPage() {
                 <input
                   id="subreddit"
                   type="text"
+                  value={subreddit}
+                  onChange={(e) => setSubreddit(e.target.value)}
                   placeholder="r/startups"
                   className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm"
                 />
                 <button
-                  type="button"
+                  type="submit"
+                  disabled={isLoading}
                   className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground"
                 >
-                  Analyze
+                  {isLoading ? "Analyzing..." : "Analyze"}
                 </button>
               </div>
               <p className="mt-4 text-xs text-muted-foreground">
                 Results are cached for faster analysis and lower rate limits.
               </p>
-            </div>
+              {error ? (
+                <p className="mt-4 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {error}
+                </p>
+              ) : null}
+              {result?.queued ? (
+                <p className="mt-4 rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+                  {result.message ??
+                    "Subreddit is being fetched. Retry in a few seconds."}
+                </p>
+              ) : null}
+            </form>
           </div>
           <div className="space-y-4">
             <div className="rounded-[24px] border border-border bg-background/80 p-6">
               <p className="text-sm font-semibold">Rule summary</p>
-              <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-                <li>Promotional links limited to 1 per post.</li>
-                <li>Use descriptive titles with context.</li>
-                <li>Weekly discussion threads are preferred.</li>
-              </ul>
+              {result?.policy ? (
+                <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                  <li>
+                    Link policy:{" "}
+                    <span className="font-semibold text-foreground">
+                      {result.policy.linkPolicy}
+                    </span>
+                  </li>
+                  <li>
+                    Promo allowed:{" "}
+                    <span className="font-semibold text-foreground">
+                      {result.policy.promoAllowed ? "Yes" : "No"}
+                    </span>
+                  </li>
+                  <li>
+                    Flair required:{" "}
+                    <span className="font-semibold text-foreground">
+                      {result.policy.flairRequired ? "Yes" : "No"}
+                    </span>
+                  </li>
+                </ul>
+              ) : (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Analyze a subreddit to preview policy and rule signals.
+                </p>
+              )}
             </div>
             <div className="rounded-[24px] border border-border bg-background/80 p-6">
               <p className="text-sm font-semibold">Best-time windows</p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {["Tue 09:00", "Thu 13:00", "Sat 10:00", "Sun 18:00"].map(
-                  (slot) => (
-                    <div
-                      key={slot}
-                      className="rounded-2xl border border-border bg-card/80 px-4 py-3 text-sm font-semibold"
-                    >
-                      {slot}
-                    </div>
-                  ),
-                )}
+                {(result?.topTimeWindows?.length
+                  ? result.topTimeWindows
+                  : []
+                ).map((slot, index) => (
+                  <div
+                    key={`${slot.dayOfWeek}-${slot.hourUtc}-${index}`}
+                    className="rounded-2xl border border-border bg-card/80 px-4 py-3 text-sm font-semibold"
+                  >
+                    {toDayLabel(slot.dayOfWeek)}{" "}
+                    {String(slot.hourUtc).padStart(2, "0")}
+                    :00 UTC
+                  </div>
+                ))}
+                {!result?.topTimeWindows?.length ? (
+                  <p className="text-sm text-muted-foreground sm:col-span-2">
+                    No cached windows yet. Run analysis and retry after ingest.
+                  </p>
+                ) : null}
               </div>
             </div>
             <div className="rounded-[24px] border border-border bg-background/80 p-6">
               <p className="text-sm font-semibold">Risk signals</p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">
-                    Promo tolerance
-                  </p>
-                  <p className="text-sm font-semibold">Low</p>
+              {result?.subreddit ? (
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">Subscribers</p>
+                    <p className="text-sm font-semibold">
+                      {result.subreddit.subscribers ?? "Unknown"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">
+                      Active users
+                    </p>
+                    <p className="text-sm font-semibold">
+                      {result.subreddit.activeUsers ?? "Unknown"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">Restriction</p>
+                    <p className="text-sm font-semibold">
+                      {result.subreddit.isRestricted ? "Restricted" : "Open"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">Stale hours</p>
+                    <p className="text-sm font-semibold">
+                      {typeof result.staleHours === "number"
+                        ? result.staleHours
+                        : "Unknown"}
+                    </p>
+                  </div>
                 </div>
-                <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">Removal trend</p>
-                  <p className="text-sm font-semibold">Moderate</p>
-                </div>
-                <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">
-                    Posting cadence
-                  </p>
-                  <p className="text-sm font-semibold">2 posts per week</p>
-                </div>
-                <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">Comment focus</p>
-                  <p className="text-sm font-semibold">Recommended</p>
-                </div>
-              </div>
+              ) : (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Analyze a subreddit to see activity and moderation signals.
+                </p>
+              )}
             </div>
           </div>
         </div>

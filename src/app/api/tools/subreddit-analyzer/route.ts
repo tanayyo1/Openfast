@@ -9,7 +9,12 @@ import { enforcePublicToolRateLimit } from "@/lib/rateLimit/publicTools";
 import { requireSession } from "@/lib/server/auth-guards";
 
 const querySchema = z.object({
-  name: z.string().min(2).max(120),
+  name: z
+    .string()
+    .trim()
+    .min(2)
+    .max(120)
+    .regex(/^(r\/)?[A-Za-z0-9_]+$/, "Invalid subreddit format"),
 });
 
 export async function GET(req: Request) {
@@ -63,7 +68,11 @@ export async function GET(req: Request) {
     return NextResponse.json({
       queued,
       message: "Subreddit not in cache yet. Ingest queued.",
-      meta: { limit: rl.limit, remaining: rl.remaining },
+      meta: {
+        limit: rl.limit,
+        remaining: rl.remaining,
+        resetAfterSeconds: rl.resetAfterSeconds,
+      },
     });
   }
 
@@ -96,6 +105,10 @@ export async function GET(req: Request) {
     latestRulesFetchedAt: subreddit.rules[0]?.fetchedAt ?? null,
     staleHours,
     queuedRefresh: queued,
-    meta: { limit: rl.limit, remaining: rl.remaining },
+    meta: {
+      limit: rl.limit,
+      remaining: rl.remaining,
+      resetAfterSeconds: rl.resetAfterSeconds,
+    },
   });
 }

@@ -50,14 +50,18 @@ export function DraftEditor({
   onApprove,
   onRewrite,
 }: DraftEditorProps) {
-  const safeInitialIndex = clampVariantIndex(initialSelectedIndex, variants.length);
+  const safeInitialIndex = clampVariantIndex(
+    initialSelectedIndex,
+    variants.length,
+  );
   const [selectedIndex, setSelectedIndex] = useState(safeInitialIndex);
 
   useEffect(() => {
     setSelectedIndex((current) => clampVariantIndex(current, variants.length));
   }, [variants.length]);
 
-  const selected = variants[selectedIndex] ?? variants[safeInitialIndex] ?? FALLBACK_VARIANT;
+  const selected =
+    variants[selectedIndex] ?? variants[safeInitialIndex] ?? FALLBACK_VARIANT;
 
   const [title, setTitle] = useState(initialTitle ?? selected.title);
   const [body, setBody] = useState(initialBody ?? selected.body);
@@ -162,20 +166,24 @@ export function DraftEditor({
             />
           </div>
           <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => onSave?.({ title, body })}
-              className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
-            >
-              Save draft
-            </button>
-            <button
-              type="button"
-              onClick={() => onRequestApproval?.()}
-              className="rounded-full border border-border px-5 py-2 text-sm font-semibold"
-            >
-              Request approval
-            </button>
+            {onSave ? (
+              <button
+                type="button"
+                onClick={() => onSave({ title, body })}
+                className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
+              >
+                Save draft
+              </button>
+            ) : null}
+            {onRequestApproval ? (
+              <button
+                type="button"
+                onClick={() => onRequestApproval()}
+                className="rounded-full border border-border px-5 py-2 text-sm font-semibold"
+              >
+                Request approval
+              </button>
+            ) : null}
             {onApprove ? (
               <button
                 type="button"

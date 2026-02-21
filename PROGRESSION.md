@@ -1,6 +1,6 @@
 # PROGRESSION.md - MediaFast Clone MVP Tracker
 
-> **Last Updated**: 2026-02-20
+> **Last Updated**: 2026-02-21
 > **Target**: `mediafast_clone_system_design_report.md`
 > **Current Estimate**: ~99% of overall parity complete (MVP complete; Tier 2 complete; Tier 3 complete for planned scope; Tier 4 RED-58 shipped, with RED-52 external sync follow-up remaining)
 
@@ -83,6 +83,7 @@
 - [x] Replaced `useDemoStore` on `/dashboard`, `/projects`, `/projects/[id]`, and `/projects/[id]/settings` with workspace-scoped server-side data from Prisma.
 - [x] Added page-level unit coverage for auth guard propagation, empty workspace state, and project not-found handling.
 - [x] Replaced `useDemoStore` on `/roadmaps`, `/roadmaps/[id]`, and `/roadmaps/generate` with workspace-scoped live data and API-backed roadmap generation.
+- [x] Replaced `useDemoStore` on `/content`, `/content/drafts/[id]`, `/tasks/[id]`, and `/approvals` with live API-backed draft/task/approval lifecycle flows and state-guarded actions.
 
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 

@@ -76,6 +76,7 @@
 
 - [x] Wired `/tools/post-generator` page to live API flow with request validation UX, result rendering, and error handling.
 - [x] Wired `/tools/subreddit-analyzer` page to live API flow with queue/cached-state handling, risk/policy display, and input validation.
+- [x] Wired `/tools/shadowban-check` page to live API flow with visibility diagnostics, validation/error handling, and route-level edge-case tests.
 
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 

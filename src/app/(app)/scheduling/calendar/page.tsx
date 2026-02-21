@@ -18,6 +18,11 @@ type TaskItem = {
   dayIndex: number;
   type: string;
   subredditId: string | null;
+  subreddit?: {
+    id: string;
+    name: string;
+    title: string;
+  } | null;
 };
 
 type RedditAccount = {
@@ -38,6 +43,11 @@ type ScheduledPost = {
     | "FAILED_PERMANENT"
     | "CANCELLED";
   scheduledAt: string;
+  subreddit?: {
+    id: string;
+    name: string;
+    title: string;
+  } | null;
 };
 
 type ScheduleForm = {
@@ -60,6 +70,22 @@ function statusLabel(status: ScheduledPost["status"]) {
   return status.toLowerCase().replaceAll("_", " ");
 }
 
+function subredditLabel(input: {
+  scheduled?: ScheduledPost | undefined;
+  taskSubredditName?: string | null;
+  taskSubredditId?: string | null;
+  draftSubredditId?: string | null;
+}) {
+  const scheduledName = input.scheduled?.subreddit?.name?.trim();
+  if (scheduledName) return `r/${scheduledName}`;
+  const taskName = input.taskSubredditName?.trim();
+  if (taskName) return `r/${taskName}`;
+  if (input.taskSubredditId || input.draftSubredditId) {
+    return "selected subreddit";
+  }
+  return "general";
+}
+
 export default function SchedulingCalendarPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +106,7 @@ export default function SchedulingCalendarPage() {
     async function load() {
       setLoading(true);
       setError(null);
+      setNotice(null);
 
       try {
         const [draftsRes, accountsRes, scheduledRes] = await Promise.all([
@@ -218,7 +245,11 @@ export default function SchedulingCalendarPage() {
 
   async function scheduleDraft(draftId: string) {
     const form = forms[draftId];
-    if (!form || actingDraftId) return;
+    if (actingDraftId) return;
+    if (!form) {
+      setError("Scheduling form is not ready yet. Refresh and try again.");
+      return;
+    }
     if (!form.redditAccountId) {
       setError("Connect a Reddit account before scheduling.");
       return;
@@ -227,6 +258,10 @@ export default function SchedulingCalendarPage() {
     const parsed = new Date(form.scheduledAtLocal);
     if (Number.isNaN(parsed.getTime())) {
       setError("Invalid schedule date/time.");
+      return;
+    }
+    if (parsed.getTime() <= Date.now()) {
+      setError("Schedule time must be in the future.");
       return;
     }
 
@@ -371,6 +406,15 @@ export default function SchedulingCalendarPage() {
             {rows.map(({ draft, task, scheduled }) => {
               const form = forms[draft.id];
               const disabled = Boolean(scheduled);
+              const scheduleCtaLabel = scheduled
+                ? scheduled.status === "SCHEDULED" ||
+                    scheduled.status === "PENDING_APPROVAL" ||
+                    scheduled.status === "PUBLISHING"
+                  ? "Already scheduled"
+                  : "Manage in queue"
+                : actingDraftId === draft.id
+                  ? "Scheduling..."
+                  : "Schedule";
               return (
                 <div
                   key={draft.id}
@@ -382,7 +426,13 @@ export default function SchedulingCalendarPage() {
                         {task
                           ? formatTaskType(task.type)
                           : draft.type.toLowerCase()}{" "}
-                        in {task?.subredditId ?? draft.subredditId ?? "general"}
+                        in{" "}
+                        {subredditLabel({
+                          scheduled,
+                          taskSubredditName: task?.subreddit?.name ?? null,
+                          taskSubredditId: task?.subredditId ?? null,
+                          draftSubredditId: draft.subredditId,
+                        })}
                       </p>
                       <p className="mt-2 text-sm text-muted-foreground">
                         Draft:{" "}
@@ -454,12 +504,16 @@ export default function SchedulingCalendarPage() {
                           }}
                           className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
                         >
-                          {scheduled
-                            ? "Already scheduled"
-                            : actingDraftId === draft.id
-                              ? "Scheduling..."
-                              : "Schedule"}
+                          {scheduleCtaLabel}
                         </button>
+                        {scheduled ? (
+                          <Link
+                            href="/scheduling/queue"
+                            className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
+                          >
+                            Open queue
+                          </Link>
+                        ) : null}
                       </div>
                     </div>
                   </div>

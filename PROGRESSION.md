@@ -72,6 +72,11 @@
 - [x] Added auth error mapping unit coverage and setup verification script improvements to reduce false-positive "healthy" reports.
 - [x] Updated setup docs/examples to include required Reddit callback path and token encryption key requirements.
 
+### Recent Public Tool Wiring (2026-02-21)
+
+- [x] Wired `/tools/post-generator` page to live API flow with request validation UX, result rendering, and error handling.
+- [x] Wired `/tools/subreddit-analyzer` page to live API flow with queue/cached-state handling, risk/policy display, and input validation.
+
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 
 - [x] RED-62 discovery ranking quality pass merged (intent weighting, broad-audience penalty refinement, reason quality improvements).

@@ -17,32 +17,32 @@ export default function SettingsPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Settings
         </p>
-        <h1 className="mt-3 text-3xl font-semibold">Workspace settings</h1>
+        <h1 className="mt-3 text-3xl font-semibold">Workspace Settings</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Demo settings for the MVP frontend. Backend settings will replace
-          this.
+          Manage local workspace controls for this environment. Live account
+          settings will replace these controls in production.
         </p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-[24px] border border-border bg-card/80 p-6">
-          <p className="text-sm font-semibold">Demo data</p>
+          <p className="text-sm font-semibold">Local Workspace Data</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Reset projects, roadmaps, drafts, and scheduled items.
+            Clear local projects, roadmaps, drafts, and scheduled items.
           </p>
           <button
             type="button"
             onClick={() => resetDemo()}
             className="mt-6 rounded-full border border-border px-5 py-2 text-sm font-semibold"
           >
-            Reset demo data
+            Clear local data
           </button>
         </div>
 
         <div className="rounded-[24px] border border-border bg-card/80 p-6">
           <p className="text-sm font-semibold">Sign out</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Clears the demo auth cookie and returns to the login page.
+            End this local session and return to the login page.
           </p>
           <button
             type="button"

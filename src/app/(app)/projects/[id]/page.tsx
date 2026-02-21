@@ -115,7 +115,7 @@ export default async function ProjectDetailPage({
             href={`/brand-monitoring?projectId=${encodeURIComponent(project.id)}`}
             className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
           >
-            Brand monitoring
+            Brand Monitoring
           </Link>
         </div>
       </div>

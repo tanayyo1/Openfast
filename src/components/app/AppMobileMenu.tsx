@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { appNavItems, appQuickLinks } from "./navConfig";
+import { appNavSections, appQuickLinks } from "./navConfig";
 
 function itemTone(currentPathname: string, href: string) {
   if (
@@ -60,7 +60,7 @@ export function AppMobileMenu() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold">ReditFast</p>
-                  <p className="text-xs text-muted-foreground">Navigation</p>
+                  <p className="text-xs text-muted-foreground">Workspace nav</p>
                 </div>
               </div>
               <button
@@ -73,15 +73,24 @@ export function AppMobileMenu() {
               </button>
             </div>
 
-            <nav className="mt-6 space-y-2">
-              {appNavItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`block rounded-2xl border px-3 py-2 text-sm font-semibold transition ${itemTone(pathname, item.href)}`}
-                >
-                  {item.label}
-                </Link>
+            <nav className="mt-6 space-y-5">
+              {appNavSections.map((section) => (
+                <div key={section.title}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    {section.title}
+                  </p>
+                  <div className="mt-2 space-y-2">
+                    {section.items.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={`block rounded-2xl border px-3 py-2 text-sm font-semibold transition ${itemTone(pathname, item.href)}`}
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
               ))}
             </nav>
 

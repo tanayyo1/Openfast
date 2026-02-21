@@ -105,6 +105,13 @@
 - [x] Centralized app navigation config in `src/components/app/navConfig.ts` to keep sidebar and mobile menu consistent.
 - [x] Added unit coverage for header data loading/plan labeling edge cases (`tests/unit/lib/appHeaderData.test.ts`).
 
+### Recent Copy + IA Cleanup (RED-89)
+
+- [x] Reorganized app navigation into grouped IA sections (Plan, Execution, Growth, Insights) with centralized config used by both sidebar and mobile menu.
+- [x] Standardized route/page naming to title case for key surfaces (`Brand Monitoring`, `Account Health`, `Workspace Actions`).
+- [x] Replaced ambiguous demo wording with explicit local-mode wording on auth/onboarding/settings flows to reduce user confusion during non-production runs.
+- [x] Added navigation config unit coverage (`tests/unit/lib/navConfig.test.ts`) for section order, route uniqueness, and critical label assertions.
+
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 
 - [x] RED-62 discovery ranking quality pass merged (intent weighting, broad-audience penalty refinement, reason quality improvements).

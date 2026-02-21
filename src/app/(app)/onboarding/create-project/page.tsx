@@ -46,6 +46,9 @@ export default function CreateProjectPage() {
           Add core details so we can recommend subreddits and safe posting
           cadence.
         </p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          This setup runs in local workspace mode for now.
+        </p>
       </div>
 
       <div className="rounded-[24px] border border-border bg-card/80 p-6">

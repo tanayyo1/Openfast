@@ -1,9 +1,20 @@
+function sanitizeSegment(value: string) {
+  return value.replace(/:/g, "_").trim();
+}
+
+function buildJobId(namespace: string, ...segments: string[]) {
+  const safeSegments = [namespace, ...segments]
+    .map((segment) => sanitizeSegment(segment))
+    .filter((segment) => segment.length > 0);
+  return safeSegments.join("__");
+}
+
 export function publishJobId(scheduledPostId: string) {
-  return `publish:${scheduledPostId}`;
+  return buildJobId("publish", scheduledPostId);
 }
 
 export function metricsFetchJobId(publishedItemId: string) {
-  return `metrics_fetch:${publishedItemId}`;
+  return buildJobId("metrics_fetch", publishedItemId);
 }
 
 export function redditAdsSyncJobId(input: {
@@ -11,31 +22,36 @@ export function redditAdsSyncJobId(input: {
   status: string;
   version: string;
 }) {
-  return `reddit_ads_sync:${input.campaignId}:${input.status}:${input.version}`;
+  return buildJobId(
+    "reddit_ads_sync",
+    input.campaignId,
+    input.status,
+    input.version,
+  );
 }
 
 export function contentGenerateJobId(draftId: string) {
-  return `content_generate:${draftId}`;
+  return buildJobId("content_generate", draftId);
 }
 
 export function subredditIngestJobId(subredditName: string) {
-  return `subreddit_ingest:${subredditName.toLowerCase()}`;
+  return buildJobId("subreddit_ingest", subredditName.toLowerCase());
 }
 
 export function subredditComputeTimeWindowsJobId(subredditId: string) {
-  return `subreddit_compute_time_windows:${subredditId}`;
+  return buildJobId("subreddit_compute_time_windows", subredditId);
 }
 
 export function recommendationsGenerateJobId(projectId: string) {
-  return `recommendations_generate:${projectId}`;
+  return buildJobId("recommendations_generate", projectId);
 }
 
 export function roadmapGenerateJobId(projectId: string) {
-  return `roadmap_generate:${projectId}`;
+  return buildJobId("roadmap_generate", projectId);
 }
 
 export function riskAccountHealthJobId(redditAccountId: string) {
-  return `risk_account_health:${redditAccountId}`;
+  return buildJobId("risk_account_health", redditAccountId);
 }
 
 export function riskVisibilityCheckJobId(input: {
@@ -43,7 +59,11 @@ export function riskVisibilityCheckJobId(input: {
   publishedItemId?: string | null;
 }) {
   if (input.publishedItemId) {
-    return `risk_visibility_check:${input.redditAccountId}:${input.publishedItemId}`;
+    return buildJobId(
+      "risk_visibility_check",
+      input.redditAccountId,
+      input.publishedItemId,
+    );
   }
-  return `risk_visibility_check:${input.redditAccountId}`;
+  return buildJobId("risk_visibility_check", input.redditAccountId);
 }

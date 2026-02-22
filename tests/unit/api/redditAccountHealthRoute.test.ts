@@ -81,6 +81,28 @@ describe("reddit account health route", () => {
     );
   });
 
+  test("returns warning when refresh queue is unavailable", async () => {
+    mockedPrisma.accountHealthSnapshot.findFirst.mockResolvedValue(null);
+    mockedQueue.enqueueRiskAccountHealthJob.mockRejectedValue(
+      new Error("queue down"),
+    );
+
+    const res = await getAccountHealth(
+      new Request("http://test.local/api/reddit/accounts/ra_1/health"),
+      { params: { id: "ra_1" } },
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as {
+      refreshQueued: boolean;
+      warnings: string[];
+    };
+    expect(json.refreshQueued).toBe(false);
+    expect(json.warnings).toContain(
+      "Health snapshot refresh could not be queued. Try again in a minute.",
+    );
+  });
+
   test("queues refresh when snapshot is stale", async () => {
     mockedPrisma.accountHealthSnapshot.findFirst.mockResolvedValue({
       id: "hs_1",

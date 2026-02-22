@@ -89,6 +89,7 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
       snapshotInFuture ||
       (staleHours !== null && staleHours >= STALE_HOURS));
   let refreshQueued = false;
+  let refreshQueueUnavailable = false;
 
   if (shouldQueueRefresh) {
     try {
@@ -98,7 +99,7 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
       });
       refreshQueued = true;
     } catch {
-      // keep response graceful even when queue is unavailable
+      refreshQueueUnavailable = true;
     }
   }
 
@@ -106,6 +107,11 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
   const latestHealthScore =
     latest && Number.isFinite(latest.healthScore) ? latest.healthScore : null;
 
+  if (refreshQueueUnavailable) {
+    warnings.push(
+      "Health snapshot refresh could not be queued. Try again in a minute.",
+    );
+  }
   if (!account.isActive) warnings.push("Reddit account is inactive.");
   if (latest && latestHealthScore === null) {
     warnings.push(

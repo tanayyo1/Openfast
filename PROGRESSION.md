@@ -144,6 +144,14 @@
 - [x] Added route-coverage regression test (`tests/unit/lib/navRouteCoverage.test.ts`) to fail when any left-nav link points to a non-existent app route template.
 - [x] Added `LEFT_NAV_QA_CHECKLIST.md` manual QA checklist for desktop/mobile navigation route verification.
 
+### Recent Free Tool Post-Generator Quality Upgrade
+
+- [x] Switched `/api/tools/post-generate` to OpenAI-first generation with deterministic fallback only when LLM output is unavailable/insufficient.
+- [x] Added explicit generation source reporting (`openai` vs `fallback`) and surfaced that state in the public tool UI.
+- [x] Upgraded public post generator inputs with goal selection (`awareness`, `feedback`, `launch`, `case-study`) and persisted input memory in local storage.
+- [x] Reworked fallback output quality using distinct angle templates and discussion-oriented copy to avoid repetitive placeholder-style phrasing.
+- [x] Added route-level regression coverage for OpenAI success path and fallback enforcement (`tests/unit/api/postGenerateToolRoute.test.ts`).
+
 ### Recent Project Scope + Quota Hardening (RED-97/RED-98)
 
 - [x] Enforced workspace-scoped DB writes for project PATCH/DELETE by switching to workspace-filtered write guards.

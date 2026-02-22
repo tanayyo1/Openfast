@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import { GET as oauthStart } from "@/app/api/reddit/oauth/start/route";
 import { GET as oauthCallback } from "@/app/api/reddit/oauth/callback/route";
 import { GET as listAccounts } from "@/app/api/reddit/accounts/route";
@@ -167,7 +168,7 @@ describe("Reddit OAuth APIs (workspace-scoped)", () => {
   });
 
   test("dev connect creates workspace-scoped mock account", async () => {
-    const username = `dev_connect_${Date.now()}`;
+    const username = `dev_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
     const res = await devConnect(
       new Request("http://test.local/api/reddit/accounts/dev-connect", {
         method: "POST",

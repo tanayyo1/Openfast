@@ -2,6 +2,7 @@ import {
   appNavItems,
   appNavSections,
   appQuickLinks,
+  isNavItemActive,
 } from "@/components/app/navConfig";
 
 describe("app navigation config", () => {
@@ -42,5 +43,18 @@ describe("app navigation config", () => {
       { label: "Settings", href: "/settings" },
       { label: "Support", href: "/seo/guides/support" },
     ]);
+  });
+
+  test("matches active nav routes for nested and exact paths", () => {
+    expect(isNavItemActive("/dashboard", "/dashboard")).toBe(true);
+    expect(isNavItemActive("/dashboard/setup", "/dashboard")).toBe(false);
+
+    expect(isNavItemActive("/content", "/content")).toBe(true);
+    expect(isNavItemActive("/content/drafts/123", "/content")).toBe(true);
+    expect(isNavItemActive("/content-calendar", "/content")).toBe(false);
+
+    expect(isNavItemActive("/seo/guides/support", "/seo/guides/support")).toBe(
+      true,
+    );
   });
 });

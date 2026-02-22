@@ -1,7 +1,12 @@
+"use client";
+
 import Link from "next/link";
-import { appNavSections, appQuickLinks } from "./navConfig";
+import { usePathname } from "next/navigation";
+import { appNavSections, appQuickLinks, isNavItemActive } from "./navConfig";
 
 export function AppSidebar() {
+  const pathname = usePathname();
+
   return (
     <aside className="border-r border-border bg-card/60 px-6 pb-8 pt-6">
       <Link href="/dashboard" className="flex items-center gap-3">
@@ -25,7 +30,14 @@ export function AppSidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="flex items-center justify-between rounded-2xl border border-transparent px-3 py-2 text-muted-foreground transition hover:border-border hover:bg-background/70 hover:text-foreground"
+                  aria-current={
+                    isNavItemActive(pathname, item.href) ? "page" : undefined
+                  }
+                  className={`flex items-center justify-between rounded-2xl border px-3 py-2 transition ${
+                    isNavItemActive(pathname, item.href)
+                      ? "border-border bg-background/90 text-foreground"
+                      : "border-transparent text-muted-foreground hover:border-border hover:bg-background/70 hover:text-foreground"
+                  }`}
                 >
                   <span>{item.label}</span>
                   <span className="text-xs text-muted-foreground" />
@@ -45,7 +57,12 @@ export function AppSidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className="block rounded-2xl border border-border/60 bg-background/70 px-3 py-2 text-sm text-muted-foreground transition hover:text-foreground"
+              aria-current={isNavItemActive(pathname, item.href) ? "page" : undefined}
+              className={`block rounded-2xl border bg-background/70 px-3 py-2 text-sm transition ${
+                isNavItemActive(pathname, item.href)
+                  ? "border-border text-foreground"
+                  : "border-border/60 text-muted-foreground hover:text-foreground"
+              }`}
             >
               {item.label}
             </Link>

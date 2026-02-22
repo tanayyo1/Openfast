@@ -3,17 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { appNavSections, appQuickLinks } from "./navConfig";
-
-function itemTone(currentPathname: string, href: string) {
-  if (
-    currentPathname === href ||
-    (href !== "/dashboard" && currentPathname.startsWith(`${href}/`))
-  ) {
-    return "border-border bg-background text-foreground";
-  }
-  return "border-transparent text-muted-foreground";
-}
+import { appNavSections, appQuickLinks, isNavItemActive } from "./navConfig";
 
 export function AppMobileMenu() {
   const pathname = usePathname();
@@ -84,7 +74,16 @@ export function AppMobileMenu() {
                       <Link
                         key={item.href}
                         href={item.href}
-                        className={`block rounded-2xl border px-3 py-2 text-sm font-semibold transition ${itemTone(pathname, item.href)}`}
+                        aria-current={
+                          isNavItemActive(pathname, item.href)
+                            ? "page"
+                            : undefined
+                        }
+                        className={`block rounded-2xl border px-3 py-2 text-sm font-semibold transition ${
+                          isNavItemActive(pathname, item.href)
+                            ? "border-border bg-background text-foreground"
+                            : "border-transparent text-muted-foreground"
+                        }`}
                       >
                         {item.label}
                       </Link>
@@ -103,7 +102,14 @@ export function AppMobileMenu() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="block rounded-2xl border border-border bg-background/70 px-3 py-2 text-sm font-semibold text-muted-foreground"
+                    aria-current={
+                      isNavItemActive(pathname, item.href) ? "page" : undefined
+                    }
+                    className={`block rounded-2xl border bg-background/70 px-3 py-2 text-sm font-semibold transition ${
+                      isNavItemActive(pathname, item.href)
+                        ? "border-border text-foreground"
+                        : "border-border text-muted-foreground"
+                    }`}
                   >
                     {item.label}
                   </Link>

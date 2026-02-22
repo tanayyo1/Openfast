@@ -363,6 +363,58 @@ describe("Projects API (workspace-scoped)", () => {
       /valid http\(s\) URL/i,
     );
 
+    const invalidLegacyNumericHostReq = new Request(
+      "http://test.local/api/projects",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Invalid Legacy Numeric Host Project",
+          description: "This should fail shorthand numeric host validation.",
+          url: "0x7f000001",
+          niche: "saas",
+        }),
+      },
+    );
+    const invalidLegacyNumericHostRes = await createProject(
+      invalidLegacyNumericHostReq,
+    );
+    expect(invalidLegacyNumericHostRes.status).toBe(400);
+    const invalidLegacyNumericHostJson = (await readJson(
+      invalidLegacyNumericHostRes,
+    )) as {
+      code?: string;
+      details?: { fieldErrors?: Record<string, string[]> };
+    };
+    expect(invalidLegacyNumericHostJson.code).toBe("VALIDATION_ERROR");
+    expect(invalidLegacyNumericHostJson.details?.fieldErrors?.url?.[0]).toMatch(
+      /valid http\(s\) URL/i,
+    );
+
+    const invalidIntegerHostReq = new Request(
+      "http://test.local/api/projects",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Invalid Integer Host Project",
+          description: "This should fail integer IPv4 shorthand validation.",
+          url: "2130706433",
+          niche: "saas",
+        }),
+      },
+    );
+    const invalidIntegerHostRes = await createProject(invalidIntegerHostReq);
+    expect(invalidIntegerHostRes.status).toBe(400);
+    const invalidIntegerHostJson = (await readJson(invalidIntegerHostRes)) as {
+      code?: string;
+      details?: { fieldErrors?: Record<string, string[]> };
+    };
+    expect(invalidIntegerHostJson.code).toBe("VALIDATION_ERROR");
+    expect(invalidIntegerHostJson.details?.fieldErrors?.url?.[0]).toMatch(
+      /valid http\(s\) URL/i,
+    );
+
     const validCreateReq = new Request("http://test.local/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

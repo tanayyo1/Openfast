@@ -10,6 +10,9 @@ describe("normalizeProjectUrlInput", () => {
     expect(normalizeProjectUrlInput("http://999.999.999.999")).toBeNull();
     expect(normalizeProjectUrlInput("https://1.2.3")).toBeNull();
     expect(normalizeProjectUrlInput("http://010.000.000.001")).toBeNull();
+    expect(normalizeProjectUrlInput("http://0177.0.0.1")).toBeNull();
+    expect(normalizeProjectUrlInput("http://2130706433")).toBeNull();
+    expect(normalizeProjectUrlInput("http://0x7f000001")).toBeNull();
     expect(normalizeProjectUrlInput("ftp://example.com")).toBeNull();
     expect(normalizeProjectUrlInput(null)).toBeNull();
   });

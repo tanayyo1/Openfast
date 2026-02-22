@@ -30,6 +30,8 @@ function isDomainName(hostname: string) {
   if (normalized.startsWith(".") || normalized.endsWith(".")) return false;
 
   const labels = normalized.split(".");
+  // Reject single-label hosts (including bare TLDs) to avoid accepting
+  // non-actionable project URLs like "notaurl" or "internal-service".
   if (labels.length < 2) return false;
 
   return labels.every(
@@ -92,6 +94,15 @@ export function normalizeProjectUrlInput(input: unknown): string | null {
   }
 
   if (!["http:", "https:"].includes(parsed.protocol)) return null;
+  const parsedHostname = parsed.hostname.toLowerCase();
+  if (isIpv4Address(parsedHostname)) {
+    // The URL parser accepts shorthand/legacy numeric host forms (e.g. 127.1,
+    // 2130706433, 0x7f000001) and rewrites them to dotted-decimal IPv4.
+    // Only allow canonical dotted-decimal input to avoid ambiguous hosts.
+    if (!rawHostname || !isCanonicalIpv4(rawHostname)) {
+      return null;
+    }
+  }
   if (
     rawHostname &&
     /^[0-9.]+$/.test(rawHostname) &&
@@ -99,7 +110,7 @@ export function normalizeProjectUrlInput(input: unknown): string | null {
   ) {
     return null;
   }
-  if (!isAllowedHostname(parsed.hostname)) return null;
+  if (!isAllowedHostname(parsedHostname)) return null;
   if (parsed.username || parsed.password) return null;
   return parsed.toString();
 }

@@ -40,6 +40,7 @@ describe("reddit account health route", () => {
     });
     mockedPrisma.redditAccount.findFirst.mockResolvedValue({
       id: "ra_1",
+      workspaceId: "ws_1",
       redditUsername: "demo",
       safetyTier: "ESTABLISHED",
       isActive: true,
@@ -70,6 +71,14 @@ describe("reddit account health route", () => {
       workspaceId: "ws_1",
       redditAccountId: "ra_1",
     });
+    expect(mockedPrisma.redditAccount.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "ra_1",
+          workspace: { members: { some: { userId: "u_1" } } },
+        },
+      }),
+    );
   });
 
   test("queues refresh when snapshot is stale", async () => {
@@ -97,6 +106,7 @@ describe("reddit account health route", () => {
   test("does not queue refresh for inactive accounts", async () => {
     mockedPrisma.redditAccount.findFirst.mockResolvedValue({
       id: "ra_1",
+      workspaceId: "ws_1",
       redditUsername: "demo",
       safetyTier: "ESTABLISHED",
       isActive: false,
@@ -121,6 +131,7 @@ describe("reddit account health route", () => {
   test("forces comment-only guardrail for restricted safety tier", async () => {
     mockedPrisma.redditAccount.findFirst.mockResolvedValue({
       id: "ra_1",
+      workspaceId: "ws_1",
       redditUsername: "demo",
       safetyTier: "RESTRICTED",
       isActive: true,
@@ -146,5 +157,96 @@ describe("reddit account health route", () => {
     expect(json.warnings).toContain(
       "Account is restricted. Avoid post scheduling until recovered.",
     );
+  });
+
+  test("maps non-auth session setup errors with explicit status", async () => {
+    mockedGuards.requireWorkspaceSession.mockRejectedValue(
+      new Error("SUPABASE_NOT_CONFIGURED"),
+    );
+
+    const res = await getAccountHealth(
+      new Request("http://test.local/api/reddit/accounts/ra_1/health"),
+      { params: { id: "ra_1" } },
+    );
+
+    expect(res.status).toBe(500);
+    const json = (await readJson(res)) as { error: string; code: string };
+    expect(json.error).toBe("Supabase is not configured");
+    expect(json.code).toBe("SUPABASE_NOT_CONFIGURED");
+  });
+
+  test("re-queues snapshot when capturedAt is in the future", async () => {
+    mockedPrisma.accountHealthSnapshot.findFirst.mockResolvedValue({
+      id: "hs_future",
+      healthScore: 82,
+      capturedAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
+    });
+
+    const res = await getAccountHealth(
+      new Request("http://test.local/api/reddit/accounts/ra_1/health"),
+      { params: { id: "ra_1" } },
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as {
+      refreshQueued: boolean;
+      staleHours: number | null;
+    };
+    expect(json.staleHours).toBe(0);
+    expect(json.refreshQueued).toBe(true);
+    expect(mockedQueue.enqueueRiskAccountHealthJob).toHaveBeenCalledWith({
+      workspaceId: "ws_1",
+      redditAccountId: "ra_1",
+    });
+  });
+
+  test("handles invalid health score snapshots without false low-score warning", async () => {
+    mockedPrisma.accountHealthSnapshot.findFirst.mockResolvedValue({
+      id: "hs_nan",
+      healthScore: Number.NaN,
+      capturedAt: new Date(),
+    });
+
+    const res = await getAccountHealth(
+      new Request("http://test.local/api/reddit/accounts/ra_1/health"),
+      { params: { id: "ra_1" } },
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as {
+      warnings: string[];
+      guardrails: { blockPublishing: boolean; recommendCommentsOnly: boolean };
+    };
+
+    expect(json.warnings).toContain(
+      "Latest health snapshot is invalid. Refresh account health before scheduling posts.",
+    );
+    expect(json.warnings).not.toContain(
+      "Health score is low. Prefer comments and slower pacing.",
+    );
+    expect(json.guardrails.blockPublishing).toBe(false);
+    expect(json.guardrails.recommendCommentsOnly).toBe(false);
+  });
+
+  test("uses matched account workspace for queueing when it differs from default session workspace", async () => {
+    mockedPrisma.redditAccount.findFirst.mockResolvedValue({
+      id: "ra_1",
+      workspaceId: "ws_other",
+      redditUsername: "demo",
+      safetyTier: "ESTABLISHED",
+      isActive: true,
+    });
+    mockedPrisma.accountHealthSnapshot.findFirst.mockResolvedValue(null);
+
+    const res = await getAccountHealth(
+      new Request("http://test.local/api/reddit/accounts/ra_1/health"),
+      { params: { id: "ra_1" } },
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockedQueue.enqueueRiskAccountHealthJob).toHaveBeenCalledWith({
+      workspaceId: "ws_other",
+      redditAccountId: "ra_1",
+    });
   });
 });

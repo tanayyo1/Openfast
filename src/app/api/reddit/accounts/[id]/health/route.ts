@@ -12,8 +12,31 @@ const STALE_HOURS =
 
 function authError(err: unknown) {
   const code = err instanceof Error ? err.message : "UNAUTHORIZED";
-  const status = code === "WORKSPACE_REQUIRED" ? 400 : 401;
-  return NextResponse.json({ error: "Unauthorized", code }, { status });
+  if (code === "WORKSPACE_REQUIRED") {
+    return NextResponse.json(
+      { error: "Workspace required", code },
+      { status: 400 },
+    );
+  }
+  if (code === "SUPABASE_NOT_CONFIGURED") {
+    return NextResponse.json(
+      { error: "Supabase is not configured", code },
+      { status: 500 },
+    );
+  }
+  if (code === "USER_NOT_SYNCED") {
+    return NextResponse.json(
+      { error: "User is not synced", code },
+      { status: 409 },
+    );
+  }
+  if (code === "UNAUTHORIZED") {
+    return NextResponse.json({ error: "Unauthorized", code }, { status: 401 });
+  }
+  return NextResponse.json(
+    { error: "Failed to resolve workspace session", code },
+    { status: 500 },
+  );
 }
 
 export async function GET(_req: Request, ctx: { params: { id: string } }) {
@@ -27,9 +50,13 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
   const redditAccountId = ctx.params.id;
   const healthThresholds = getHealthGuardrailThresholds();
   const account = await prisma.redditAccount.findFirst({
-    where: { id: redditAccountId, workspaceId: session.workspaceId },
+    where: {
+      id: redditAccountId,
+      workspace: { members: { some: { userId: session.user.id } } },
+    },
     select: {
       id: true,
+      workspaceId: true,
       redditUsername: true,
       safetyTier: true,
       isActive: true,
@@ -44,23 +71,29 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
 
   const latest = await prisma.accountHealthSnapshot.findFirst({
     where: {
-      workspaceId: session.workspaceId,
+      workspaceId: account.workspaceId,
       redditAccountId,
     },
     orderBy: { capturedAt: "desc" },
   });
 
-  const staleHours = latest
-    ? Math.floor((Date.now() - latest.capturedAt.getTime()) / (1000 * 60 * 60))
+  const ageHours = latest
+    ? (Date.now() - latest.capturedAt.getTime()) / (1000 * 60 * 60)
     : null;
+  const staleHours =
+    ageHours === null ? null : Math.max(0, Math.floor(ageHours));
+  const snapshotInFuture = ageHours !== null && ageHours < 0;
   const shouldQueueRefresh =
-    account.isActive && (!latest || (staleHours !== null && staleHours >= STALE_HOURS));
+    account.isActive &&
+    (!latest ||
+      snapshotInFuture ||
+      (staleHours !== null && staleHours >= STALE_HOURS));
   let refreshQueued = false;
 
   if (shouldQueueRefresh) {
     try {
       await enqueueRiskAccountHealthJob({
-        workspaceId: session.workspaceId,
+        workspaceId: account.workspaceId,
         redditAccountId,
       });
       refreshQueued = true;
@@ -70,8 +103,18 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
   }
 
   const warnings: string[] = [];
+  const latestHealthScore =
+    latest && Number.isFinite(latest.healthScore) ? latest.healthScore : null;
+
   if (!account.isActive) warnings.push("Reddit account is inactive.");
-  if (latest && latest.healthScore < healthThresholds.caution) {
+  if (latest && latestHealthScore === null) {
+    warnings.push(
+      "Latest health snapshot is invalid. Refresh account health before scheduling posts.",
+    );
+  } else if (
+    latestHealthScore !== null &&
+    latestHealthScore < healthThresholds.caution
+  ) {
     warnings.push("Health score is low. Prefer comments and slower pacing.");
   }
   if (account.safetyTier === "RESTRICTED") {
@@ -89,11 +132,11 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
     guardrails: {
       blockPublishing:
         account.safetyTier === "RESTRICTED" ||
-        (latest?.healthScore ?? 100) < healthThresholds.blockPublishing,
+        (latestHealthScore ?? 100) < healthThresholds.blockPublishing,
       recommendCommentsOnly:
         account.safetyTier === "NEW" ||
         account.safetyTier === "RESTRICTED" ||
-        (latest?.healthScore ?? 100) < healthThresholds.caution,
+        (latestHealthScore ?? 100) < healthThresholds.caution,
     },
   });
 }

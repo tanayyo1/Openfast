@@ -101,7 +101,9 @@ describe("HealthAccountActions", () => {
         screen.getByText("Health snapshot refresh queued. Check back in a minute."),
       ).toBeInTheDocument();
     });
-    expect(refreshMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(refreshMock).toHaveBeenCalledTimes(1);
+    });
   });
 
   test("locks visibility action while health refresh is in flight", async () => {
@@ -143,6 +145,43 @@ describe("HealthAccountActions", () => {
     });
   });
 
+  test("prevents duplicate refresh requests on rapid repeated clicks", async () => {
+    const pendingRefresh = deferredResponse();
+    const fetchMock = jest.fn().mockImplementation(() => pendingRefresh.promise);
+    (global as { fetch?: typeof fetch }).fetch =
+      fetchMock as unknown as typeof fetch;
+
+    render(
+      <HealthAccountActions
+        accountId="ra_1"
+        latestPermalink={null}
+        visibilityHistory={[]}
+        healthHistory={[]}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Refresh health snapshot" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Refreshing..." }),
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    pendingRefresh.resolve(
+      jsonResponse(200, {
+        refreshQueued: false,
+        latestSnapshot: { healthScore: 77 },
+        warnings: [],
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Latest health score: 77.")).toBeInTheDocument();
+    });
+  });
+
   test("runs visibility check and refreshes server data", async () => {
     const fetchMock = jest
       .fn()
@@ -179,6 +218,38 @@ describe("HealthAccountActions", () => {
         screen.getByText("Visibility check complete: ok."),
       ).toBeInTheDocument();
     });
-    expect(refreshMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(refreshMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  test("handles non-json error response from visibility check endpoint", async () => {
+    const fetchMock = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      status: 502,
+      json: async () => {
+        throw new Error("invalid json");
+      },
+    } satisfies MockResponse);
+    (global as { fetch?: typeof fetch }).fetch =
+      fetchMock as unknown as typeof fetch;
+
+    render(
+      <HealthAccountActions
+        accountId="ra_1"
+        latestPermalink="https://www.reddit.com/r/test/comments/abc123/example/"
+        visibilityHistory={[]}
+        healthHistory={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Run visibility check" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Failed to run visibility check (HTTP 502)."),
+      ).toBeInTheDocument();
+    });
+    expect(refreshMock).toHaveBeenCalledTimes(0);
   });
 });

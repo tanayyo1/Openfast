@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type VisibilityHistoryItem = {
   id: string;
@@ -39,6 +39,8 @@ export function HealthAccountActions({
   healthHistory,
 }: Props) {
   const router = useRouter();
+  const actionLockRef = useRef(false);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [runningVisibility, setRunningVisibility] = useState(false);
   const [refreshingHealth, setRefreshingHealth] = useState(false);
   const [openHistory, setOpenHistory] = useState(false);
@@ -54,8 +56,35 @@ export function HealthAccountActions({
     [visibilityHistory],
   );
 
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current != null) {
+        clearTimeout(refreshTimerRef.current);
+      }
+    };
+  }, []);
+
+  async function readResponseJson<T>(res: Response): Promise<T | null> {
+    try {
+      return (await res.json()) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  function scheduleRefresh() {
+    if (refreshTimerRef.current != null) {
+      clearTimeout(refreshTimerRef.current);
+    }
+    refreshTimerRef.current = setTimeout(() => {
+      refreshTimerRef.current = null;
+      router.refresh();
+    }, 350);
+  }
+
   async function refreshHealthSnapshot() {
-    if (actionRunning) return;
+    if (actionLockRef.current) return;
+    actionLockRef.current = true;
     setRefreshingHealth(true);
     setError(null);
     setNotice(null);
@@ -66,17 +95,17 @@ export function HealthAccountActions({
         { cache: "no-store" },
       );
 
-      const json = (await res.json()) as
-        | {
-            latestSnapshot?: { healthScore?: number };
-            refreshQueued?: boolean;
-            warnings?: string[];
-            error?: string;
-          }
-        | undefined;
+      const json = await readResponseJson<{
+        latestSnapshot?: { healthScore?: number };
+        refreshQueued?: boolean;
+        warnings?: string[];
+        error?: string;
+      }>(res);
 
       if (!res.ok) {
-        setError(json?.error ?? "Failed to refresh account health");
+        setError(
+          json?.error ?? `Failed to refresh account health (HTTP ${res.status}).`,
+        );
         return;
       }
 
@@ -92,16 +121,18 @@ export function HealthAccountActions({
         setNotice("No health snapshot available yet.");
       }
 
-      router.refresh();
+      scheduleRefresh();
     } catch {
       setError("Request failed while refreshing account health.");
     } finally {
       setRefreshingHealth(false);
+      actionLockRef.current = false;
     }
   }
 
   async function runVisibilityCheck() {
-    if (!latestPermalink || actionRunning) return;
+    if (!latestPermalink || actionLockRef.current) return;
+    actionLockRef.current = true;
     setRunningVisibility(true);
     setError(null);
     setNotice(null);
@@ -116,27 +147,28 @@ export function HealthAccountActions({
         },
       );
 
-      const json = (await res.json()) as
-        | {
-            check?: { result?: string };
-            error?: string;
-            code?: string;
-          }
-        | undefined;
+      const json = await readResponseJson<{
+        check?: { result?: string };
+        error?: string;
+        code?: string;
+      }>(res);
 
       if (!res.ok) {
-        setError(json?.error ?? "Failed to run visibility check");
+        setError(
+          json?.error ?? `Failed to run visibility check (HTTP ${res.status}).`,
+        );
         return;
       }
 
       setNotice(
         `Visibility check complete: ${(json?.check?.result ?? "UNKNOWN").toLowerCase()}.`,
       );
-      router.refresh();
+      scheduleRefresh();
     } catch {
       setError("Request failed while running visibility check.");
     } finally {
       setRunningVisibility(false);
+      actionLockRef.current = false;
     }
   }
 

@@ -155,6 +155,35 @@ describe("Risk health + tools APIs", () => {
     });
   });
 
+  test("GET /reddit/accounts/:id/health re-queues when latest snapshot timestamp is in the future", async () => {
+    await prisma.accountHealthSnapshot.create({
+      data: {
+        workspaceId,
+        redditAccountId: accountId,
+        healthScore: 79,
+        signalsJson: { sampleSize: 4, removals: 0 },
+        capturedAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
+      },
+    });
+
+    const res = await getAccountHealth(
+      new Request(`http://test.local/api/reddit/accounts/${accountId}/health`),
+      { params: { id: accountId } },
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as {
+      staleHours: number | null;
+      refreshQueued: boolean;
+    };
+    expect(json.staleHours).toBe(0);
+    expect(json.refreshQueued).toBe(true);
+    expect(mockedQueue.enqueueRiskAccountHealthJob).toHaveBeenCalledWith({
+      workspaceId,
+      redditAccountId: accountId,
+    });
+  });
+
   test("GET /reddit/accounts/:id/health returns guardrails/warnings for restricted inactive accounts", async () => {
     await prisma.redditAccount.update({
       where: { id: accountId },

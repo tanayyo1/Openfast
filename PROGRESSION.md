@@ -100,6 +100,7 @@
 - [x] Improved `/health` empty state with direct CTA to connect a Reddit account (`/onboarding/connect-reddit`) so action flow stays explicit.
 - [x] Aligned guardrail API behavior for restricted accounts (`recommendCommentsOnly: true`) and added edge-case coverage for restricted/inactive + low-health scenarios.
 - [x] Added RED-85 regression tests for health actions UI and risk-health APIs (`tests/unit/components/HealthAccountActions.test.tsx`, `tests/unit/api/redditAccountHealthRoute.test.ts`, `tests/integration/api/risk-health-tools.test.ts`).
+- [x] Completed follow-up strict audit fixes: robust non-JSON API error handling in health actions, duplicate-click race lock, delayed refresh to preserve notices, future-dated snapshot requeue logic, invalid snapshot-score handling, and workspace-membership account resolution.
 
 ### Recent Onboarding Progress Hardening (RED-86)
 

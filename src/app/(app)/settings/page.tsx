@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useDemoStore } from "@/stores/demoStore";
+import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 
 function clearDemoAuthCookie() {
   document.cookie = "rf_demo_auth=; Path=/; Max-Age=0";
@@ -9,7 +10,65 @@ function clearDemoAuthCookie() {
 
 export default function SettingsPage() {
   const router = useRouter();
-  const resetDemo = useDemoStore((state) => state.resetDemo);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  async function resetWorkspaceData() {
+    setIsResetting(true);
+    setResetMessage(null);
+    setResetError(null);
+
+    try {
+      const res = await fetch("/api/workspaces/current/reset", {
+        method: "POST",
+        credentials: "include",
+      });
+      const body = (await res.json().catch(() => null)) as {
+        error?: string;
+        reset?: {
+          projects: number;
+          redditAccounts: number;
+          analyticsEvents: number;
+        };
+      } | null;
+
+      if (!res.ok || !body?.reset) {
+        setResetError(body?.error ?? "Failed to reset workspace data.");
+        return;
+      }
+
+      const { projects, redditAccounts, analyticsEvents } = body.reset;
+      setResetMessage(
+        `Reset complete. Removed ${projects} project(s), ${redditAccounts} Reddit account(s), and ${analyticsEvents} analytics event(s).`,
+      );
+    } catch {
+      setResetError(
+        "Failed to reset workspace data. Check your network and retry.",
+      );
+    } finally {
+      setIsResetting(false);
+    }
+  }
+
+  async function signOut() {
+    setIsSigningOut(true);
+    clearDemoAuthCookie();
+    try {
+      if (
+        process.env.NEXT_PUBLIC_SUPABASE_URL &&
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      ) {
+        const supabase = createSupabaseClient();
+        await supabase.auth.signOut();
+      }
+    } finally {
+      router.push("/login");
+      router.refresh();
+      setIsSigningOut(false);
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -19,24 +78,32 @@ export default function SettingsPage() {
         </p>
         <h1 className="mt-3 text-3xl font-semibold">Workspace Settings</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Manage local workspace controls for this environment. Live account
-          settings will replace these controls in production.
+          Local-mode controls for development. These actions are disabled in
+          production.
         </p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-[24px] border border-border bg-card/80 p-6">
-          <p className="text-sm font-semibold">Local Workspace Data</p>
+          <p className="text-sm font-semibold">Reset Workspace Data</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Clear local projects, roadmaps, drafts, and scheduled items.
+            Delete local workspace projects, connected Reddit accounts, and
+            analytics events.
           </p>
           <button
             type="button"
-            onClick={() => resetDemo()}
+            onClick={resetWorkspaceData}
+            disabled={isResetting}
             className="mt-6 rounded-full border border-border px-5 py-2 text-sm font-semibold"
           >
-            Clear local data
+            {isResetting ? "Resetting..." : "Reset workspace data"}
           </button>
+          {resetMessage ? (
+            <p className="mt-3 text-xs text-emerald-600">{resetMessage}</p>
+          ) : null}
+          {resetError ? (
+            <p className="mt-3 text-xs text-destructive">{resetError}</p>
+          ) : null}
         </div>
 
         <div className="rounded-[24px] border border-border bg-card/80 p-6">
@@ -46,13 +113,11 @@ export default function SettingsPage() {
           </p>
           <button
             type="button"
-            onClick={() => {
-              clearDemoAuthCookie();
-              router.push("/login");
-            }}
+            onClick={signOut}
+            disabled={isSigningOut}
             className="mt-6 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
           >
-            Sign out
+            {isSigningOut ? "Signing out..." : "Sign out"}
           </button>
         </div>
       </div>

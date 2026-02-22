@@ -136,6 +136,14 @@
 - [x] Wired `/scheduling` and `/scheduling/queue` pages to display live queue health status/reasons alongside existing scheduling metrics.
 - [x] Added unit coverage for queue health severity derivation and route auth/error behavior (`tests/unit/lib/workspaceQueueHealth.test.ts`, `tests/unit/api/schedulingQueueHealthRoute.test.ts`).
 
+### Recent Left-Nav Route QA Hardening (RED-91)
+
+- [x] Added deterministic active-route matching helper (`isNavItemActive`) shared by desktop and mobile navigation.
+- [x] Updated desktop sidebar to show active route state (`aria-current="page"`) and keep quick-link highlight behavior consistent with the mobile menu.
+- [x] Expanded nav config tests with explicit nested-route activation assertions.
+- [x] Added route-coverage regression test (`tests/unit/lib/navRouteCoverage.test.ts`) to fail when any left-nav link points to a non-existent app route template.
+- [x] Added `LEFT_NAV_QA_CHECKLIST.md` manual QA checklist for desktop/mobile navigation route verification.
+
 ### Recent Project Scope + Quota Hardening (RED-97/RED-98)
 
 - [x] Enforced workspace-scoped DB writes for project PATCH/DELETE by switching to workspace-filtered write guards.

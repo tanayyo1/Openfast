@@ -3,11 +3,12 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+import { normalizeProjectUrlInput } from "@/lib/projects/url";
 
 const updateProjectSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   description: z.string().min(1).max(10_000).optional(),
-  url: z.string().url().optional().nullable(),
+  url: z.union([z.string(), z.null()]).optional(),
   niche: z.string().min(1).max(120).optional(),
   goals: z.unknown().optional(),
   brandVoice: z.unknown().optional(),
@@ -93,12 +94,36 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     );
   }
 
+  const normalizedUrl =
+    parsed.data.url === undefined || parsed.data.url === null
+      ? parsed.data.url
+      : normalizeProjectUrlInput(parsed.data.url);
+  if (
+    parsed.data.url !== undefined &&
+    parsed.data.url !== null &&
+    !normalizedUrl
+  ) {
+    return NextResponse.json(
+      {
+        error: "Invalid input",
+        code: "VALIDATION_ERROR",
+        details: {
+          fieldErrors: {
+            url: ["Provide a valid http(s) URL, e.g. https://example.com"],
+          },
+          formErrors: [],
+        },
+      },
+      { status: 400 },
+    );
+  }
+
   const updateData: Prisma.ProjectUpdateInput = {
     ...(parsed.data.name !== undefined ? { name: parsed.data.name } : {}),
     ...(parsed.data.description !== undefined
       ? { description: parsed.data.description }
       : {}),
-    ...(parsed.data.url !== undefined ? { url: parsed.data.url ?? null } : {}),
+    ...(parsed.data.url !== undefined ? { url: normalizedUrl ?? null } : {}),
     ...(parsed.data.niche !== undefined ? { niche: parsed.data.niche } : {}),
     ...(parsed.data.goals !== undefined
       ? { goals: parsed.data.goals as Prisma.InputJsonValue }

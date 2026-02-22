@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { QuotaExceededError } from "@/lib/billing/quota";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+import { normalizeProjectUrlInput } from "@/lib/projects/url";
 
 const listQuerySchema = z.object({
   cursor: z.string().optional(),
@@ -35,7 +36,7 @@ function decodeCursor(raw: string): ProjectCursor | null {
 const createProjectSchema = z.object({
   name: z.string().min(1).max(120),
   description: z.string().min(1).max(10_000),
-  url: z.string().url().optional().nullable(),
+  url: z.union([z.string(), z.null()]).optional(),
   niche: z.string().min(1).max(120).default("general"),
   goals: z.unknown().optional(),
   brandVoice: z.unknown().optional(),
@@ -154,6 +155,25 @@ export async function POST(req: Request) {
 
   const data = parsed.data;
   let created;
+  const normalizedUrl =
+    data.url === undefined || data.url === null
+      ? null
+      : normalizeProjectUrlInput(data.url);
+  if (data.url !== undefined && data.url !== null && !normalizedUrl) {
+    return NextResponse.json(
+      {
+        error: "Invalid input",
+        code: "VALIDATION_ERROR",
+        details: {
+          fieldErrors: {
+            url: ["Provide a valid http(s) URL, e.g. https://example.com"],
+          },
+          formErrors: [],
+        },
+      },
+      { status: 400 },
+    );
+  }
   try {
     created = await prisma.$transaction(async (tx) => {
       // Serialize project create attempts per workspace so quota checks cannot
@@ -193,7 +213,7 @@ export async function POST(req: Request) {
           workspaceId: session.workspaceId,
           name: data.name,
           description: data.description,
-          url: data.url ?? null,
+          url: normalizedUrl,
           niche: data.niche,
           goals: data.goals ?? { primary: "traffic", targets: [], kpis: [] },
           brandVoice: data.brandVoice ?? { tone: "neutral", do: [], dont: [] },
@@ -224,6 +244,5 @@ export async function POST(req: Request) {
     }
     throw err;
   }
-
   return NextResponse.json({ project: created }, { status: 201 });
 }

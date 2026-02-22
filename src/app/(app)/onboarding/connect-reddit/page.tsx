@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
-import { useDemoStore } from "@/stores/demoStore";
+import { useEffect, useMemo, useState } from "react";
 
 const scopes = [
   {
@@ -39,23 +38,94 @@ const demandScorecardGuide = [
   "If scorecard blockers appear, resolve those before posting promotional content.",
 ];
 
+type ConnectedAccount = {
+  id: string;
+  redditUsername: string;
+  safetyTier: "NEW" | "ESTABLISHED" | "TRUSTED" | "RESTRICTED";
+};
+
 export default function ConnectRedditPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const projectId = searchParams.get("projectId") ?? "";
 
-  const connectRedditAccount = useDemoStore(
-    (state) => state.connectRedditAccount,
-  );
-  const accounts = useDemoStore((state) => state.redditAccounts);
-
+  const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const [username, setUsername] = useState("");
-  const [tier, setTier] = useState<"New" | "Established">("New");
+  const [tier, setTier] = useState<"NEW" | "ESTABLISHED">("NEW");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const canContinue = useMemo(() => {
-    return accounts.length > 0;
-  }, [accounts.length]);
+  async function loadAccounts() {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/reddit/accounts", { cache: "no-store" });
+      const json = (await res.json()) as {
+        items?: ConnectedAccount[];
+        error?: string;
+        code?: string;
+      };
+      if (!res.ok) {
+        setError(json.error ?? "Failed to load connected accounts");
+        setAccounts([]);
+        return;
+      }
+      setAccounts(json.items ?? []);
+    } catch {
+      setError("Network issue while loading accounts");
+      setAccounts([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadAccounts();
+  }, []);
+
+  const canContinue = useMemo(() => accounts.length > 0, [accounts.length]);
+
+  async function connectLocalAccount() {
+    const clean = username.trim();
+    if (!clean) {
+      setError("Enter a Reddit username to connect.");
+      return;
+    }
+
+    setError(null);
+    setIsConnecting(true);
+    try {
+      const res = await fetch("/api/reddit/accounts/dev-connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: clean, tier }),
+      });
+
+      const json = (await res.json()) as { error?: string; code?: string };
+      if (!res.ok) {
+        if (json.code === "ACCOUNT_ALREADY_CONNECTED") {
+          setError("That account is already connected.");
+        } else if (json.code === "TOKEN_ENCRYPTION_NOT_CONFIGURED") {
+          setError(
+            "Token encryption is not configured. Check TOKEN_ENCRYPTION_KEYS.",
+          );
+        } else if (json.code === "FORBIDDEN") {
+          setError("Local mock connect is disabled in production mode.");
+        } else {
+          setError(json.error ?? "Failed to connect local account.");
+        }
+        return;
+      }
+
+      setUsername("");
+      await loadAccounts();
+    } catch {
+      setError("Network issue while connecting account.");
+    } finally {
+      setIsConnecting(false);
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -93,6 +163,13 @@ export default function ConnectRedditPage() {
             ))}
           </div>
 
+          <a
+            href={`/api/reddit/oauth/start?next=${encodeURIComponent("/onboarding/connect-reddit")}`}
+            className="mt-6 block w-full rounded-full border border-border px-5 py-3 text-center text-sm font-semibold"
+          >
+            Connect with Reddit OAuth
+          </a>
+
           <div className="mt-6 rounded-2xl border border-border bg-background/70 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
               Local mode connect
@@ -118,42 +195,51 @@ export default function ConnectRedditPage() {
                   id="tier"
                   value={tier}
                   onChange={(event) =>
-                    setTier(event.target.value as "New" | "Established")
+                    setTier(event.target.value as "NEW" | "ESTABLISHED")
                   }
                   className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm"
                 >
-                  <option value="New">New</option>
-                  <option value="Established">Established</option>
+                  <option value="NEW">NEW</option>
+                  <option value="ESTABLISHED">ESTABLISHED</option>
                 </select>
               </div>
             </div>
             <button
               type="button"
-              onClick={() => {
-                const clean = username.trim();
-                if (!clean) return;
-                connectRedditAccount({ username: clean, tier });
-                setUsername("");
-              }}
-              className="mt-4 w-full rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
+              onClick={connectLocalAccount}
+              disabled={isConnecting}
+              className="mt-4 w-full rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             >
-              Connect account
+              {isConnecting ? "Connecting..." : "Connect local account"}
             </button>
           </div>
 
           <p className="mt-4 text-xs text-muted-foreground">
-            Tokens are never stored in logs. Local mode stores no real
-            credentials.
+            Tokens are encrypted at rest. Local mode stores placeholder
+            credentials only.
           </p>
         </div>
 
         <div className="space-y-4">
           <div className="rounded-[24px] border border-border bg-background/70 p-6">
-            <p className="text-sm font-semibold">Connected accounts</p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold">Connected accounts</p>
+              <button
+                type="button"
+                onClick={() => void loadAccounts()}
+                className="rounded-full border border-border px-3 py-1 text-xs font-semibold"
+              >
+                Refresh
+              </button>
+            </div>
             <p className="mt-2 text-sm text-muted-foreground">
               Keep accounts healthy by following safe cadence tiers.
             </p>
-            {accounts.length === 0 ? (
+            {isLoading ? (
+              <div className="mt-4 rounded-2xl border border-border bg-card/80 p-4 text-sm text-muted-foreground">
+                Loading accounts...
+              </div>
+            ) : accounts.length === 0 ? (
               <div className="mt-4 rounded-2xl border border-border bg-card/80 p-4">
                 <p className="text-sm font-semibold">No accounts connected</p>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -170,10 +256,10 @@ export default function ConnectRedditPage() {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold">
-                          u/{account.username}
+                          u/{account.redditUsername}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          Tier: {account.tier}
+                          Tier: {account.safetyTier}
                         </p>
                       </div>
                       <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
@@ -222,6 +308,12 @@ export default function ConnectRedditPage() {
           </div>
         </div>
       </div>
+
+      {error ? (
+        <p className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap gap-3">
         <Link

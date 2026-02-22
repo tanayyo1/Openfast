@@ -177,6 +177,13 @@
 - [x] Wired campaign PATCH flow to enqueue sync on meaningful ACTIVE/PAUSED/COMPLETED/ARCHIVED changes and expose sync state in `/ads` UI (`externalCampaignId`, `syncError`).
 - [x] Extended RED-52 tests for sync enqueue behavior and queue/id helper coverage.
 
+### Recent Onboarding Reliability Batch (RED-92/RED-93)
+
+- [x] Replaced `/onboarding/create-project` demo-store writes with workspace API persistence (`POST /api/projects`) plus in-flight/save-error UX.
+- [x] Added URL normalization guardrails for project create/update APIs (trim + auto-https + explicit URL validation errors).
+- [x] Added workspace-scoped local-mode Reddit connect endpoint (`POST /api/reddit/accounts/dev-connect`) with encrypted placeholder tokens for pre-API onboarding.
+- [x] Reworked `/onboarding/connect-reddit` to use live account API data instead of demo store, including refresh/retry and continue gating from persisted accounts.
+
 ### Recent Landing Page Generator Batch (RED-58)
 
 - [x] Added landing page draft data model + migration (`landing_page_drafts`) with workspace/project scoping.

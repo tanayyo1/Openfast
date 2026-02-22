@@ -94,11 +94,11 @@ export default function OpportunitiesPage() {
       return;
     }
 
+    setError(null);
     if (opts?.silent) {
       setRefreshing(true);
     } else {
       setLoadingFeed(true);
-      setError(null);
     }
     const requestId = ++feedRequestCounter.current;
 
@@ -147,6 +147,7 @@ export default function OpportunitiesPage() {
 
   async function createFromOpportunity(opportunityId: string) {
     if (!selectedProjectId || actingOpportunityId) return;
+    const projectIdAtAction = selectedProjectId;
 
     setActingOpportunityId(opportunityId);
     setError(null);
@@ -157,7 +158,7 @@ export default function OpportunitiesPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          projectId: selectedProjectId,
+          projectId: projectIdAtAction,
           opportunityId,
           variantCount: 3,
           tone: "helpful",
@@ -168,9 +169,14 @@ export default function OpportunitiesPage() {
       const json = (await res.json()) as CreateFromOpportunityResponse;
 
       if (!res.ok) {
-        if (json.code === "OPPORTUNITY_NOT_AVAILABLE") {
+        if (
+          json.code === "OPPORTUNITY_NOT_AVAILABLE" ||
+          json.code === "OPPORTUNITY_NOT_FOUND"
+        ) {
           setError("This opportunity is no longer available. Refreshing feed.");
-          await loadFeed(selectedProjectId, { silent: true });
+          if (selectedProjectId === projectIdAtAction) {
+            await loadFeed(projectIdAtAction, { silent: true });
+          }
           return;
         }
         if (json.code === "ACTIVE_ROADMAP_REQUIRED") {
@@ -202,9 +208,11 @@ export default function OpportunitiesPage() {
           : "Comment draft created from opportunity.",
       );
 
-      setItems((current) =>
-        current.filter((item) => item.id !== opportunityId),
-      );
+      if (selectedProjectId === projectIdAtAction) {
+        setItems((current) =>
+          current.filter((item) => item.id !== opportunityId),
+        );
+      }
 
       if (destination) {
         window.location.href = destination;
@@ -287,8 +295,9 @@ export default function OpportunitiesPage() {
           <div className="mt-3">
             <select
               value={selectedProjectId}
+              disabled={actingOpportunityId != null}
               onChange={(event) => setSelectedProjectId(event.target.value)}
-              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm md:w-96"
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm disabled:opacity-60 md:w-96"
             >
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>

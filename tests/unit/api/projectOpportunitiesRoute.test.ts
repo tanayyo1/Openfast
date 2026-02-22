@@ -103,6 +103,27 @@ describe("project opportunities route (RED-59)", () => {
     expect(mockedPrisma.project.findFirst).not.toHaveBeenCalled();
   });
 
+  test("returns 400 for invalid query params", async () => {
+    const res = await listProjectOpportunities(
+      new Request(
+        "http://test.local/api/projects/p_1/opportunities?limit=999&minScore=-0.1",
+      ),
+      { params: { id: "p_1" } },
+    );
+
+    expect(res.status).toBe(400);
+    const json = (await readJson(res)) as {
+      code: string;
+      details?: {
+        fieldErrors?: Record<string, string[]>;
+      };
+    };
+    expect(json.code).toBe("VALIDATION_ERROR");
+    expect(json.details?.fieldErrors?.limit?.[0]).toBeTruthy();
+    expect(json.details?.fieldErrors?.minScore?.[0]).toBeTruthy();
+    expect(mockedPrisma.project.findFirst).not.toHaveBeenCalled();
+  });
+
   test("returns empty list when project has no selected/candidate recommendations", async () => {
     mockedPrisma.project.findFirst.mockResolvedValueOnce({
       id: "p_1",

@@ -1,6 +1,6 @@
 # PROGRESSION.md - MediaFast Clone MVP Tracker
 
-> **Last Updated**: 2026-02-21
+> **Last Updated**: 2026-02-22
 > **Target**: `mediafast_clone_system_design_report.md`
 > **Current Estimate**: ~99% of overall parity complete (MVP complete; Tier 2 complete; Tier 3 complete for planned scope; Tier 4 planned items shipped; remaining work is optional hardening/polish)
 
@@ -85,6 +85,13 @@
 - [x] Replaced `useDemoStore` on `/roadmaps`, `/roadmaps/[id]`, and `/roadmaps/generate` with workspace-scoped live data and API-backed roadmap generation.
 - [x] Replaced `useDemoStore` on `/content`, `/content/drafts/[id]`, `/tasks/[id]`, and `/approvals` with live API-backed draft/task/approval lifecycle flows and state-guarded actions.
 - [x] Replaced scheduling demo flows with live API actions on `/scheduling`, `/scheduling/calendar`, and `/scheduling/queue` (schedule, cancel, delete, and live status summaries).
+
+### Recent Opportunities Live-Wiring (RED-84)
+
+- [x] Wired `/opportunities` page to live workspace/project APIs (`/api/projects`, `/api/projects/:id/opportunities`, `/api/tasks/from-opportunity`) with loading, empty, and actionable error states.
+- [x] Added stale-state hardening for create-from-opportunity flows (handles `OPPORTUNITY_NOT_AVAILABLE` and `OPPORTUNITY_NOT_FOUND`, refreshes live feed, and avoids cross-project race updates).
+- [x] Added UX guard to prevent project-scope switching while a create action is in flight, reducing accidental race conditions.
+- [x] Added regression coverage for RED-84 page behavior and opportunities query validation (`tests/unit/components/OpportunitiesPage.test.tsx`, `tests/unit/api/projectOpportunitiesRoute.test.ts`).
 
 ### Recent Onboarding Progress Hardening (RED-86)
 

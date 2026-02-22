@@ -182,4 +182,50 @@ describe("Projects API (workspace-scoped)", () => {
     await prisma.project.delete({ where: { id: otherProject.id } });
     await prisma.workspace.delete({ where: { id: otherWs.id } });
   });
+
+  test("normalizes URL input on create and patch", async () => {
+    const createReq = new Request("http://test.local/api/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "URL Normalization Project",
+        description: "Checks URL normalization behavior",
+        url: "example.com/pricing",
+        niche: "saas",
+      }),
+    });
+
+    const createdRes = await createProject(createReq);
+    expect(createdRes.status).toBe(201);
+    const createdJson = (await readJson(createdRes)) as {
+      project: { id: string; url: string | null };
+    };
+    const projectId = createdJson.project.id;
+    expect(createdJson.project.url).toBe("https://example.com/pricing");
+
+    const patchReq = new Request(
+      `http://test.local/api/projects/${projectId}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: " https://example.com/docs ",
+        }),
+      },
+    );
+    const patchRes = await updateProject(patchReq, {
+      params: { id: projectId },
+    });
+    expect(patchRes.status).toBe(200);
+    const patchJson = (await readJson(patchRes)) as {
+      project: { url: string | null };
+    };
+    expect(patchJson.project.url).toBe("https://example.com/docs");
+
+    await prisma.project.update({
+      where: { id: projectId },
+      data: { status: "ARCHIVED" },
+      select: { id: true },
+    });
+  });
 });

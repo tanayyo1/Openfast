@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useDemoStore } from "@/stores/demoStore";
+import { normalizeProjectUrlInput } from "@/lib/projects/url";
 
 const goalOptions = [
   {
@@ -20,18 +20,87 @@ const goalOptions = [
 
 export default function CreateProjectPage() {
   const router = useRouter();
-  const createProject = useDemoStore((state) => state.createProject);
 
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
   const [brandVoice, setBrandVoice] = useState("");
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isValid = useMemo(() => {
     return name.trim().length > 1 && description.trim().length > 10;
   }, [name, description]);
+
+  async function saveProject() {
+    setError(null);
+
+    const cleanName = name.trim();
+    const cleanDescription = description.trim();
+    const normalizedUrl = normalizeProjectUrlInput(url);
+    const hasUrlInput = url.trim().length > 0;
+
+    if (!isValid) {
+      setError("Please provide a project name and a short description.");
+      return;
+    }
+    if (hasUrlInput && !normalizedUrl) {
+      setError("Use a valid URL like https://example.com.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: cleanName,
+          description: cleanDescription,
+          url: normalizedUrl,
+          goals: {
+            primary: selectedGoals[0]?.toLowerCase() ?? "traffic",
+            targets: selectedGoals.slice(1).map((goal) => goal.toLowerCase()),
+            kpis: [],
+          },
+          brandVoice: {
+            tone: brandVoice.trim() || "neutral",
+            do: [],
+            dont: [],
+          },
+          niche: "general",
+        }),
+      });
+
+      const json = (await res.json()) as {
+        project?: { id: string };
+        error?: string;
+        code?: string;
+      };
+
+      if (!res.ok || !json.project) {
+        if (json.code === "VALIDATION_ERROR") {
+          setError("Please check your inputs and try again.");
+        } else if (json.code === "QUOTA_EXCEEDED_PROJECTS") {
+          setError("Project limit reached for your current plan.");
+        } else if (json.code === "UNAUTHORIZED") {
+          setError("Session expired. Please login again.");
+        } else {
+          setError(json.error ?? "Failed to save project. Try again.");
+        }
+        return;
+      }
+
+      router.push(
+        `/onboarding/connect-reddit?projectId=${encodeURIComponent(json.project.id)}`,
+      );
+    } catch {
+      setError("Network issue while saving project. Try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -179,31 +248,11 @@ export default function CreateProjectPage() {
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             type="button"
-            disabled={!isValid}
-            onClick={() => {
-              setError(null);
-              if (!isValid) {
-                setError(
-                  "Please provide a project name and a short description.",
-                );
-                return;
-              }
-
-              const projectId = createProject({
-                name: name.trim(),
-                url: url.trim() || undefined,
-                description: description.trim(),
-                brandVoice: brandVoice.trim(),
-                goals: selectedGoals,
-              });
-
-              router.push(
-                `/onboarding/connect-reddit?projectId=${encodeURIComponent(projectId)}`,
-              );
-            }}
+            disabled={!isValid || isSaving}
+            onClick={saveProject}
             className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
           >
-            Save project
+            {isSaving ? "Saving..." : "Save project"}
           </button>
           <Link
             href="/onboarding"

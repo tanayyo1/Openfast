@@ -2,12 +2,21 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 
+function readDemoAuthCookie() {
+  try {
+    return cookies().get("rf_demo_auth")?.value ?? null;
+  } catch {
+    // `cookies()` is request-scoped in Next.js and throws outside HTTP contexts.
+    return null;
+  }
+}
+
 async function tryLocalModeSession() {
   if (process.env.NODE_ENV === "production") {
     return null;
   }
 
-  const demoAuth = cookies().get("rf_demo_auth")?.value;
+  const demoAuth = readDemoAuthCookie();
   if (demoAuth !== "1") {
     return null;
   }

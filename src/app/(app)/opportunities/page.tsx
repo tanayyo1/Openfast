@@ -123,7 +123,6 @@ export default function OpportunitiesPage() {
 
       if (requestId !== feedRequestCounter.current) return;
       setItems(json?.items ?? []);
-      setError(null);
     } catch (err) {
       if (requestId !== feedRequestCounter.current) return;
       const message =

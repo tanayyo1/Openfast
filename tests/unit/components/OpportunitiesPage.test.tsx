@@ -162,4 +162,106 @@ describe("OpportunitiesPage", () => {
     });
     expect(opportunityLoads).toHaveLength(2);
   });
+
+  test("preserves create-action error while silent feed refresh completes", async () => {
+    let resolveRefresh:
+      | ((value: ReturnType<typeof mockJsonResponse>) => void)
+      | null = null;
+    const refreshPromise = new Promise<ReturnType<typeof mockJsonResponse>>(
+      (resolve) => {
+        resolveRefresh = resolve;
+      },
+    );
+
+    const fetchMock = jest
+      .fn()
+      .mockImplementationOnce(async () =>
+        mockJsonResponse(200, { items: [{ id: "p_1", name: "Project 1" }] }),
+      )
+      .mockImplementationOnce(async () =>
+        mockJsonResponse(200, {
+          count: 1,
+          items: [
+            {
+              id: "opp_1",
+              subredditId: "sub_1",
+              subredditName: "startups",
+              subredditTitle: "Startups",
+              title: "Thread title",
+              permalink: "https://reddit.com/r/startups/comments/abc123",
+              author: "author1",
+              opportunityScore: 0.8,
+              relevanceScore: 0.7,
+              velocityScore: 0.6,
+              riskScore: 0.2,
+              velocity: "Medium",
+              risk: "Low",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(async () => refreshPromise)
+      .mockImplementationOnce(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method !== "POST") {
+          throw new Error("Expected POST request for create flow");
+        }
+        return mockJsonResponse(409, {
+          error: "No active roadmap found for this project",
+          code: "ACTIVE_ROADMAP_REQUIRED",
+        });
+      });
+    (global as { fetch?: typeof fetch }).fetch =
+      fetchMock as unknown as typeof fetch;
+
+    render(<OpportunitiesPage />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Create comment draft" }),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Refresh feed" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create comment draft" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "No active roadmap found for this project. Generate a roadmap first.",
+        ),
+      ).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      resolveRefresh?.(
+        mockJsonResponse(200, {
+          count: 1,
+          items: [
+            {
+              id: "opp_1",
+              subredditId: "sub_1",
+              subredditName: "startups",
+              subredditTitle: "Startups",
+              title: "Thread title",
+              permalink: "https://reddit.com/r/startups/comments/abc123",
+              author: "author1",
+              opportunityScore: 0.8,
+              relevanceScore: 0.7,
+              velocityScore: 0.6,
+              riskScore: 0.2,
+              velocity: "Medium",
+              risk: "Low",
+            },
+          ],
+        }),
+      );
+      await Promise.resolve();
+    });
+
+    expect(
+      screen.getByText(
+        "No active roadmap found for this project. Generate a roadmap first.",
+      ),
+    ).toBeInTheDocument();
+  });
 });

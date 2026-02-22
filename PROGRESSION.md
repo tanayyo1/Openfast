@@ -120,6 +120,12 @@
 - [x] Wired `/scheduling` and `/scheduling/queue` pages to display live queue health status/reasons alongside existing scheduling metrics.
 - [x] Added unit coverage for queue health severity derivation and route auth/error behavior (`tests/unit/lib/workspaceQueueHealth.test.ts`, `tests/unit/api/schedulingQueueHealthRoute.test.ts`).
 
+### Recent Project Scope + Quota Hardening (RED-97/RED-98)
+
+- [x] Enforced workspace-scoped DB writes for project PATCH/DELETE by switching to workspace-filtered write guards.
+- [x] Hardened project creation quota checks against concurrent request races via per-workspace transactional locking.
+- [x] Added integration coverage for cross-workspace write rejection and concurrent create quota behavior.
+
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 
 - [x] RED-62 discovery ranking quality pass merged (intent weighting, broad-audience penalty refinement, reason quality improvements).

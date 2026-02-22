@@ -183,6 +183,94 @@ describe("Projects API (workspace-scoped)", () => {
     await prisma.workspace.delete({ where: { id: otherWs.id } });
   });
 
+  test("patch/delete writes are workspace scoped", async () => {
+    const otherWs = await prisma.workspace.create({
+      data: {
+        name: "Other Workspace For Write Scope",
+        ownerId: userId,
+      },
+      select: { id: true },
+    });
+
+    const otherProject = await prisma.project.create({
+      data: {
+        workspaceId: otherWs.id,
+        name: "Other Project Write Scope",
+        description: "Hidden",
+        niche: "other",
+        goals: { primary: "traffic", targets: [], kpis: [] },
+        brandVoice: { tone: "neutral", do: [], dont: [] },
+        constraints: Prisma.DbNull,
+      },
+      select: { id: true, status: true },
+    });
+
+    const patchRes = await updateProject(
+      new Request(`http://test.local/api/projects/${otherProject.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "PAUSED" }),
+      }),
+      { params: { id: otherProject.id } },
+    );
+    expect(patchRes.status).toBe(404);
+
+    const deleteRes = await archiveProject(
+      new Request(`http://test.local/api/projects/${otherProject.id}`, {
+        method: "DELETE",
+      }),
+      { params: { id: otherProject.id } },
+    );
+    expect(deleteRes.status).toBe(404);
+
+    const stillActive = await prisma.project.findUnique({
+      where: { id: otherProject.id },
+      select: { status: true },
+    });
+    expect(stillActive?.status).toBe("ACTIVE");
+
+    await prisma.project.delete({ where: { id: otherProject.id } });
+    await prisma.workspace.delete({ where: { id: otherWs.id } });
+  });
+
+  test("concurrent create requests respect quota without race", async () => {
+    await prisma.workspaceEntitlement.update({
+      where: { workspaceId },
+      data: { maxProjects: 1 },
+    });
+    await prisma.project.deleteMany({ where: { workspaceId } });
+
+    const makeCreateReq = (name: string) =>
+      new Request("http://test.local/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          description: "Race check",
+          niche: "test",
+        }),
+      });
+
+    const [a, b] = await Promise.all([
+      createProject(makeCreateReq("Race Project A")),
+      createProject(makeCreateReq("Race Project B")),
+    ]);
+
+    const statuses = [a.status, b.status].sort((x, y) => x - y);
+    expect(statuses).toEqual([201, 403]);
+
+    const used = await prisma.project.count({
+      where: { workspaceId, status: { not: "ARCHIVED" } },
+    });
+    expect(used).toBe(1);
+
+    await prisma.project.deleteMany({ where: { workspaceId } });
+    await prisma.workspaceEntitlement.update({
+      where: { workspaceId },
+      data: { maxProjects: 50 },
+    });
+  });
+
   test("normalizes URL input on create and patch", async () => {
     const createReq = new Request("http://test.local/api/projects", {
       method: "POST",

@@ -8,6 +8,8 @@ describe("normalizeProjectUrlInput", () => {
     expect(normalizeProjectUrlInput("notaurl")).toBeNull();
     expect(normalizeProjectUrlInput("http://internal-service")).toBeNull();
     expect(normalizeProjectUrlInput("http://999.999.999.999")).toBeNull();
+    expect(normalizeProjectUrlInput("https://1.2.3")).toBeNull();
+    expect(normalizeProjectUrlInput("http://010.000.000.001")).toBeNull();
     expect(normalizeProjectUrlInput("ftp://example.com")).toBeNull();
     expect(normalizeProjectUrlInput(null)).toBeNull();
   });

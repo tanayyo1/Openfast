@@ -93,9 +93,11 @@ async function fetchWithTimeout(input: string, init: RequestInit = {}) {
 }
 
 function hasRuntimeErrorMarkers(body: string) {
-  return /Application error|Internal Server Error|Unhandled Runtime Error|Something went wrong/i.test(
-    body,
-  );
+  const genericErrorPattern =
+    /Application error|Internal Server Error|Unhandled Runtime Error|Something went wrong/i;
+  const frameworkErrorPattern =
+    /Error:\s|data-nextjs-error|class="next-error|data-testid="next-error"/i;
+  return genericErrorPattern.test(body) || frameworkErrorPattern.test(body);
 }
 
 async function run() {

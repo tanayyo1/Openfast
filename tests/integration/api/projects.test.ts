@@ -339,6 +339,30 @@ describe("Projects API (workspace-scoped)", () => {
       /valid http\(s\) URL/i,
     );
 
+    const invalidNumericHostReq = new Request(
+      "http://test.local/api/projects",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Invalid Numeric Host Project",
+          description: "This should fail ambiguous numeric host validation.",
+          url: "1.2.3",
+          niche: "saas",
+        }),
+      },
+    );
+    const invalidNumericHostRes = await createProject(invalidNumericHostReq);
+    expect(invalidNumericHostRes.status).toBe(400);
+    const invalidNumericHostJson = (await readJson(invalidNumericHostRes)) as {
+      code?: string;
+      details?: { fieldErrors?: Record<string, string[]> };
+    };
+    expect(invalidNumericHostJson.code).toBe("VALIDATION_ERROR");
+    expect(invalidNumericHostJson.details?.fieldErrors?.url?.[0]).toMatch(
+      /valid http\(s\) URL/i,
+    );
+
     const validCreateReq = new Request("http://test.local/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

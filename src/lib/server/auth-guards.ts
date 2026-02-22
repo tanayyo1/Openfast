@@ -1,7 +1,41 @@
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { cookies } from "next/headers";
+
+async function tryLocalModeSession() {
+  if (process.env.NODE_ENV === "production") {
+    return null;
+  }
+
+  const demoAuth = cookies().get("rf_demo_auth")?.value;
+  if (demoAuth !== "1") {
+    return null;
+  }
+
+  // Local development fallback: use first available user.
+  const dbUser = await prisma.user.findFirst({
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (!dbUser) {
+    throw new Error("USER_NOT_SYNCED");
+  }
+
+  return {
+    user: dbUser,
+    supabaseUser: {
+      id: dbUser.authId ?? `local-${dbUser.id}`,
+      email: dbUser.email,
+    },
+  };
+}
 
 export async function requireSession() {
+  const localModeSession = await tryLocalModeSession();
+  if (localModeSession) {
+    return localModeSession;
+  }
+
   // Check if Supabase is configured
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||

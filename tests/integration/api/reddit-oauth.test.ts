@@ -167,7 +167,7 @@ describe("Reddit OAuth APIs (workspace-scoped)", () => {
   });
 
   test("dev connect creates workspace-scoped mock account", async () => {
-    const username = `dev_connect_${Date.now()}`;
+    const username = `dev${Date.now().toString().slice(-8)}`;
     const res = await devConnect(
       new Request("http://test.local/api/reddit/accounts/dev-connect", {
         method: "POST",

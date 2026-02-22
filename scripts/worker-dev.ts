@@ -4,7 +4,13 @@ import { loadEnvConfig } from "@next/env";
 // manually sourcing .env.local in the shell.
 loadEnvConfig(process.cwd());
 
-void import("../src/workers/index").catch((err) => {
-  console.error("Worker startup failed:", err);
-  process.exit(1);
-});
+async function main() {
+  try {
+    await import("../src/workers/index");
+  } catch (err) {
+    console.error("Worker startup failed:", err);
+    process.exitCode = 1;
+  }
+}
+
+void main();

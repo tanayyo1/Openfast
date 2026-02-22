@@ -8,6 +8,7 @@
  * Optional env overrides:
  *   SMOKE_BASE_URL=http://localhost:3300
  *   SMOKE_COOKIE="rf_demo_auth=1"
+ *   SMOKE_TIMEOUT_MS=10000
  */
 
 type CheckResult = {
@@ -28,6 +29,15 @@ const baseUrl =
   process.env.NEXTAUTH_URL ??
   "http://localhost:3000";
 const cookie = process.env.SMOKE_COOKIE ?? "rf_demo_auth=1";
+const DEFAULT_SMOKE_TIMEOUT_MS = 10_000;
+const smokeTimeoutMs = (() => {
+  const raw = process.env.SMOKE_TIMEOUT_MS;
+  if (!raw) return DEFAULT_SMOKE_TIMEOUT_MS;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0
+    ? Math.floor(parsed)
+    : DEFAULT_SMOKE_TIMEOUT_MS;
+})();
 
 const appRoutes = [
   "/dashboard",
@@ -84,7 +94,7 @@ function joinUrl(path: string) {
 
 async function fetchWithTimeout(input: string, init: RequestInit = {}) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15_000);
+  const timer = setTimeout(() => controller.abort(), smokeTimeoutMs);
   try {
     return await fetch(input, { ...init, signal: controller.signal });
   } finally {

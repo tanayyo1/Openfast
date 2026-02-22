@@ -7,7 +7,14 @@ describe("normalizeProjectUrlInput", () => {
     expect(normalizeProjectUrlInput("not a url%%%%")).toBeNull();
     expect(normalizeProjectUrlInput("notaurl")).toBeNull();
     expect(normalizeProjectUrlInput("http://internal-service")).toBeNull();
+    expect(normalizeProjectUrlInput("https://example..com")).toBeNull();
+    expect(normalizeProjectUrlInput("https://...")).toBeNull();
+    expect(
+      normalizeProjectUrlInput("https://user:pass@example.com"),
+    ).toBeNull();
     expect(normalizeProjectUrlInput("http://999.999.999.999")).toBeNull();
+    expect(normalizeProjectUrlInput("http://256.1.1.1")).toBeNull();
+    expect(normalizeProjectUrlInput("http://1.2.3.999")).toBeNull();
     expect(normalizeProjectUrlInput("https://1.2.3")).toBeNull();
     expect(normalizeProjectUrlInput("http://010.000.000.001")).toBeNull();
     expect(normalizeProjectUrlInput("http://0177.0.0.1")).toBeNull();
@@ -20,6 +27,9 @@ describe("normalizeProjectUrlInput", () => {
   test("preserves valid http(s) URLs", () => {
     expect(normalizeProjectUrlInput("https://example.com")).toBe(
       "https://example.com/",
+    );
+    expect(normalizeProjectUrlInput("HtTp://example.com")).toBe(
+      "http://example.com/",
     );
     expect(normalizeProjectUrlInput("http://example.com/pricing")).toBe(
       "http://example.com/pricing",

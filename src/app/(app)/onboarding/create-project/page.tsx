@@ -87,7 +87,7 @@ export default function CreateProjectPage() {
         if (json.code === "VALIDATION_ERROR") {
           const firstFieldError = json.details?.fieldErrors
             ? (Object.values(json.details.fieldErrors)
-                .flat()
+                .flatMap((messages) => messages ?? [])
                 .find(
                   (message): message is string =>
                     typeof message === "string" && message.trim().length > 0,

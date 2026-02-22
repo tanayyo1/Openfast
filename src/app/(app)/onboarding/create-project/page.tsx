@@ -77,11 +77,32 @@ export default function CreateProjectPage() {
         project?: { id: string };
         error?: string;
         code?: string;
+        details?: {
+          fieldErrors?: Record<string, string[] | undefined>;
+          formErrors?: string[];
+        };
       };
 
       if (!res.ok || !json.project) {
         if (json.code === "VALIDATION_ERROR") {
-          setError("Please check your inputs and try again.");
+          const firstFieldError = json.details?.fieldErrors
+            ? (Object.values(json.details.fieldErrors)
+                .flatMap((messages) => messages ?? [])
+                .find(
+                  (message): message is string =>
+                    typeof message === "string" && message.trim().length > 0,
+                ) ?? null)
+            : null;
+          const firstFormError =
+            json.details?.formErrors?.find(
+              (message) =>
+                typeof message === "string" && message.trim().length > 0,
+            ) ?? null;
+          setError(
+            firstFieldError ??
+              firstFormError ??
+              "Please check your inputs and try again.",
+          );
         } else if (json.code === "QUOTA_EXCEEDED_PROJECTS") {
           setError("Project limit reached for your current plan.");
         } else if (json.code === "UNAUTHORIZED") {

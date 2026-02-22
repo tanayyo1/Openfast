@@ -316,4 +316,148 @@ describe("Projects API (workspace-scoped)", () => {
       select: { id: true },
     });
   });
+
+  test("rejects invalid single-label hostnames in URL fields", async () => {
+    const invalidCreateReq = new Request("http://test.local/api/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Invalid URL Hostname Project",
+        description: "This should fail URL validation.",
+        url: "notaurl",
+        niche: "saas",
+      }),
+    });
+    const invalidCreateRes = await createProject(invalidCreateReq);
+    expect(invalidCreateRes.status).toBe(400);
+    const invalidCreateJson = (await readJson(invalidCreateRes)) as {
+      code?: string;
+      details?: { fieldErrors?: Record<string, string[]> };
+    };
+    expect(invalidCreateJson.code).toBe("VALIDATION_ERROR");
+    expect(invalidCreateJson.details?.fieldErrors?.url?.[0]).toMatch(
+      /valid http\(s\) URL/i,
+    );
+
+    const invalidNumericHostReq = new Request(
+      "http://test.local/api/projects",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Invalid Numeric Host Project",
+          description: "This should fail ambiguous numeric host validation.",
+          url: "1.2.3",
+          niche: "saas",
+        }),
+      },
+    );
+    const invalidNumericHostRes = await createProject(invalidNumericHostReq);
+    expect(invalidNumericHostRes.status).toBe(400);
+    const invalidNumericHostJson = (await readJson(invalidNumericHostRes)) as {
+      code?: string;
+      details?: { fieldErrors?: Record<string, string[]> };
+    };
+    expect(invalidNumericHostJson.code).toBe("VALIDATION_ERROR");
+    expect(invalidNumericHostJson.details?.fieldErrors?.url?.[0]).toMatch(
+      /valid http\(s\) URL/i,
+    );
+
+    const invalidLegacyNumericHostReq = new Request(
+      "http://test.local/api/projects",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Invalid Legacy Numeric Host Project",
+          description: "This should fail shorthand numeric host validation.",
+          url: "0x7f000001",
+          niche: "saas",
+        }),
+      },
+    );
+    const invalidLegacyNumericHostRes = await createProject(
+      invalidLegacyNumericHostReq,
+    );
+    expect(invalidLegacyNumericHostRes.status).toBe(400);
+    const invalidLegacyNumericHostJson = (await readJson(
+      invalidLegacyNumericHostRes,
+    )) as {
+      code?: string;
+      details?: { fieldErrors?: Record<string, string[]> };
+    };
+    expect(invalidLegacyNumericHostJson.code).toBe("VALIDATION_ERROR");
+    expect(invalidLegacyNumericHostJson.details?.fieldErrors?.url?.[0]).toMatch(
+      /valid http\(s\) URL/i,
+    );
+
+    const invalidIntegerHostReq = new Request(
+      "http://test.local/api/projects",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Invalid Integer Host Project",
+          description: "This should fail integer IPv4 shorthand validation.",
+          url: "2130706433",
+          niche: "saas",
+        }),
+      },
+    );
+    const invalidIntegerHostRes = await createProject(invalidIntegerHostReq);
+    expect(invalidIntegerHostRes.status).toBe(400);
+    const invalidIntegerHostJson = (await readJson(invalidIntegerHostRes)) as {
+      code?: string;
+      details?: { fieldErrors?: Record<string, string[]> };
+    };
+    expect(invalidIntegerHostJson.code).toBe("VALIDATION_ERROR");
+    expect(invalidIntegerHostJson.details?.fieldErrors?.url?.[0]).toMatch(
+      /valid http\(s\) URL/i,
+    );
+
+    const validCreateReq = new Request("http://test.local/api/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Valid URL Hostname Project",
+        description: "Create a project so patch validation can be exercised.",
+        url: "example.com",
+        niche: "saas",
+      }),
+    });
+    const validCreateRes = await createProject(validCreateReq);
+    expect(validCreateRes.status).toBe(201);
+    const validCreateJson = (await readJson(validCreateRes)) as {
+      project: { id: string };
+    };
+
+    const invalidPatchReq = new Request(
+      `http://test.local/api/projects/${validCreateJson.project.id}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: "internal-service",
+        }),
+      },
+    );
+    const invalidPatchRes = await updateProject(invalidPatchReq, {
+      params: { id: validCreateJson.project.id },
+    });
+    expect(invalidPatchRes.status).toBe(400);
+    const invalidPatchJson = (await readJson(invalidPatchRes)) as {
+      code?: string;
+      details?: { fieldErrors?: Record<string, string[]> };
+    };
+    expect(invalidPatchJson.code).toBe("VALIDATION_ERROR");
+    expect(invalidPatchJson.details?.fieldErrors?.url?.[0]).toMatch(
+      /valid http\(s\) URL/i,
+    );
+
+    await prisma.project.update({
+      where: { id: validCreateJson.project.id },
+      data: { status: "ARCHIVED" },
+      select: { id: true },
+    });
+  });
 });

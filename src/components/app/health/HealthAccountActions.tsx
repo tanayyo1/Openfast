@@ -39,11 +39,13 @@ export function HealthAccountActions({
   healthHistory,
 }: Props) {
   const router = useRouter();
-  const [running, setRunning] = useState(false);
+  const [runningVisibility, setRunningVisibility] = useState(false);
+  const [refreshingHealth, setRefreshingHealth] = useState(false);
   const [openHistory, setOpenHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const actionRunning = runningVisibility || refreshingHealth;
   const canRunCheck = Boolean(latestPermalink);
   const hasHistory = visibilityHistory.length > 0 || healthHistory.length > 0;
 
@@ -52,9 +54,55 @@ export function HealthAccountActions({
     [visibilityHistory],
   );
 
+  async function refreshHealthSnapshot() {
+    if (actionRunning) return;
+    setRefreshingHealth(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const res = await fetch(
+        `/api/reddit/accounts/${encodeURIComponent(accountId)}/health`,
+        { cache: "no-store" },
+      );
+
+      const json = (await res.json()) as
+        | {
+            latestSnapshot?: { healthScore?: number };
+            refreshQueued?: boolean;
+            warnings?: string[];
+            error?: string;
+          }
+        | undefined;
+
+      if (!res.ok) {
+        setError(json?.error ?? "Failed to refresh account health");
+        return;
+      }
+
+      if (json?.refreshQueued) {
+        setNotice("Health snapshot refresh queued. Check back in a minute.");
+      } else if (typeof json?.latestSnapshot?.healthScore === "number") {
+        setNotice(
+          `Latest health score: ${Math.round(json.latestSnapshot.healthScore)}.`,
+        );
+      } else if (Array.isArray(json?.warnings) && json.warnings.length > 0) {
+        setNotice(json.warnings[0] ?? "No health snapshot available yet.");
+      } else {
+        setNotice("No health snapshot available yet.");
+      }
+
+      router.refresh();
+    } catch {
+      setError("Request failed while refreshing account health.");
+    } finally {
+      setRefreshingHealth(false);
+    }
+  }
+
   async function runVisibilityCheck() {
-    if (!latestPermalink || running) return;
-    setRunning(true);
+    if (!latestPermalink || actionRunning) return;
+    setRunningVisibility(true);
     setError(null);
     setNotice(null);
 
@@ -88,7 +136,7 @@ export function HealthAccountActions({
     } catch {
       setError("Request failed while running visibility check.");
     } finally {
-      setRunning(false);
+      setRunningVisibility(false);
     }
   }
 
@@ -108,13 +156,23 @@ export function HealthAccountActions({
       <div className="flex flex-wrap gap-3">
         <button
           type="button"
-          disabled={!canRunCheck || running}
+          disabled={actionRunning}
+          onClick={() => {
+            void refreshHealthSnapshot();
+          }}
+          className="rounded-full border border-border px-5 py-2 text-sm font-semibold disabled:opacity-60"
+        >
+          {refreshingHealth ? "Refreshing..." : "Refresh health snapshot"}
+        </button>
+        <button
+          type="button"
+          disabled={!canRunCheck || actionRunning}
           onClick={() => {
             void runVisibilityCheck();
           }}
           className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
         >
-          {running ? "Running..." : "Run visibility check"}
+          {runningVisibility ? "Running..." : "Run visibility check"}
         </button>
         <button
           type="button"

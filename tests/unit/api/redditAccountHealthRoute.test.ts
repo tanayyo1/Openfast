@@ -117,4 +117,34 @@ describe("reddit account health route", () => {
     expect(json.warnings).toContain("Reddit account is inactive.");
     expect(mockedQueue.enqueueRiskAccountHealthJob).not.toHaveBeenCalled();
   });
+
+  test("forces comment-only guardrail for restricted safety tier", async () => {
+    mockedPrisma.redditAccount.findFirst.mockResolvedValue({
+      id: "ra_1",
+      redditUsername: "demo",
+      safetyTier: "RESTRICTED",
+      isActive: true,
+    });
+    mockedPrisma.accountHealthSnapshot.findFirst.mockResolvedValue({
+      id: "hs_1",
+      healthScore: 88,
+      capturedAt: new Date(),
+    });
+
+    const res = await getAccountHealth(
+      new Request("http://test.local/api/reddit/accounts/ra_1/health"),
+      { params: { id: "ra_1" } },
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as {
+      guardrails: { blockPublishing: boolean; recommendCommentsOnly: boolean };
+      warnings: string[];
+    };
+    expect(json.guardrails.blockPublishing).toBe(true);
+    expect(json.guardrails.recommendCommentsOnly).toBe(true);
+    expect(json.warnings).toContain(
+      "Account is restricted. Avoid post scheduling until recovered.",
+    );
+  });
 });

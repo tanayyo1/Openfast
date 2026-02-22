@@ -155,6 +155,66 @@ describe("Risk health + tools APIs", () => {
     });
   });
 
+  test("GET /reddit/accounts/:id/health returns guardrails/warnings for restricted inactive accounts", async () => {
+    await prisma.redditAccount.update({
+      where: { id: accountId },
+      data: { isActive: false, safetyTier: "RESTRICTED" },
+      select: { id: true },
+    });
+
+    const res = await getAccountHealth(
+      new Request(`http://test.local/api/reddit/accounts/${accountId}/health`),
+      { params: { id: accountId } },
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as {
+      refreshQueued: boolean;
+      warnings: string[];
+      guardrails: { blockPublishing: boolean; recommendCommentsOnly: boolean };
+    };
+    expect(json.refreshQueued).toBe(false);
+    expect(json.guardrails.blockPublishing).toBe(true);
+    expect(json.guardrails.recommendCommentsOnly).toBe(true);
+    expect(json.warnings).toContain("Reddit account is inactive.");
+    expect(json.warnings).toContain(
+      "Account is restricted. Avoid post scheduling until recovered.",
+    );
+    expect(mockedQueue.enqueueRiskAccountHealthJob).not.toHaveBeenCalled();
+  });
+
+  test("GET /reddit/accounts/:id/health flags low-health caution without block", async () => {
+    await prisma.accountHealthSnapshot.create({
+      data: {
+        workspaceId,
+        redditAccountId: accountId,
+        healthScore: 40,
+        signalsJson: { sampleSize: 5, removals: 2 },
+        capturedAt: new Date(),
+      },
+    });
+
+    const res = await getAccountHealth(
+      new Request(`http://test.local/api/reddit/accounts/${accountId}/health`),
+      { params: { id: accountId } },
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as {
+      refreshQueued: boolean;
+      warnings: string[];
+      guardrails: { blockPublishing: boolean; recommendCommentsOnly: boolean };
+      latestSnapshot: { healthScore: number } | null;
+    };
+    expect(json.latestSnapshot?.healthScore).toBe(40);
+    expect(json.refreshQueued).toBe(false);
+    expect(json.guardrails.blockPublishing).toBe(false);
+    expect(json.guardrails.recommendCommentsOnly).toBe(true);
+    expect(json.warnings).toContain(
+      "Health score is low. Prefer comments and slower pacing.",
+    );
+  });
+
   test("POST /reddit/accounts/:id/visibility-check persists check entry", async () => {
     const fetchSpy = jest
       .spyOn(global, "fetch")
@@ -183,6 +243,37 @@ describe("Risk health + tools APIs", () => {
       expect(json.check.result).toBe("OK");
       expect(json.check.permalink).toContain("reddit.com");
       expect(json.queue?.id).toMatch(/^inline:/);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  test("POST /reddit/accounts/:id/visibility-check returns UNKNOWN on reddit fetch failure", async () => {
+    const fetchSpy = jest
+      .spyOn(global, "fetch")
+      .mockRejectedValueOnce(new Error("network timeout"));
+
+    try {
+      const res = await postVisibilityCheck(
+        new Request(
+          `http://test.local/api/reddit/accounts/${accountId}/visibility-check`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              permalink: "/r/startups/comments/abc123/example/",
+            }),
+          },
+        ),
+        { params: { id: accountId } },
+      );
+
+      expect(res.status).toBe(200);
+      const json = (await readJson(res)) as {
+        check: { result: string; visibleLoggedOut: boolean | null };
+      };
+      expect(json.check.result).toBe("UNKNOWN");
+      expect(json.check.visibleLoggedOut).toBeNull();
     } finally {
       fetchSpy.mockRestore();
     }

@@ -92,6 +92,7 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
         (latest?.healthScore ?? 100) < healthThresholds.blockPublishing,
       recommendCommentsOnly:
         account.safetyTier === "NEW" ||
+        account.safetyTier === "RESTRICTED" ||
         (latest?.healthScore ?? 100) < healthThresholds.caution,
     },
   });

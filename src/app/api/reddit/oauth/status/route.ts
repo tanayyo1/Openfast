@@ -11,7 +11,12 @@ export async function GET(req: Request) {
     session = await requireWorkspaceSession();
   } catch (err) {
     const code = err instanceof Error ? err.message : "UNAUTHORIZED";
-    const status = code === "WORKSPACE_REQUIRED" ? 400 : 401;
+    const status =
+      code === "WORKSPACE_REQUIRED"
+        ? 400
+        : code === "SUPABASE_NOT_CONFIGURED"
+          ? 503
+          : 401;
     return NextResponse.json({ error: "Unauthorized", code }, { status });
   }
 

@@ -59,8 +59,11 @@ function mapAuthLikeError(code?: string, fallback?: string) {
   if (code === "UNAUTHORIZED") {
     return "Your session expired. Sign in again and retry.";
   }
-  if (code === "WORKSPACE_REQUIRED" || code === "USER_NOT_SYNCED") {
+  if (code === "WORKSPACE_REQUIRED") {
     return "Workspace session is missing. Reload onboarding and try again.";
+  }
+  if (code === "USER_NOT_SYNCED") {
+    return "We couldn't load your account data. Sign out and sign back in, then try again.";
   }
   return fallback ?? "Request failed.";
 }

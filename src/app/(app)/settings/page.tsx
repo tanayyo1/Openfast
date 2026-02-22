@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 
@@ -14,8 +14,23 @@ export default function SettingsPage() {
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [resetError, setResetError] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isLocalModeSession, setIsLocalModeSession] = useState(false);
+
+  useEffect(() => {
+    const hasDemoAuth = document.cookie
+      .split(";")
+      .some((cookie) => cookie.trim() === "rf_demo_auth=1");
+    setIsLocalModeSession(hasDemoAuth);
+  }, []);
 
   async function resetWorkspaceData() {
+    const confirmed = window.confirm(
+      "This will permanently delete workspace projects, Reddit accounts, and analytics events. Continue?",
+    );
+    if (!confirmed) {
+      return;
+    }
+
     setIsResetting(true);
     setResetMessage(null);
     setResetError(null);
@@ -27,6 +42,7 @@ export default function SettingsPage() {
       });
       const body = (await res.json().catch(() => null)) as {
         error?: string;
+        code?: string;
         reset?: {
           projects: number;
           redditAccounts: number;
@@ -35,6 +51,21 @@ export default function SettingsPage() {
       } | null;
 
       if (!res.ok || !body?.reset) {
+        if (body?.code === "LOCAL_MODE_SESSION_FORBIDDEN") {
+          setResetError(
+            "Reset requires a real Supabase admin session. Sign out of local mode and sign in normally.",
+          );
+          return;
+        }
+        if (body?.code === "FORBIDDEN") {
+          setResetError("Only workspace admins can reset workspace data.");
+          return;
+        }
+        if (body?.code === "LOCAL_RESET_DISABLED") {
+          setResetError("Workspace reset is disabled in production.");
+          return;
+        }
+
         setResetError(body?.error ?? "Failed to reset workspace data.");
         return;
       }
@@ -78,8 +109,8 @@ export default function SettingsPage() {
         </p>
         <h1 className="mt-3 text-3xl font-semibold">Workspace Settings</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Local-mode controls for development. These actions are disabled in
-          production.
+          Development controls for authenticated workspace admins. Reset actions
+          are disabled in production.
         </p>
       </div>
 
@@ -93,11 +124,17 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={resetWorkspaceData}
-            disabled={isResetting}
+            disabled={isResetting || isLocalModeSession}
             className="mt-6 rounded-full border border-border px-5 py-2 text-sm font-semibold"
           >
             {isResetting ? "Resetting..." : "Reset workspace data"}
           </button>
+          {isLocalModeSession ? (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Local-mode sessions cannot run workspace reset. Sign in with a
+              real admin account.
+            </p>
+          ) : null}
           {resetMessage ? (
             <p className="mt-3 text-xs text-emerald-600">{resetMessage}</p>
           ) : null}

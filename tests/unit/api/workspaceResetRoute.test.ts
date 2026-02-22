@@ -1,5 +1,5 @@
-jest.mock("@/lib/server/auth-guards", () => ({
-  requireWorkspaceSession: jest.fn(),
+jest.mock("@/lib/server/admin-guards", () => ({
+  requireWorkspaceAdminSession: jest.fn(),
 }));
 
 jest.mock("@/lib/prisma", () => ({
@@ -10,8 +10,8 @@ jest.mock("@/lib/prisma", () => ({
 
 import { POST as resetWorkspace } from "@/app/api/workspaces/current/reset/route";
 
-const mockedGuards = jest.requireMock("@/lib/server/auth-guards") as {
-  requireWorkspaceSession: jest.Mock;
+const mockedAdminGuards = jest.requireMock("@/lib/server/admin-guards") as {
+  requireWorkspaceAdminSession: jest.Mock;
 };
 
 const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
@@ -30,9 +30,13 @@ describe("workspace reset route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     env.NODE_ENV = "test";
-    mockedGuards.requireWorkspaceSession.mockResolvedValue({
+    mockedAdminGuards.requireWorkspaceAdminSession.mockResolvedValue({
       user: { id: "user_1" },
       workspaceId: "ws_1",
+      supabaseUser: {
+        id: "90ac967e-a8ed-4cb5-b11e-315fce39ef47",
+        email: "owner@test.local",
+      },
     });
   });
 
@@ -42,64 +46,69 @@ describe("workspace reset route", () => {
 
   test("returns 403 in production", async () => {
     env.NODE_ENV = "production";
-    const res = await resetWorkspace(
-      new Request("http://test.local/api/workspaces/current/reset", {
-        method: "POST",
-        headers: { cookie: "rf_demo_auth=1" },
-      }),
-    );
+
+    const res = await resetWorkspace();
 
     expect(res.status).toBe(403);
     const json = (await readJson(res)) as { code: string };
     expect(json.code).toBe("LOCAL_RESET_DISABLED");
-    expect(mockedGuards.requireWorkspaceSession).not.toHaveBeenCalled();
-  });
-
-  test("returns 403 when local mode cookie is missing", async () => {
-    const res = await resetWorkspace(
-      new Request("http://test.local/api/workspaces/current/reset", {
-        method: "POST",
-      }),
-    );
-
-    expect(res.status).toBe(403);
-    const json = (await readJson(res)) as { code: string };
-    expect(json.code).toBe("LOCAL_MODE_REQUIRED");
-    expect(mockedGuards.requireWorkspaceSession).not.toHaveBeenCalled();
+    expect(
+      mockedAdminGuards.requireWorkspaceAdminSession,
+    ).not.toHaveBeenCalled();
   });
 
   test("maps workspace-required auth errors to 400", async () => {
-    mockedGuards.requireWorkspaceSession.mockRejectedValueOnce(
+    mockedAdminGuards.requireWorkspaceAdminSession.mockRejectedValueOnce(
       new Error("WORKSPACE_REQUIRED"),
     );
 
-    const res = await resetWorkspace(
-      new Request("http://test.local/api/workspaces/current/reset", {
-        method: "POST",
-        headers: { cookie: "rf_demo_auth=1" },
-      }),
-    );
+    const res = await resetWorkspace();
 
     expect(res.status).toBe(400);
     const json = (await readJson(res)) as { code: string };
     expect(json.code).toBe("WORKSPACE_REQUIRED");
   });
 
+  test("maps forbidden auth errors to 403", async () => {
+    mockedAdminGuards.requireWorkspaceAdminSession.mockRejectedValueOnce(
+      new Error("FORBIDDEN"),
+    );
+
+    const res = await resetWorkspace();
+
+    expect(res.status).toBe(403);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("FORBIDDEN");
+  });
+
   test("maps generic auth errors to 401", async () => {
-    mockedGuards.requireWorkspaceSession.mockRejectedValueOnce(
+    mockedAdminGuards.requireWorkspaceAdminSession.mockRejectedValueOnce(
       new Error("UNAUTHORIZED"),
     );
 
-    const res = await resetWorkspace(
-      new Request("http://test.local/api/workspaces/current/reset", {
-        method: "POST",
-        headers: { cookie: "rf_demo_auth=1" },
-      }),
-    );
+    const res = await resetWorkspace();
 
     expect(res.status).toBe(401);
     const json = (await readJson(res)) as { code: string };
     expect(json.code).toBe("UNAUTHORIZED");
+  });
+
+  test("rejects local-mode fallback sessions", async () => {
+    mockedAdminGuards.requireWorkspaceAdminSession.mockResolvedValueOnce({
+      user: { id: "user_1" },
+      workspaceId: "ws_1",
+      supabaseUser: {
+        id: "local-user_1",
+        email: "owner@test.local",
+      },
+    });
+
+    const res = await resetWorkspace();
+
+    expect(res.status).toBe(403);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("LOCAL_MODE_SESSION_FORBIDDEN");
+    expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
   });
 
   test("resets workspace-scoped entities and returns counts", async () => {
@@ -119,12 +128,7 @@ describe("workspace reset route", () => {
       async (cb: (client: typeof tx) => Promise<unknown>) => cb(tx),
     );
 
-    const res = await resetWorkspace(
-      new Request("http://test.local/api/workspaces/current/reset", {
-        method: "POST",
-        headers: { cookie: "rf_demo_auth=1" },
-      }),
-    );
+    const res = await resetWorkspace();
 
     expect(res.status).toBe(200);
     expect(tx.project.deleteMany).toHaveBeenCalledWith({

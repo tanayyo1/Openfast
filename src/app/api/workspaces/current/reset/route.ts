@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+import { requireWorkspaceAdminSession } from "@/lib/server/admin-guards";
 
 type ResetCounts = {
   projects: number;
@@ -8,18 +8,7 @@ type ResetCounts = {
   analyticsEvents: number;
 };
 
-function readCookieValue(cookieHeader: string | null, name: string) {
-  if (!cookieHeader) return null;
-  const segments = cookieHeader.split(";");
-  for (const segment of segments) {
-    const [rawKey, ...rest] = segment.trim().split("=");
-    if (rawKey !== name) continue;
-    return rest.join("=");
-  }
-  return null;
-}
-
-export async function POST(req: Request) {
+export async function POST() {
   if (process.env.NODE_ENV === "production") {
     return NextResponse.json(
       {
@@ -30,24 +19,25 @@ export async function POST(req: Request) {
     );
   }
 
-  const demoAuth = readCookieValue(req.headers.get("cookie"), "rf_demo_auth");
-  if (demoAuth !== "1") {
+  let session;
+  try {
+    session = await requireWorkspaceAdminSession();
+  } catch (err) {
+    const code = err instanceof Error ? err.message : "UNAUTHORIZED";
+    const status =
+      code === "WORKSPACE_REQUIRED" ? 400 : code === "FORBIDDEN" ? 403 : 401;
+    return NextResponse.json({ error: "Unauthorized", code }, { status });
+  }
+
+  if (session.supabaseUser.id.startsWith("local-")) {
     return NextResponse.json(
       {
-        error: "Local mode session required",
-        code: "LOCAL_MODE_REQUIRED",
+        error:
+          "Workspace reset requires an authenticated Supabase admin session",
+        code: "LOCAL_MODE_SESSION_FORBIDDEN",
       },
       { status: 403 },
     );
-  }
-
-  let session;
-  try {
-    session = await requireWorkspaceSession();
-  } catch (err) {
-    const code = err instanceof Error ? err.message : "UNAUTHORIZED";
-    const status = code === "WORKSPACE_REQUIRED" ? 400 : 401;
-    return NextResponse.json({ error: "Unauthorized", code }, { status });
   }
 
   const workspaceId = session.workspaceId;

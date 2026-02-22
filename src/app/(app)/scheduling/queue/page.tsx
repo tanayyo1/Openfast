@@ -61,17 +61,18 @@ export default function SchedulingQueuePage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
   const [items, setItems] = useState<ScheduledPostItem[]>([]);
+  const [hasMore, setHasMore] = useState(false);
 
   async function load() {
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch("/api/scheduled-posts?limit=100", {
+      const res = await fetch("/api/scheduled-posts?limit=1000", {
         cache: "no-store",
       });
       const json = (await res.json()) as
-        | { items?: ScheduledPostItem[]; error?: string }
+        | { items?: ScheduledPostItem[]; error?: string; hasMore?: boolean }
         | undefined;
 
       if (!res.ok) {
@@ -79,6 +80,7 @@ export default function SchedulingQueuePage() {
       }
 
       setItems(json?.items ?? []);
+      setHasMore(Boolean(json?.hasMore));
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to load queue";
@@ -200,6 +202,13 @@ export default function SchedulingQueuePage() {
       {notice ? (
         <div className="rounded-2xl border border-green-300 bg-green-50 px-5 py-4 text-sm text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300">
           {notice}
+        </div>
+      ) : null}
+
+      {hasMore ? (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
+          Showing first 1000 scheduled items. Apply filters in API views for
+          full history.
         </div>
       ) : null}
 

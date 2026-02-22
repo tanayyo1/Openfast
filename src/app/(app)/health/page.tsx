@@ -69,29 +69,17 @@ export default async function HealthPage() {
           visibleLoggedOut: true,
         },
       },
+      publishedItems: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          permalink: true,
+        },
+      },
     },
   });
 
   const accountIds = accounts.map((a) => a.id);
-  const latestPublishedItems = await prisma.publishedItem.findMany({
-    where: {
-      workspaceId: session.workspaceId,
-      redditAccountId: { in: accountIds },
-    },
-    orderBy: [{ createdAt: "desc" }],
-    select: {
-      redditAccountId: true,
-      permalink: true,
-    },
-    take: Math.max(100, accountIds.length * 4),
-  });
-  const latestPermalinkByAccount = new Map<string, string>();
-  for (const item of latestPublishedItems) {
-    if (!latestPermalinkByAccount.has(item.redditAccountId)) {
-      latestPermalinkByAccount.set(item.redditAccountId, item.permalink);
-    }
-  }
-
   const publishedCommentsByAccount = await prisma.publishedItem.groupBy({
     by: ["redditAccountId"],
     where: {
@@ -295,9 +283,7 @@ export default async function HealthPage() {
 
                 <HealthAccountActions
                   accountId={account.id}
-                  latestPermalink={
-                    latestPermalinkByAccount.get(account.id) ?? null
-                  }
+                  latestPermalink={account.publishedItems[0]?.permalink ?? null}
                   visibilityHistory={account.visibilityChecks.map((item) => ({
                     id: item.id,
                     result: item.result,

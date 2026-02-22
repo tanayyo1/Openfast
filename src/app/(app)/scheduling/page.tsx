@@ -32,6 +32,7 @@ export default function SchedulingPage() {
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<ScheduledPostItem[]>([]);
   const [approvedDrafts, setApprovedDrafts] = useState<number>(0);
+  const [hasMoreScheduled, setHasMoreScheduled] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,12 +43,12 @@ export default function SchedulingPage() {
 
       try {
         const [scheduledRes, draftsRes] = await Promise.all([
-          fetch("/api/scheduled-posts?limit=100", { cache: "no-store" }),
+          fetch("/api/scheduled-posts?limit=1000", { cache: "no-store" }),
           fetch("/api/drafts?status=APPROVED&limit=100", { cache: "no-store" }),
         ]);
 
         const scheduledJson = (await scheduledRes.json()) as
-          | { items?: ScheduledPostItem[]; error?: string }
+          | { items?: ScheduledPostItem[]; error?: string; hasMore?: boolean }
           | undefined;
         const draftsJson = (await draftsRes.json()) as
           | { items?: DraftItem[]; error?: string }
@@ -65,6 +66,7 @@ export default function SchedulingPage() {
         if (cancelled) return;
 
         setItems(scheduledJson?.items ?? []);
+        setHasMoreScheduled(Boolean(scheduledJson?.hasMore));
         setApprovedDrafts((draftsJson?.items ?? []).length);
       } catch (err) {
         if (cancelled) return;
@@ -197,6 +199,10 @@ export default function SchedulingPage() {
           <p className="mt-3 text-sm text-muted-foreground">
             Next run: {new Date(summary.nextRun.scheduledAt).toLocaleString()} (
             {label(summary.nextRun.status)})
+          </p>
+        ) : hasMoreScheduled && !loading ? (
+          <p className="mt-3 text-sm text-muted-foreground">
+            Showing first 1000 scheduled items.
           </p>
         ) : !loading ? (
           <p className="mt-3 text-sm text-muted-foreground">

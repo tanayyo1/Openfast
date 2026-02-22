@@ -40,6 +40,12 @@ type ScheduledPost = {
   scheduledAt: string;
 };
 
+type ScheduledPostsListResponse = {
+  items?: ScheduledPost[];
+  hasMore?: boolean;
+  error?: string;
+};
+
 type ScheduleForm = {
   redditAccountId: string;
   scheduledAtLocal: string;
@@ -58,6 +64,10 @@ function formatTaskType(value: string) {
 
 function statusLabel(status: ScheduledPost["status"]) {
   return status.toLowerCase().replaceAll("_", " ");
+}
+
+function draftIdsQueryParam(draftIds: string[]) {
+  return draftIds.map((item) => encodeURIComponent(item)).join(",");
 }
 
 export default function SchedulingCalendarPage() {
@@ -82,10 +92,9 @@ export default function SchedulingCalendarPage() {
       setError(null);
 
       try {
-        const [draftsRes, accountsRes, scheduledRes] = await Promise.all([
+        const [draftsRes, accountsRes] = await Promise.all([
           fetch("/api/drafts?status=APPROVED&limit=100", { cache: "no-store" }),
           fetch("/api/reddit/accounts", { cache: "no-store" }),
-          fetch("/api/scheduled-posts?limit=100", { cache: "no-store" }),
         ]);
 
         const draftsJson = (await draftsRes.json()) as
@@ -93,9 +102,6 @@ export default function SchedulingCalendarPage() {
           | undefined;
         const accountsJson = (await accountsRes.json()) as
           | { items?: RedditAccount[]; error?: string }
-          | undefined;
-        const scheduledJson = (await scheduledRes.json()) as
-          | { items?: ScheduledPost[]; error?: string }
           | undefined;
 
         if (!draftsRes.ok) {
@@ -108,12 +114,6 @@ export default function SchedulingCalendarPage() {
             accountsJson?.error ?? "Failed to load Reddit accounts",
           );
         }
-        if (!scheduledRes.ok) {
-          throw new Error(
-            scheduledJson?.error ?? "Failed to load scheduled posts",
-          );
-        }
-
         const nextDrafts = (draftsJson?.items ?? []).filter(
           (item) => item.status === "APPROVED",
         );
@@ -125,6 +125,24 @@ export default function SchedulingCalendarPage() {
               .filter((value): value is string => Boolean(value)),
           ),
         );
+        const scheduledQuery =
+          nextDrafts.length > 0
+            ? `/api/scheduled-posts?limit=${Math.max(
+                50,
+                nextDrafts.length,
+              )}&draftIds=${draftIdsQueryParam(nextDrafts.map((item) => item.id))}`
+            : "/api/scheduled-posts?limit=1&draftIds=";
+        const scheduledRes = await fetch(scheduledQuery, {
+          cache: "no-store",
+        });
+        const scheduledJson = (await scheduledRes.json()) as
+          | ScheduledPostsListResponse
+          | undefined;
+        if (!scheduledRes.ok) {
+          throw new Error(
+            scheduledJson?.error ?? "Failed to load scheduled posts",
+          );
+        }
 
         const tasks = await Promise.all(
           taskIds.map(async (taskId) => {
@@ -251,10 +269,45 @@ export default function SchedulingCalendarPage() {
             scheduledPost?: ScheduledPost;
             error?: string;
             details?: Record<string, unknown>;
+            code?: string;
           }
         | undefined;
 
       if (!res.ok || !json?.scheduledPost) {
+        if (json?.code === "ALREADY_SCHEDULED") {
+          try {
+            const lookupRes = await fetch(
+              `/api/scheduled-posts?limit=1&draftIds=${encodeURIComponent(draftId)}`,
+              { cache: "no-store" },
+            );
+            if (lookupRes.ok) {
+              const lookupJson =
+                (await lookupRes.json()) as ScheduledPostsListResponse;
+              const existing = lookupJson.items?.[0];
+              if (existing) {
+                setScheduledByDraft((current) => ({
+                  ...current,
+                  [draftId]: existing,
+                }));
+              }
+            }
+          } catch {
+            // Best effort hydration only.
+          }
+          setNotice("Draft is already scheduled.");
+          return;
+        }
+        if (json?.code === "QUEUE_UNAVAILABLE" && json?.scheduledPost) {
+          setScheduledByDraft((current) => ({
+            ...current,
+            [draftId]: json.scheduledPost as ScheduledPost,
+          }));
+          setError(
+            json.error ??
+              "Draft was saved, but queue is unavailable. Retry publish later from queue.",
+          );
+          return;
+        }
         const details =
           json?.details && typeof json.details === "object"
             ? ` (${Object.entries(json.details)

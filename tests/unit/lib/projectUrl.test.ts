@@ -5,6 +5,9 @@ describe("normalizeProjectUrlInput", () => {
     expect(normalizeProjectUrlInput("")).toBeNull();
     expect(normalizeProjectUrlInput("   ")).toBeNull();
     expect(normalizeProjectUrlInput("not a url%%%%")).toBeNull();
+    expect(normalizeProjectUrlInput("notaurl")).toBeNull();
+    expect(normalizeProjectUrlInput("http://internal-service")).toBeNull();
+    expect(normalizeProjectUrlInput("ftp://example.com")).toBeNull();
     expect(normalizeProjectUrlInput(null)).toBeNull();
   });
 
@@ -23,6 +26,18 @@ describe("normalizeProjectUrlInput", () => {
     );
     expect(normalizeProjectUrlInput("example.com/docs")).toBe(
       "https://example.com/docs",
+    );
+  });
+
+  test("allows localhost and IP URLs for local development", () => {
+    expect(normalizeProjectUrlInput("http://localhost:3000")).toBe(
+      "http://localhost:3000/",
+    );
+    expect(normalizeProjectUrlInput("http://127.0.0.1:3000")).toBe(
+      "http://127.0.0.1:3000/",
+    );
+    expect(normalizeProjectUrlInput("http://[::1]:3000/docs")).toBe(
+      "http://[::1]:3000/docs",
     );
   });
 });

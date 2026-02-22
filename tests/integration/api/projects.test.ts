@@ -316,4 +316,72 @@ describe("Projects API (workspace-scoped)", () => {
       select: { id: true },
     });
   });
+
+  test("rejects invalid single-label hostnames in URL fields", async () => {
+    const invalidCreateReq = new Request("http://test.local/api/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Invalid URL Hostname Project",
+        description: "This should fail URL validation.",
+        url: "notaurl",
+        niche: "saas",
+      }),
+    });
+    const invalidCreateRes = await createProject(invalidCreateReq);
+    expect(invalidCreateRes.status).toBe(400);
+    const invalidCreateJson = (await readJson(invalidCreateRes)) as {
+      code?: string;
+      details?: { fieldErrors?: Record<string, string[]> };
+    };
+    expect(invalidCreateJson.code).toBe("VALIDATION_ERROR");
+    expect(invalidCreateJson.details?.fieldErrors?.url?.[0]).toMatch(
+      /valid http\(s\) URL/i,
+    );
+
+    const validCreateReq = new Request("http://test.local/api/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Valid URL Hostname Project",
+        description: "Create a project so patch validation can be exercised.",
+        url: "example.com",
+        niche: "saas",
+      }),
+    });
+    const validCreateRes = await createProject(validCreateReq);
+    expect(validCreateRes.status).toBe(201);
+    const validCreateJson = (await readJson(validCreateRes)) as {
+      project: { id: string };
+    };
+
+    const invalidPatchReq = new Request(
+      `http://test.local/api/projects/${validCreateJson.project.id}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: "internal-service",
+        }),
+      },
+    );
+    const invalidPatchRes = await updateProject(invalidPatchReq, {
+      params: { id: validCreateJson.project.id },
+    });
+    expect(invalidPatchRes.status).toBe(400);
+    const invalidPatchJson = (await readJson(invalidPatchRes)) as {
+      code?: string;
+      details?: { fieldErrors?: Record<string, string[]> };
+    };
+    expect(invalidPatchJson.code).toBe("VALIDATION_ERROR");
+    expect(invalidPatchJson.details?.fieldErrors?.url?.[0]).toMatch(
+      /valid http\(s\) URL/i,
+    );
+
+    await prisma.project.update({
+      where: { id: validCreateJson.project.id },
+      data: { status: "ARCHIVED" },
+      select: { id: true },
+    });
+  });
 });

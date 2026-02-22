@@ -112,6 +112,12 @@ npm run check:launch
 
 # Start development
 npm run dev
+
+# Start worker (auto-loads .env.local)
+npm run worker:dev
+
+# Run localhost smoke checks (routes + key APIs)
+npm run smoke:local
 ```
 
 - **📖 Full setup guide:** [SETUP.md](./SETUP.md)

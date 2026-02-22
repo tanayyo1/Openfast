@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
-import { Prisma, RedditAdCampaignStatus, RedditAdObjective } from "@prisma/client";
+import {
+  Prisma,
+  RedditAdCampaignStatus,
+  RedditAdObjective,
+} from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import {
+  enqueueRedditAdsSyncJob,
+  type RedditAdsSyncAction,
+} from "@/lib/queue/enqueue";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 import {
   canTransitionCampaignStatus,
@@ -54,6 +62,8 @@ const campaignSelect = {
   body: true,
   destinationUrl: true,
   ctaText: true,
+  externalCampaignId: true,
+  syncError: true,
   launchedAt: true,
   archivedAt: true,
   createdAt: true,
@@ -78,6 +88,32 @@ function authError(err: unknown) {
   const code = err instanceof Error ? err.message : "UNAUTHORIZED";
   const status = code === "WORKSPACE_REQUIRED" ? 400 : 401;
   return NextResponse.json({ error: "Unauthorized", code }, { status });
+}
+
+function sameDate(a: Date | null, b: Date | null) {
+  return (a?.toISOString() ?? null) === (b?.toISOString() ?? null);
+}
+
+function sameStringArray(a: string[], b: string[]) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function sameJsonValue(a: unknown, b: unknown) {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+}
+
+function syncActionForStatus(
+  status: RedditAdCampaignStatus,
+): RedditAdsSyncAction | null {
+  if (status === "ACTIVE") return "UPSERT";
+  if (status === "PAUSED") return "PAUSE";
+  if (status === "COMPLETED") return "COMPLETE";
+  if (status === "ARCHIVED") return "ARCHIVE";
+  return null;
 }
 
 async function findCampaignOr404(workspaceId: string, id: string) {
@@ -261,8 +297,11 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   }
 
   const nextHeadline =
-    parsed.data.headline !== undefined ? parsed.data.headline : campaign.headline;
-  const nextBody = parsed.data.body !== undefined ? parsed.data.body : campaign.body;
+    parsed.data.headline !== undefined
+      ? parsed.data.headline
+      : campaign.headline;
+  const nextBody =
+    parsed.data.body !== undefined ? parsed.data.body : campaign.body;
   const nextDestinationUrl =
     parsed.data.destinationUrl !== undefined
       ? parsed.data.destinationUrl
@@ -275,6 +314,11 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
       : campaign.interests == null
         ? Prisma.DbNull
         : (campaign.interests as Prisma.InputJsonValue);
+
+  const interestsForCompare =
+    parsed.data.interests !== undefined
+      ? parsed.data.interests
+      : campaign.interests;
 
   if (isActivating) {
     if (!nextRedditAccountId) {
@@ -298,7 +342,40 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     }
   }
 
-  const updated = await prisma.redditAdCampaign.update({
+  const statusChanged = nextStatus !== campaign.status;
+  const configChanged =
+    (parsed.data.redditAccountId !== undefined &&
+      nextRedditAccountId !== campaign.redditAccountId) ||
+    (parsed.data.name !== undefined && parsed.data.name !== campaign.name) ||
+    (parsed.data.objective !== undefined &&
+      parsed.data.objective !== campaign.objective) ||
+    (parsed.data.dailyBudgetCents !== undefined &&
+      nextDailyBudget !== campaign.dailyBudgetCents) ||
+    (parsed.data.lifetimeBudgetCents !== undefined &&
+      nextLifetimeBudget !== campaign.lifetimeBudgetCents) ||
+    (parsed.data.startAt !== undefined &&
+      !sameDate(nextStartAt, campaign.startAt)) ||
+    (parsed.data.endAt !== undefined && !sameDate(nextEndAt, campaign.endAt)) ||
+    (parsed.data.targetSubreddits !== undefined &&
+      !sameStringArray(nextTargetSubreddits, campaign.targetSubreddits)) ||
+    (parsed.data.targetCountries !== undefined &&
+      !sameStringArray(nextTargetCountries, campaign.targetCountries)) ||
+    (parsed.data.interests !== undefined &&
+      !sameJsonValue(interestsForCompare, campaign.interests)) ||
+    (parsed.data.headline !== undefined &&
+      nextHeadline !== campaign.headline) ||
+    (parsed.data.body !== undefined && nextBody !== campaign.body) ||
+    (parsed.data.destinationUrl !== undefined &&
+      nextDestinationUrl !== campaign.destinationUrl) ||
+    (parsed.data.ctaText !== undefined &&
+      parsed.data.ctaText !== campaign.ctaText);
+
+  const syncAction = syncActionForStatus(nextStatus);
+  const shouldQueueSync =
+    syncAction !== null && (statusChanged || configChanged);
+  const syncTrigger = statusChanged ? "STATUS_CHANGE" : "CONFIG_CHANGE";
+
+  let updated = await prisma.redditAdCampaign.update({
     where: { id: campaign.id },
     data: {
       redditAccountId: nextRedditAccountId,
@@ -316,7 +393,10 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
       body: nextBody,
       destinationUrl: nextDestinationUrl,
       ctaText:
-        parsed.data.ctaText !== undefined ? parsed.data.ctaText : campaign.ctaText,
+        parsed.data.ctaText !== undefined
+          ? parsed.data.ctaText
+          : campaign.ctaText,
+      syncError: shouldQueueSync ? null : campaign.syncError,
       launchedAt:
         nextStatus === "ACTIVE" && campaign.launchedAt == null
           ? new Date()
@@ -325,6 +405,25 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     },
     select: campaignSelect,
   });
+
+  if (shouldQueueSync && syncAction) {
+    try {
+      await enqueueRedditAdsSyncJob({
+        workspaceId: session.workspaceId,
+        campaignId: updated.id,
+        status: updated.status,
+        action: syncAction,
+        trigger: syncTrigger,
+        version: updated.updatedAt.toISOString(),
+      });
+    } catch {
+      updated = await prisma.redditAdCampaign.update({
+        where: { id: updated.id },
+        data: { syncError: "SYNC_QUEUE_ENQUEUE_FAILED" },
+        select: campaignSelect,
+      });
+    }
+  }
 
   return NextResponse.json({ campaign: updated });
 }

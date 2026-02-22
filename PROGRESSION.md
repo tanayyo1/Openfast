@@ -2,7 +2,7 @@
 
 > **Last Updated**: 2026-02-21
 > **Target**: `mediafast_clone_system_design_report.md`
-> **Current Estimate**: ~99% of overall parity complete (MVP complete; Tier 2 complete; Tier 3 complete for planned scope; Tier 4 RED-58 shipped, with RED-52 external sync follow-up remaining)
+> **Current Estimate**: ~99% of overall parity complete (MVP complete; Tier 2 complete; Tier 3 complete for planned scope; Tier 4 planned items shipped; remaining work is optional hardening/polish)
 
 ---
 
@@ -37,7 +37,7 @@
 
 ### Queue + Worker Baseline
 
-- [x] Queues present: `reddit.publish`, `reddit.metrics_fetch`, `subreddit.ingest`, `subreddit.compute_time_windows`, `dead.letter`.
+- [x] Queues present: `reddit.publish`, `reddit.metrics_fetch`, `reddit.ads_sync`, `subreddit.ingest`, `subreddit.compute_time_windows`, `dead.letter`.
 - [x] Deterministic job IDs for idempotency.
 - [x] Worker process bootstrapping + DLQ forwarding for failed jobs.
 - [x] Unit tests for queue helpers and worker stubs.
@@ -84,6 +84,41 @@
 - [x] Added page-level unit coverage for auth guard propagation, empty workspace state, and project not-found handling.
 - [x] Replaced `useDemoStore` on `/roadmaps`, `/roadmaps/[id]`, and `/roadmaps/generate` with workspace-scoped live data and API-backed roadmap generation.
 - [x] Replaced `useDemoStore` on `/content`, `/content/drafts/[id]`, `/tasks/[id]`, and `/approvals` with live API-backed draft/task/approval lifecycle flows and state-guarded actions.
+- [x] Replaced scheduling demo flows with live API actions on `/scheduling`, `/scheduling/calendar`, and `/scheduling/queue` (schedule, cancel, delete, and live status summaries).
+
+### Recent Onboarding Progress Hardening (RED-86)
+
+- [x] Replaced static onboarding checklist with workspace-backed progress states (complete/current/blocked) on `/onboarding`.
+- [x] Added deterministic next-step CTA driven by live workspace data (projects, active Reddit accounts, active roadmaps).
+- [x] Added workspace-missing guard state to prevent confusing dead-end actions while membership sync is incomplete.
+- [x] Added onboarding progress unit coverage (`tests/unit/lib/onboardingProgress.test.ts`) for all step transition edge cases.
+
+### Recent Dashboard Continue-Flow Hardening (RED-87)
+
+- [x] Added deterministic continuation logic (`src/lib/dashboardContinueAction.ts`) that prioritizes setup, approvals, scheduling, draft edits, task execution, queue monitoring, and analytics fallback.
+- [x] Wired `/dashboard` to render a live "Continue where you left off" card and dynamic primary CTA from workspace state.
+- [x] Added unit coverage (`tests/unit/lib/dashboardContinueAction.test.ts`) plus dashboard data loader coverage for continuation precedence/output.
+
+### Recent Header UX Cleanup (RED-88)
+
+- [x] Replaced placeholder workspace switcher/search/notifications with live workspace identity and functional actions only on the app header.
+- [x] Added mobile navigation menu (`src/components/app/AppMobileMenu.tsx`) and moved sidebar navigation to desktop-only rendering in `AppShell`.
+- [x] Centralized app navigation config in `src/components/app/navConfig.ts` to keep sidebar and mobile menu consistent.
+- [x] Added unit coverage for header data loading/plan labeling edge cases (`tests/unit/lib/appHeaderData.test.ts`).
+
+### Recent Copy + IA Cleanup (RED-89)
+
+- [x] Reorganized app navigation into grouped IA sections (Plan, Execution, Growth, Insights) with centralized config used by both sidebar and mobile menu.
+- [x] Standardized route/page naming to title case for key surfaces (`Brand Monitoring`, `Account Health`, `Workspace Actions`).
+- [x] Replaced ambiguous demo wording with explicit local-mode wording on auth/onboarding/settings flows to reduce user confusion during non-production runs.
+- [x] Added navigation config unit coverage (`tests/unit/lib/navConfig.test.ts`) for section order, route uniqueness, and critical label assertions.
+
+### Recent Queue/Worker Visibility Hardening (RED-90)
+
+- [x] Added workspace-scoped queue health API (`GET /api/scheduling/queue-health`) with strict workspace auth and resilient error handling.
+- [x] Added queue health service (`src/lib/ops/workspaceQueueHealth.ts`) that computes status counts, due/overdue/stale signals, and severity (`OK/WARNING/CRITICAL`) with configurable thresholds.
+- [x] Wired `/scheduling` and `/scheduling/queue` pages to display live queue health status/reasons alongside existing scheduling metrics.
+- [x] Added unit coverage for queue health severity derivation and route auth/error behavior (`tests/unit/lib/workspaceQueueHealth.test.ts`, `tests/unit/api/schedulingQueueHealthRoute.test.ts`).
 
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 
@@ -127,6 +162,21 @@
 - [x] Added workspace-scoped campaign APIs: list/create/get/update with cursor pagination, transition guards, and activation requirements.
 - [x] Added in-app Reddit Ads management surface (`/ads`) with campaign creation and lifecycle actions.
 - [x] Added RED-52 unit + integration test coverage, including archived-project activation and inactive-account pause edge cases.
+
+### Recent Reddit Ads External Sync Batch (RED-52 follow-up)
+
+- [x] Added `reddit.ads_sync` queue plumbing + deterministic job IDs and enqueue helpers for campaign lifecycle/config sync events.
+- [x] Added async external sync worker path (`processRedditAdsSyncJob`) with stale-job protection, DLQ forwarding, and persisted `syncError` diagnostics.
+- [x] Added external sync adapter (`src/lib/redditAds/externalSync.ts`) with deterministic mock mode by default and optional webhook mode via env vars.
+- [x] Wired campaign PATCH flow to enqueue sync on meaningful ACTIVE/PAUSED/COMPLETED/ARCHIVED changes and expose sync state in `/ads` UI (`externalCampaignId`, `syncError`).
+- [x] Extended RED-52 tests for sync enqueue behavior and queue/id helper coverage.
+
+### Recent Onboarding Reliability Batch (RED-92/RED-93)
+
+- [x] Replaced `/onboarding/create-project` demo-store writes with workspace API persistence (`POST /api/projects`) plus in-flight/save-error UX.
+- [x] Added URL normalization guardrails for project create/update APIs (trim + auto-https + explicit URL validation errors).
+- [x] Added workspace-scoped local-mode Reddit connect endpoint (`POST /api/reddit/accounts/dev-connect`) with encrypted placeholder tokens for pre-API onboarding.
+- [x] Reworked `/onboarding/connect-reddit` to use live account API data instead of demo store, including refresh/retry and continue gating from persisted accounts.
 
 ### Recent Landing Page Generator Batch (RED-58)
 
@@ -254,7 +304,7 @@
 - RED-36: Analytics rollup foundation (DONE - daily workspace rollups + dashboard rollup read/fallback + cron trigger + tests)
 - RED-37: Analytics UI live data (DONE - dashboard + project analytics pages now server-backed, no demo-store dependency)
 - RED-38: Analytics time-series follow-up (DONE - daily workspace/project trend services + API surfaces + UI sparkline integration + tests)
-- RED-52 (DONE for MVP foundation: campaign planning/lifecycle; external ad network sync remains backlog), RED-58 (DONE - landing page generator API + app UI + tests)
+- RED-52 (DONE - campaign planning/lifecycle + external sync queue/worker path + sync-state surfacing), RED-58 (DONE - landing page generator API + app UI + tests)
 
 ### Remaining from Original Plan
 

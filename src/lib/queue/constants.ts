@@ -1,6 +1,7 @@
 export const QUEUE_NAMES = {
   REDDIT_PUBLISH: "reddit.publish",
   REDDIT_METRICS_FETCH: "reddit.metrics_fetch",
+  REDDIT_ADS_SYNC: "reddit.ads_sync",
   CONTENT_GENERATE: "content.generate",
   SUBREDDIT_INGEST: "subreddit.ingest",
   SUBREDDIT_COMPUTE_TIME_WINDOWS: "subreddit.compute_time_windows",

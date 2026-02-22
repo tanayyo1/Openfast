@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { Prisma, RedditAdCampaignStatus, RedditAdObjective } from "@prisma/client";
+import {
+  Prisma,
+  RedditAdCampaignStatus,
+  RedditAdObjective,
+} from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
@@ -37,7 +41,11 @@ const createCampaignSchema = z.object({
   startAt: z.string().datetime().optional().nullable(),
   endAt: z.string().datetime().optional().nullable(),
   targetSubreddits: z.array(z.string().min(1)).min(1).max(20),
-  targetCountries: z.array(z.string().min(2).max(2)).max(20).optional().default([]),
+  targetCountries: z
+    .array(z.string().min(2).max(2))
+    .max(20)
+    .optional()
+    .default([]),
   interests: z.unknown().optional().nullable(),
   headline: z.string().trim().max(300).optional().nullable(),
   body: z.string().trim().max(3000).optional().nullable(),
@@ -65,6 +73,8 @@ const campaignSelect = {
   body: true,
   destinationUrl: true,
   ctaText: true,
+  externalCampaignId: true,
+  syncError: true,
   launchedAt: true,
   archivedAt: true,
   createdAt: true,
@@ -199,7 +209,10 @@ export async function POST(req: Request) {
   const input = parsed.data;
   if (input.status && input.status !== "DRAFT") {
     return NextResponse.json(
-      { error: "Campaign must be created in DRAFT status", code: "INVALID_STATUS" },
+      {
+        error: "Campaign must be created in DRAFT status",
+        code: "INVALID_STATUS",
+      },
       { status: 400 },
     );
   }

@@ -3,6 +3,7 @@ import { GET as oauthStart } from "@/app/api/reddit/oauth/start/route";
 import { GET as oauthCallback } from "@/app/api/reddit/oauth/callback/route";
 import { GET as listAccounts } from "@/app/api/reddit/accounts/route";
 import { DELETE as disconnectAccount } from "@/app/api/reddit/accounts/[id]/route";
+import { POST as devConnect } from "@/app/api/reddit/accounts/dev-connect/route";
 
 jest.mock("@/lib/server/auth-guards", () => ({
   requireWorkspaceSession: jest.fn(),
@@ -163,5 +164,36 @@ describe("Reddit OAuth APIs (workspace-scoped)", () => {
       select: { id: true },
     });
     expect(remaining).toBeNull();
+  });
+
+  test("dev connect creates workspace-scoped mock account", async () => {
+    const username = `dev_connect_${Date.now()}`;
+    const res = await devConnect(
+      new Request("http://test.local/api/reddit/accounts/dev-connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, tier: "ESTABLISHED" }),
+      }),
+    );
+    expect(res.status).toBe(201);
+    const json = (await res.json()) as {
+      account: { id: string; redditUsername: string; safetyTier: string };
+    };
+    expect(json.account.redditUsername).toBe(username);
+    expect(json.account.safetyTier).toBe("ESTABLISHED");
+
+    const stored = await prisma.redditAccount.findUnique({
+      where: { id: json.account.id },
+      select: {
+        accessToken: true,
+        refreshToken: true,
+        workspaceId: true,
+      },
+    });
+    expect(stored?.workspaceId).toBe(workspaceId);
+    expect(stored?.accessToken.startsWith("rfenc.")).toBe(true);
+    expect(stored?.refreshToken.startsWith("rfenc.")).toBe(true);
+
+    await prisma.redditAccount.delete({ where: { id: json.account.id } });
   });
 });

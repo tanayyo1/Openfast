@@ -2,6 +2,7 @@ import {
   contentGenerateJobId,
   metricsFetchJobId,
   publishJobId,
+  redditAdsSyncJobId,
   subredditComputeTimeWindowsJobId,
   subredditIngestJobId,
 } from "@/lib/queue/jobIds";
@@ -27,5 +28,15 @@ describe("queue jobIds", () => {
     expect(subredditComputeTimeWindowsJobId("sub_123")).toBe(
       "subreddit_compute_time_windows:sub_123",
     );
+  });
+
+  it("creates deterministic reddit ads sync job id", () => {
+    expect(
+      redditAdsSyncJobId({
+        campaignId: "cmp_123",
+        status: "ACTIVE",
+        version: "2026-02-21T10:10:10.000Z",
+      }),
+    ).toBe("reddit_ads_sync:cmp_123:ACTIVE:2026-02-21T10:10:10.000Z");
   });
 });

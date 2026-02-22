@@ -6,6 +6,14 @@ export function metricsFetchJobId(publishedItemId: string) {
   return `metrics_fetch:${publishedItemId}`;
 }
 
+export function redditAdsSyncJobId(input: {
+  campaignId: string;
+  status: string;
+  version: string;
+}) {
+  return `reddit_ads_sync:${input.campaignId}:${input.status}:${input.version}`;
+}
+
 export function contentGenerateJobId(draftId: string) {
   return `content_generate:${draftId}`;
 }

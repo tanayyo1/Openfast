@@ -7,6 +7,7 @@ describe("normalizeProjectUrlInput", () => {
     expect(normalizeProjectUrlInput("not a url%%%%")).toBeNull();
     expect(normalizeProjectUrlInput("notaurl")).toBeNull();
     expect(normalizeProjectUrlInput("http://internal-service")).toBeNull();
+    expect(normalizeProjectUrlInput("http://999.999.999.999")).toBeNull();
     expect(normalizeProjectUrlInput("ftp://example.com")).toBeNull();
     expect(normalizeProjectUrlInput(null)).toBeNull();
   });

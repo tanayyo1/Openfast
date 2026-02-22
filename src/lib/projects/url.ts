@@ -33,6 +33,10 @@ function isDomainName(hostname: string) {
 
 function isAllowedHostname(hostname: string) {
   const normalized = hostname.toLowerCase();
+  const looksLikeIpv4 = /^\d+(?:\.\d+){3}$/.test(normalized);
+  if (looksLikeIpv4 && !isIpv4Address(normalized)) {
+    return false;
+  }
   return (
     normalized === "localhost" ||
     isIpv4Address(normalized) ||

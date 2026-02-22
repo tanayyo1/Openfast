@@ -111,8 +111,19 @@ async function run() {
     try {
       const response = await fetchWithTimeout(joinUrl(path), {
         headers: { Cookie: cookie },
+        redirect: "manual",
       });
       const body = await response.text();
+
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location");
+        push(
+          target,
+          "FAIL",
+          `Unexpected redirect (${response.status})${location ? ` -> ${location}` : ""}`,
+        );
+        continue;
+      }
 
       if (!response.ok) {
         push(target, "FAIL", `HTTP ${response.status}`);
@@ -141,7 +152,18 @@ async function run() {
           "Content-Type": "application/json",
         },
         body: api.body ? JSON.stringify(api.body) : undefined,
+        redirect: "manual",
       });
+
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location");
+        push(
+          target,
+          "FAIL",
+          `Unexpected redirect (${response.status})${location ? ` -> ${location}` : ""}`,
+        );
+        continue;
+      }
 
       if (response.ok) {
         push(target, "PASS", `HTTP ${response.status}`);

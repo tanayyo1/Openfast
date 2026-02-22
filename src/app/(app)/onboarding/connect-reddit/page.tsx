@@ -80,7 +80,9 @@ export default function ConnectRedditPage() {
   const [oauthConfigured, setOauthConfigured] = useState(false);
   const [localModeSession, setLocalModeSession] = useState(false);
   const [devConnectAvailable, setDevConnectAvailable] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [accountsError, setAccountsError] = useState<string | null>(null);
+  const [oauthStatusError, setOauthStatusError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   async function loadAccounts() {
     setIsLoading(true);
@@ -92,7 +94,7 @@ export default function ConnectRedditPage() {
         code?: string;
       };
       if (!res.ok) {
-        setError(
+        setAccountsError(
           mapAuthLikeError(json.code, json.error) ??
             "Failed to load connected accounts",
         );
@@ -100,8 +102,9 @@ export default function ConnectRedditPage() {
         return;
       }
       setAccounts(json.items ?? []);
+      setAccountsError(null);
     } catch {
-      setError("Network issue while loading accounts");
+      setAccountsError("Network issue while loading accounts");
       setAccounts([]);
     } finally {
       setIsLoading(false);
@@ -116,7 +119,7 @@ export default function ConnectRedditPage() {
       });
       const json = (await res.json()) as OAuthStatusResponse;
       if (!res.ok) {
-        setError(
+        setOauthStatusError(
           mapAuthLikeError(json.code, json.error) ??
             "Failed to load OAuth status.",
         );
@@ -129,8 +132,9 @@ export default function ConnectRedditPage() {
       setOauthConfigured(Boolean(json.oauthConfigured));
       setLocalModeSession(Boolean(json.localModeSession));
       setDevConnectAvailable(Boolean(json.devConnectAvailable));
+      setOauthStatusError(null);
     } catch {
-      setError("Network issue while loading OAuth status.");
+      setOauthStatusError("Network issue while loading OAuth status.");
       setOauthConfigured(false);
       setLocalModeSession(false);
       setDevConnectAvailable(false);
@@ -145,31 +149,36 @@ export default function ConnectRedditPage() {
   }, []);
 
   const canContinue = useMemo(() => accounts.length > 0, [accounts.length]);
+  const oauthNextPath = useMemo(() => {
+    if (!projectId) return "/onboarding/connect-reddit";
+    return `/onboarding/connect-reddit?projectId=${encodeURIComponent(projectId)}`;
+  }, [projectId]);
   const oauthStartUrl = useMemo(
-    () =>
-      `/api/reddit/oauth/start?next=${encodeURIComponent("/onboarding/connect-reddit")}`,
-    [],
+    () => `/api/reddit/oauth/start?next=${encodeURIComponent(oauthNextPath)}`,
+    [oauthNextPath],
   );
+  const error = actionError ?? oauthStatusError ?? accountsError;
 
   async function startOAuth() {
     if (isCheckingOAuth) return;
     if (!oauthConfigured) {
-      setError(
+      setActionError(
         "Reddit OAuth is not configured yet. Use local connect while API approval is pending.",
       );
       return;
     }
+    setActionError(null);
     window.location.assign(oauthStartUrl);
   }
 
   async function connectLocalAccount() {
     const clean = username.trim();
     if (!clean) {
-      setError("Enter a Reddit username to connect.");
+      setActionError("Enter a Reddit username to connect.");
       return;
     }
 
-    setError(null);
+    setActionError(null);
     setIsConnecting(true);
     try {
       const res = await fetch("/api/reddit/accounts/dev-connect", {
@@ -181,19 +190,19 @@ export default function ConnectRedditPage() {
       const json = (await res.json()) as { error?: string; code?: string };
       if (!res.ok) {
         if (json.code === "ACCOUNT_ALREADY_CONNECTED") {
-          setError("That account is already connected.");
+          setActionError("That account is already connected.");
         } else if (json.code === "TOKEN_ENCRYPTION_NOT_CONFIGURED") {
-          setError(
+          setActionError(
             "Token encryption is not configured. Check TOKEN_ENCRYPTION_KEYS.",
           );
         } else if (json.code === "VALIDATION_ERROR") {
-          setError(
+          setActionError(
             "Username must be 3-20 chars and only use letters, numbers, _ or -.",
           );
         } else if (json.code === "FORBIDDEN") {
-          setError("Local mock connect is disabled in production mode.");
+          setActionError("Local mock connect is disabled in production mode.");
         } else {
-          setError(
+          setActionError(
             mapAuthLikeError(json.code, json.error) ??
               "Failed to connect local account.",
           );
@@ -203,8 +212,9 @@ export default function ConnectRedditPage() {
 
       setUsername("");
       await loadAccounts();
+      setActionError(null);
     } catch {
-      setError("Network issue while connecting account.");
+      setActionError("Network issue while connecting account.");
     } finally {
       setIsConnecting(false);
     }

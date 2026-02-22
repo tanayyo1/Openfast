@@ -100,6 +100,7 @@ export default function SchedulingQueuePage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
   const [items, setItems] = useState<ScheduledPostItem[]>([]);
+  const [hasMore, setHasMore] = useState(false);
   const [queueHealth, setQueueHealth] = useState<QueueHealthSnapshot | null>(
     null,
   );
@@ -141,13 +142,13 @@ export default function SchedulingQueuePage() {
 
       try {
         const [queueRes, healthResult] = await Promise.all([
-          fetch("/api/scheduled-posts?limit=100", {
+          fetch("/api/scheduled-posts?limit=1000", {
             cache: "no-store",
           }),
           fetchQueueHealthSnapshot(),
         ]);
         const queueJson = (await queueRes.json()) as
-          | { items?: ScheduledPostItem[]; error?: string }
+          | { items?: ScheduledPostItem[]; error?: string; hasMore?: boolean }
           | undefined;
 
         if (!queueRes.ok) {
@@ -156,6 +157,7 @@ export default function SchedulingQueuePage() {
 
         if (cancelled) return;
         setItems(queueJson?.items ?? []);
+        setHasMore(Boolean(queueJson?.hasMore));
         setQueueHealth(healthResult.health);
         setQueueHealthError(healthResult.error);
       } catch (err) {
@@ -163,6 +165,7 @@ export default function SchedulingQueuePage() {
         const message =
           err instanceof Error ? err.message : "Failed to load queue";
         setError(message);
+        setHasMore(false);
         setQueueHealth(null);
       } finally {
         if (!cancelled) {
@@ -288,6 +291,13 @@ export default function SchedulingQueuePage() {
       {notice ? (
         <div className="rounded-2xl border border-green-300 bg-green-50 px-5 py-4 text-sm text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300">
           {notice}
+        </div>
+      ) : null}
+
+      {hasMore ? (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
+          Showing first 1000 scheduled items. Apply filters in API views for
+          full history.
         </div>
       ) : null}
 

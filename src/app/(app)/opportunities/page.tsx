@@ -130,6 +130,7 @@ export default function OpportunitiesPage() {
       setItems([]);
       setError(message);
     } finally {
+      if (requestId !== feedRequestCounter.current) return;
       setLoadingFeed(false);
       setRefreshing(false);
     }

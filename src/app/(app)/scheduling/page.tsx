@@ -66,6 +66,7 @@ export default function SchedulingPage() {
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<ScheduledPostItem[]>([]);
   const [approvedDrafts, setApprovedDrafts] = useState<number>(0);
+  const [hasMoreScheduled, setHasMoreScheduled] = useState(false);
   const [queueHealth, setQueueHealth] = useState<QueueHealthSnapshot | null>(
     null,
   );
@@ -80,14 +81,14 @@ export default function SchedulingPage() {
       setQueueHealthError(null);
 
       try {
-        const [scheduledRes, draftsRes, healthRes] = await Promise.all([
-          fetch("/api/scheduled-posts?limit=100", { cache: "no-store" }),
-          fetch("/api/drafts?status=APPROVED&limit=100", { cache: "no-store" }),
+        const [scheduledRes, healthRes, draftsRes] = await Promise.all([
+          fetch("/api/scheduled-posts?limit=1000", { cache: "no-store" }),
           fetch("/api/scheduling/queue-health", { cache: "no-store" }),
+          fetch("/api/drafts?status=APPROVED&limit=100", { cache: "no-store" }),
         ]);
 
         const scheduledJson = (await scheduledRes.json()) as
-          | { items?: ScheduledPostItem[]; error?: string }
+          | { items?: ScheduledPostItem[]; error?: string; hasMore?: boolean }
           | undefined;
         const draftsJson = (await draftsRes.json()) as
           | { items?: DraftItem[]; error?: string }
@@ -108,6 +109,7 @@ export default function SchedulingPage() {
         if (cancelled) return;
 
         setItems(scheduledJson?.items ?? []);
+        setHasMoreScheduled(Boolean(scheduledJson?.hasMore));
         setApprovedDrafts((draftsJson?.items ?? []).length);
         if (healthRes.ok) {
           setQueueHealth(healthJson?.health ?? null);
@@ -293,6 +295,10 @@ export default function SchedulingPage() {
           <p className="mt-3 text-sm text-muted-foreground">
             Next run: {new Date(summary.nextRun.scheduledAt).toLocaleString()} (
             {label(summary.nextRun.status)})
+          </p>
+        ) : hasMoreScheduled && !loading ? (
+          <p className="mt-3 text-sm text-muted-foreground">
+            Showing first 1000 scheduled items.
           </p>
         ) : !loading ? (
           <p className="mt-3 text-sm text-muted-foreground">

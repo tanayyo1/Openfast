@@ -44,6 +44,30 @@ type ConnectedAccount = {
   safetyTier: "NEW" | "ESTABLISHED" | "TRUSTED" | "RESTRICTED";
 };
 
+type OAuthStatusResponse = {
+  oauthConfigured: boolean;
+  localModeSession: boolean;
+  devConnectAvailable: boolean;
+  error?: string;
+  code?: string;
+};
+
+function mapAuthLikeError(code?: string, fallback?: string) {
+  if (code === "SUPABASE_NOT_CONFIGURED") {
+    return "Auth is not configured. Set Supabase env vars, then retry.";
+  }
+  if (code === "UNAUTHORIZED") {
+    return "Your session expired. Sign in again and retry.";
+  }
+  if (code === "WORKSPACE_REQUIRED") {
+    return "Workspace session is missing. Reload onboarding and try again.";
+  }
+  if (code === "USER_NOT_SYNCED") {
+    return "We couldn't load your account data. Sign out and sign back in, then try again.";
+  }
+  return fallback ?? "Request failed.";
+}
+
 export default function ConnectRedditPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -55,7 +79,13 @@ export default function ConnectRedditPage() {
   const [tier, setTier] = useState<"NEW" | "ESTABLISHED">("NEW");
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isCheckingOAuth, setIsCheckingOAuth] = useState(true);
+  const [oauthConfigured, setOauthConfigured] = useState(false);
+  const [localModeSession, setLocalModeSession] = useState(false);
+  const [devConnectAvailable, setDevConnectAvailable] = useState(false);
+  const [accountsError, setAccountsError] = useState<string | null>(null);
+  const [oauthStatusError, setOauthStatusError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   async function loadAccounts() {
     setIsLoading(true);
@@ -67,33 +97,91 @@ export default function ConnectRedditPage() {
         code?: string;
       };
       if (!res.ok) {
-        setError(json.error ?? "Failed to load connected accounts");
+        setAccountsError(
+          mapAuthLikeError(json.code, json.error) ??
+            "Failed to load connected accounts",
+        );
         setAccounts([]);
         return;
       }
       setAccounts(json.items ?? []);
+      setAccountsError(null);
     } catch {
-      setError("Network issue while loading accounts");
+      setAccountsError("Network issue while loading accounts");
       setAccounts([]);
     } finally {
       setIsLoading(false);
     }
   }
 
+  async function loadOAuthStatus() {
+    setIsCheckingOAuth(true);
+    try {
+      const res = await fetch("/api/reddit/oauth/status", {
+        cache: "no-store",
+      });
+      const json = (await res.json()) as OAuthStatusResponse;
+      if (!res.ok) {
+        setOauthStatusError(
+          mapAuthLikeError(json.code, json.error) ??
+            "Failed to load OAuth status.",
+        );
+        setOauthConfigured(false);
+        setLocalModeSession(false);
+        setDevConnectAvailable(false);
+        return;
+      }
+
+      setOauthConfigured(Boolean(json.oauthConfigured));
+      setLocalModeSession(Boolean(json.localModeSession));
+      setDevConnectAvailable(Boolean(json.devConnectAvailable));
+      setOauthStatusError(null);
+    } catch {
+      setOauthStatusError("Network issue while loading OAuth status.");
+      setOauthConfigured(false);
+      setLocalModeSession(false);
+      setDevConnectAvailable(false);
+    } finally {
+      setIsCheckingOAuth(false);
+    }
+  }
+
   useEffect(() => {
     void loadAccounts();
+    void loadOAuthStatus();
   }, []);
 
   const canContinue = useMemo(() => accounts.length > 0, [accounts.length]);
+  const oauthNextPath = useMemo(() => {
+    if (!projectId) return "/onboarding/connect-reddit";
+    return `/onboarding/connect-reddit?projectId=${encodeURIComponent(projectId)}`;
+  }, [projectId]);
+  const oauthStartUrl = useMemo(
+    () => `/api/reddit/oauth/start?next=${encodeURIComponent(oauthNextPath)}`,
+    [oauthNextPath],
+  );
+  const error = actionError ?? oauthStatusError ?? accountsError;
+
+  async function startOAuth() {
+    if (isCheckingOAuth) return;
+    if (!oauthConfigured) {
+      setActionError(
+        "Reddit OAuth is not configured yet. Use local connect while API approval is pending.",
+      );
+      return;
+    }
+    setActionError(null);
+    window.location.assign(oauthStartUrl);
+  }
 
   async function connectLocalAccount() {
     const clean = username.trim();
     if (!clean) {
-      setError("Enter a Reddit username to connect.");
+      setActionError("Enter a Reddit username to connect.");
       return;
     }
 
-    setError(null);
+    setActionError(null);
     setIsConnecting(true);
     try {
       const res = await fetch("/api/reddit/accounts/dev-connect", {
@@ -105,23 +193,31 @@ export default function ConnectRedditPage() {
       const json = (await res.json()) as { error?: string; code?: string };
       if (!res.ok) {
         if (json.code === "ACCOUNT_ALREADY_CONNECTED") {
-          setError("That account is already connected.");
+          setActionError("That account is already connected.");
         } else if (json.code === "TOKEN_ENCRYPTION_NOT_CONFIGURED") {
-          setError(
+          setActionError(
             "Token encryption is not configured. Check TOKEN_ENCRYPTION_KEYS.",
           );
+        } else if (json.code === "VALIDATION_ERROR") {
+          setActionError(
+            "Username must be 3-20 chars and only use letters, numbers, _ or -.",
+          );
         } else if (json.code === "FORBIDDEN") {
-          setError("Local mock connect is disabled in production mode.");
+          setActionError("Local mock connect is disabled in production mode.");
         } else {
-          setError(json.error ?? "Failed to connect local account.");
+          setActionError(
+            mapAuthLikeError(json.code, json.error) ??
+              "Failed to connect local account.",
+          );
         }
         return;
       }
 
       setUsername("");
       await loadAccounts();
+      setActionError(null);
     } catch {
-      setError("Network issue while connecting account.");
+      setActionError("Network issue while connecting account.");
     } finally {
       setIsConnecting(false);
     }
@@ -137,8 +233,8 @@ export default function ConnectRedditPage() {
           Connect your Reddit account
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Use local workspace mode to simulate account linking while live OAuth
-          access is pending.
+          Connect with OAuth when available. If approval is still pending, use
+          local connect to continue onboarding.
         </p>
       </div>
 
@@ -163,17 +259,39 @@ export default function ConnectRedditPage() {
             ))}
           </div>
 
-          <a
-            href={`/api/reddit/oauth/start?next=${encodeURIComponent("/onboarding/connect-reddit")}`}
-            className="mt-6 block w-full rounded-full border border-border px-5 py-3 text-center text-sm font-semibold"
+          <button
+            type="button"
+            onClick={startOAuth}
+            disabled={isCheckingOAuth || !oauthConfigured}
+            className="mt-6 block w-full rounded-full border border-border px-5 py-3 text-center text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Connect with Reddit OAuth
-          </a>
+            {isCheckingOAuth
+              ? "Checking OAuth..."
+              : oauthConfigured
+                ? "Connect with Reddit OAuth"
+                : "OAuth not configured yet"}
+          </button>
+          {!isCheckingOAuth && !oauthConfigured ? (
+            <p className="mt-3 rounded-2xl border border-amber-300/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-700">
+              Reddit OAuth is currently unavailable in this environment. You can
+              continue with local connect for onboarding.
+            </p>
+          ) : null}
 
           <div className="mt-6 rounded-2xl border border-border bg-background/70 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
               Local mode connect
             </p>
+            {!devConnectAvailable ? (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Local mode connect is disabled in production.
+              </p>
+            ) : localModeSession ? (
+              <p className="mt-3 text-xs text-muted-foreground">
+                You are in local mode. Connected accounts are placeholder tokens
+                for safe testing.
+              </p>
+            ) : null}
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="text-sm font-semibold" htmlFor="username">
@@ -207,7 +325,7 @@ export default function ConnectRedditPage() {
             <button
               type="button"
               onClick={connectLocalAccount}
-              disabled={isConnecting}
+              disabled={isConnecting || !devConnectAvailable}
               className="mt-4 w-full rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             >
               {isConnecting ? "Connecting..." : "Connect local account"}

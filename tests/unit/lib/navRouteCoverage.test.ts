@@ -88,6 +88,28 @@ describe("left-nav route coverage", () => {
     (item) => item.href,
   );
 
+  test("template matcher handles dynamic and catch-all segments safely", () => {
+    expect(templateMatchesHref("/seo/[type]/[slug]", "/seo/guides/support")).toBe(
+      true,
+    );
+    expect(templateMatchesHref("/seo/[type]/[slug]", "/seo/guides")).toBe(
+      false,
+    );
+
+    expect(templateMatchesHref("/docs/[...slug]", "/docs")).toBe(false);
+    expect(templateMatchesHref("/docs/[...slug]", "/docs/getting-started")).toBe(
+      true,
+    );
+
+    expect(templateMatchesHref("/docs/[[...slug]]", "/docs")).toBe(true);
+    expect(templateMatchesHref("/docs/[[...slug]]", "/docs/a/b")).toBe(true);
+  });
+
+  test("template matcher avoids prefix-collision false positives", () => {
+    expect(templateMatchesHref("/content", "/content-calendar")).toBe(false);
+    expect(templateMatchesHref("/settings", "/settings-advanced")).toBe(false);
+  });
+
   test("every left-nav href resolves to an existing app route template", () => {
     const unmatched = leftNavHrefs.filter(
       (href) =>

@@ -47,6 +47,16 @@ describe("AppSidebar", () => {
     );
   });
 
+  test("marks nav item active on exact href match", () => {
+    usePathnameMock.mockReturnValue("/content");
+    render(<AppSidebar />);
+
+    expect(screen.getByRole("link", { name: "Content" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
   test("does not mark dashboard active for nested paths", () => {
     usePathnameMock.mockReturnValue("/dashboard/overview");
     render(<AppSidebar />);

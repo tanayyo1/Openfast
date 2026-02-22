@@ -56,5 +56,11 @@ describe("app navigation config", () => {
     expect(isNavItemActive("/seo/guides/support", "/seo/guides/support")).toBe(
       true,
     );
+    expect(
+      isNavItemActive("/seo/guides/support/faq", "/seo/guides/support"),
+    ).toBe(true);
+    expect(
+      isNavItemActive("/seo/guides/supporting", "/seo/guides/support"),
+    ).toBe(false);
   });
 });

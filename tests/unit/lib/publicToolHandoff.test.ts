@@ -1,6 +1,8 @@
 import {
   buildProjectPrefillFromPostGenerator,
+  clearPostGeneratorHandoff,
   consumePostGeneratorHandoff,
+  readPostGeneratorHandoff,
   savePostGeneratorHandoff,
 } from "@/lib/publicToolHandoff";
 
@@ -22,7 +24,7 @@ function createStorageMock() {
 }
 
 describe("public tool handoff", () => {
-  test("saves and consumes post-generator handoff payload", () => {
+  test("reads handoff payload without clearing and consume clears it", () => {
     const storage = createStorageMock();
 
     const saved = savePostGeneratorHandoff(
@@ -41,8 +43,8 @@ describe("public tool handoff", () => {
     );
 
     expect(saved).toBe(true);
-    const consumed = consumePostGeneratorHandoff(storage);
-    expect(consumed).toEqual(
+    const read = readPostGeneratorHandoff(storage);
+    expect(read).toEqual(
       expect.objectContaining({
         topic: "onboarding loop",
         product: "Openfast",
@@ -50,6 +52,14 @@ describe("public tool handoff", () => {
         tone: "helpful",
         goal: "feedback",
         source: "openai",
+      }),
+    );
+    expect(storage.hasKey("rf_post_generator_handoff_v1")).toBe(true);
+
+    const consumed = consumePostGeneratorHandoff(storage);
+    expect(consumed).toEqual(
+      expect.objectContaining({
+        topic: "onboarding loop",
       }),
     );
     expect(storage.hasKey("rf_post_generator_handoff_v1")).toBe(false);
@@ -68,8 +78,26 @@ describe("public tool handoff", () => {
       }),
     );
 
-    const consumed = consumePostGeneratorHandoff(storage);
-    expect(consumed).toBeNull();
+    const read = readPostGeneratorHandoff(storage);
+    expect(read).toBeNull();
+    expect(storage.hasKey("rf_post_generator_handoff_v1")).toBe(false);
+  });
+
+  test("clear helper removes stored handoff", () => {
+    const storage = createStorageMock();
+    storage.setRaw(
+      "rf_post_generator_handoff_v1",
+      JSON.stringify({
+        topic: "topic",
+        product: "product",
+        audience: "audience",
+        tone: "helpful",
+        goal: "feedback",
+        draftBody: "body",
+      }),
+    );
+
+    clearPostGeneratorHandoff(storage);
     expect(storage.hasKey("rf_post_generator_handoff_v1")).toBe(false);
   });
 

@@ -113,43 +113,67 @@ export function savePostGeneratorHandoff(
   }
 }
 
-export function consumePostGeneratorHandoff(storage?: StorageLike) {
+function parsePostGeneratorHandoff(raw: string) {
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
+  if (!isPostGeneratorGoal(parsed.goal)) return null;
+
+  const topic = toString(parsed.topic);
+  const product = toString(parsed.product);
+  const audience = toString(parsed.audience);
+  const tone = toString(parsed.tone);
+  const draftBody = toString(parsed.draftBody);
+  if (!topic || !product || !audience || !tone || !draftBody) return null;
+
+  const source =
+    parsed.source === "openai" || parsed.source === "fallback"
+      ? parsed.source
+      : "fallback";
+
+  return {
+    topic,
+    product,
+    audience,
+    tone,
+    goal: parsed.goal,
+    subreddit: toString(parsed.subreddit) || null,
+    draftTitle: toString(parsed.draftTitle) || null,
+    draftBody,
+    source,
+    createdAt: toString(parsed.createdAt) || new Date().toISOString(),
+  } satisfies PostGeneratorHandoff;
+}
+
+export function clearPostGeneratorHandoff(storage?: StorageLike) {
+  const localStorage = readStorage(storage);
+  if (!localStorage) return;
+  try {
+    localStorage.removeItem(POST_GENERATOR_HANDOFF_KEY);
+  } catch {
+    // Ignore storage failures to keep onboarding usable.
+  }
+}
+
+export function readPostGeneratorHandoff(storage?: StorageLike) {
   const localStorage = readStorage(storage);
   if (!localStorage) return null;
-
   try {
     const raw = localStorage.getItem(POST_GENERATOR_HANDOFF_KEY);
     if (!raw) return null;
-    localStorage.removeItem(POST_GENERATOR_HANDOFF_KEY);
-
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    if (!isPostGeneratorGoal(parsed.goal)) return null;
-
-    const topic = toString(parsed.topic);
-    const product = toString(parsed.product);
-    const audience = toString(parsed.audience);
-    const tone = toString(parsed.tone);
-    const draftBody = toString(parsed.draftBody);
-    if (!topic || !product || !audience || !tone || !draftBody) return null;
-
-    const source =
-      parsed.source === "openai" || parsed.source === "fallback"
-        ? parsed.source
-        : "fallback";
-
-    return {
-      topic,
-      product,
-      audience,
-      tone,
-      goal: parsed.goal,
-      subreddit: toString(parsed.subreddit) || null,
-      draftTitle: toString(parsed.draftTitle) || null,
-      draftBody,
-      source,
-      createdAt: toString(parsed.createdAt) || new Date().toISOString(),
-    } satisfies PostGeneratorHandoff;
+    const parsed = parsePostGeneratorHandoff(raw);
+    if (!parsed) {
+      clearPostGeneratorHandoff(localStorage);
+      return null;
+    }
+    return parsed;
   } catch {
+    clearPostGeneratorHandoff(localStorage);
     return null;
   }
+}
+
+export function consumePostGeneratorHandoff(storage?: StorageLike) {
+  const handoff = readPostGeneratorHandoff(storage);
+  if (!handoff) return null;
+  clearPostGeneratorHandoff(storage);
+  return handoff;
 }

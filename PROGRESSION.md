@@ -133,6 +133,12 @@
 - [x] Added onboarding prefill on `/onboarding/create-project` (name/description/voice/goal) from post-generator context with explicit import notice.
 - [x] Added unit coverage for handoff save/consume and project prefill derivation.
 
+### Recent Tool Handoff Resilience Hardening (OAK-907, 2026-02-23)
+
+- [x] Added non-destructive handoff read + explicit clear helpers so onboarding prefill survives refresh/back-navigation before project save.
+- [x] Updated onboarding create-project flow to clear handoff context only after successful project creation.
+- [x] Extended handoff unit coverage for read/consume/clear behavior and malformed payload cleanup.
+
 ### Recent Core App Live-Data Wiring (2026-02-21)
 
 - [x] Replaced `useDemoStore` on `/dashboard`, `/projects`, `/projects/[id]`, and `/projects/[id]/settings` with workspace-scoped server-side data from Prisma.

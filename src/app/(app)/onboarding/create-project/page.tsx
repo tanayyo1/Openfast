@@ -8,7 +8,8 @@ import { trackAnalyticsEvent } from "@/lib/analytics/client";
 import { normalizeProjectUrlInput } from "@/lib/projects/url";
 import {
   buildProjectPrefillFromPostGenerator,
-  consumePostGeneratorHandoff,
+  clearPostGeneratorHandoff,
+  readPostGeneratorHandoff,
 } from "@/lib/publicToolHandoff";
 
 const goalOptions = [
@@ -45,7 +46,7 @@ export default function CreateProjectPage() {
     if (handoffLoadedRef.current) return;
     handoffLoadedRef.current = true;
 
-    const handoff = consumePostGeneratorHandoff();
+    const handoff = readPostGeneratorHandoff();
     if (!handoff) return;
 
     const prefill = buildProjectPrefillFromPostGenerator(handoff);
@@ -153,6 +154,7 @@ export default function CreateProjectPage() {
           selectedGoals: selectedGoals.length,
         },
       });
+      clearPostGeneratorHandoff();
       router.push(
         `/onboarding/connect-reddit?projectId=${encodeURIComponent(json.project.id)}`,
       );

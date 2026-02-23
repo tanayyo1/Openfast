@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { MaxWidth } from "@/components/public/MaxWidth";
 import { useSupabase } from "@/components/providers/SupabaseProvider";
+import { trackAnalyticsEvent } from "@/lib/analytics/client";
 import { toFriendlyAuthError } from "@/lib/supabase/auth-errors";
 
 function setDemoAuthCookie() {
@@ -42,6 +43,11 @@ export default function SignupPage() {
               setError(null);
               setMessage(null);
               setLoading(true);
+              void trackAnalyticsEvent({
+                eventName: "signup_started",
+                source: "web_public",
+                onceKey: "signup_started_submit",
+              });
 
               if (!supabase) {
                 // Allow local UI testing without Supabase configured.
@@ -98,6 +104,12 @@ export default function SignupPage() {
                   } catch (syncError) {
                     console.error("Sync error:", syncError);
                   }
+                  void trackAnalyticsEvent({
+                    eventName: "signup_completed",
+                    source: "web_app",
+                    onceKey: "signup_completed_auto_confirmed",
+                    properties: { method: "password" },
+                  });
 
                   router.push("/onboarding");
                 } else {

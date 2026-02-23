@@ -8,6 +8,7 @@ import {
 } from "@/lib/onboardingProgress";
 import { requireSession } from "@/lib/server/auth-guards";
 import { RefreshNextActionButton } from "@/components/onboarding/RefreshNextActionButton";
+import { AnalyticsBeacon } from "@/components/analytics/AnalyticsBeacon";
 
 const LOGIN_REDIRECT_ERRORS = new Set([
   "SUPABASE_NOT_CONFIGURED",
@@ -81,6 +82,14 @@ export default async function OnboardingPage() {
   const progress = await loadOnboardingProgress();
   return (
     <div className="space-y-8">
+      <AnalyticsBeacon
+        eventName="signup_completed"
+        onceKey="onboarding_signup_completed"
+      />
+      <AnalyticsBeacon
+        eventName="onboarding_step_hub_viewed"
+        onceKey="onboarding_step_hub_viewed"
+      />
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Onboarding

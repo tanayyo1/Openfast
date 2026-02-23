@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { trackAnalyticsEvent } from "@/lib/analytics/client";
 import { normalizeProjectUrlInput } from "@/lib/projects/url";
 
 const goalOptions = [
@@ -113,6 +114,14 @@ export default function CreateProjectPage() {
         return;
       }
 
+      void trackAnalyticsEvent({
+        eventName: "onboarding_step_project_created",
+        onceKey: `onboarding_project_created_${json.project.id}`,
+        properties: {
+          hasUrl: Boolean(normalizedUrl),
+          selectedGoals: selectedGoals.length,
+        },
+      });
       router.push(
         `/onboarding/connect-reddit?projectId=${encodeURIComponent(json.project.id)}`,
       );

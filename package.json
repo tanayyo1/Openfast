@@ -20,6 +20,7 @@
     "test:ci-local": "jest --runInBand --detectOpenHandles",
     "test:unit": "jest --testPathPattern=tests/unit",
     "test:integration": "jest --testPathPattern=tests/integration",
+    "test:core-loop": "jest --runInBand --testPathPattern=tests/integration/api/e2e-smoke.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "worker:dev": "tsx scripts/worker-dev.ts",

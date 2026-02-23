@@ -78,6 +78,12 @@
 - [x] Wired `/tools/subreddit-analyzer` page to live API flow with queue/cached-state handling, risk/policy display, and input validation.
 - [x] Wired `/tools/shadowban-check` page to live API flow with visibility diagnostics, validation/error handling, and route-level edge-case tests.
 
+### Recent Activation Instrumentation + Core-Loop Gate (2026-02-23)
+
+- [x] Added client analytics event emitter (`/api/analytics/events`) wiring for homepage view, signup start/completion, onboarding step completions, and roadmap generation completion.
+- [x] Added workspace funnel `ttfv` (time-to-first-value) metrics (`sampleSize`, `avg/p50/p90/min/max` in minutes) to `/api/analytics/funnel`.
+- [x] Added mandatory `test:core-loop` CI job as a dedicated release gate that runs `tests/integration/api/e2e-smoke.test.ts` with DB + Redis.
+
 ### Recent Core App Live-Data Wiring (2026-02-21)
 
 - [x] Replaced `useDemoStore` on `/dashboard`, `/projects`, `/projects/[id]`, and `/projects/[id]/settings` with workspace-scoped server-side data from Prisma.

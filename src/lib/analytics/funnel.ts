@@ -27,6 +27,15 @@ export type FunnelResult = {
   };
 };
 
+export type TimeToFirstValueMetrics = {
+  sampleSize: number;
+  avgMinutes: number | null;
+  p50Minutes: number | null;
+  p90Minutes: number | null;
+  minMinutes: number | null;
+  maxMinutes: number | null;
+};
+
 const FUNNEL_STAGES = [
   { stage: "homepage", eventName: "homepage_view" },
   { stage: "signup_started", eventName: "signup_started" },
@@ -220,4 +229,64 @@ export async function getFullFunnelPaths(
   `;
 
   return results;
+}
+
+type TimeToFirstValueRow = {
+  sample_size: bigint;
+  avg_seconds: number | null;
+  p50_seconds: number | null;
+  p90_seconds: number | null;
+  min_seconds: number | null;
+  max_seconds: number | null;
+};
+
+function roundMinutes(seconds: number | null) {
+  if (seconds === null || Number.isNaN(seconds)) return null;
+  return Math.round((seconds / 60) * 100) / 100;
+}
+
+export async function getTimeToFirstValueMetrics(
+  workspaceId: string,
+  startDate: Date,
+  endDate: Date,
+): Promise<TimeToFirstValueMetrics> {
+  const rows = await prisma.$queryRaw<TimeToFirstValueRow[]>`
+    WITH journeys AS (
+      SELECT
+        COALESCE(user_id, anonymous_session_id) AS session_key,
+        MIN(CASE WHEN event_name = 'signup_completed' THEN event_ts END) AS signup_completed_ts,
+        MIN(CASE WHEN event_name = 'onboarding_completed' THEN event_ts END) AS onboarding_completed_ts
+      FROM analytics_events
+      WHERE workspace_id = ${workspaceId}
+        AND event_name IN ('signup_completed', 'onboarding_completed')
+        AND event_ts >= ${startDate}
+        AND event_ts <= ${endDate}
+      GROUP BY session_key
+    )
+    SELECT
+      COUNT(*)::bigint AS sample_size,
+      AVG(EXTRACT(EPOCH FROM (onboarding_completed_ts - signup_completed_ts)))::double precision AS avg_seconds,
+      PERCENTILE_CONT(0.5) WITHIN GROUP (
+        ORDER BY EXTRACT(EPOCH FROM (onboarding_completed_ts - signup_completed_ts))
+      )::double precision AS p50_seconds,
+      PERCENTILE_CONT(0.9) WITHIN GROUP (
+        ORDER BY EXTRACT(EPOCH FROM (onboarding_completed_ts - signup_completed_ts))
+      )::double precision AS p90_seconds,
+      MIN(EXTRACT(EPOCH FROM (onboarding_completed_ts - signup_completed_ts)))::double precision AS min_seconds,
+      MAX(EXTRACT(EPOCH FROM (onboarding_completed_ts - signup_completed_ts)))::double precision AS max_seconds
+    FROM journeys
+    WHERE signup_completed_ts IS NOT NULL
+      AND onboarding_completed_ts IS NOT NULL
+      AND onboarding_completed_ts >= signup_completed_ts
+  `;
+
+  const metrics = rows[0];
+  return {
+    sampleSize: Number(metrics?.sample_size ?? 0),
+    avgMinutes: roundMinutes(metrics?.avg_seconds ?? null),
+    p50Minutes: roundMinutes(metrics?.p50_seconds ?? null),
+    p90Minutes: roundMinutes(metrics?.p90_seconds ?? null),
+    minMinutes: roundMinutes(metrics?.min_seconds ?? null),
+    maxMinutes: roundMinutes(metrics?.max_seconds ?? null),
+  };
 }

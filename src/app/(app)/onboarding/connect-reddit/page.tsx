@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { trackAnalyticsEvent } from "@/lib/analytics/client";
 
 const scopes = [
   {
@@ -150,6 +151,18 @@ export default function ConnectRedditPage() {
     void loadAccounts();
     void loadOAuthStatus();
   }, []);
+
+  useEffect(() => {
+    if (isLoading || accounts.length === 0) return;
+    const firstAccountId = accounts[0]?.id ?? "unknown";
+    void trackAnalyticsEvent({
+      eventName: "onboarding_step_reddit_connected",
+      onceKey: `onboarding_reddit_connected_${projectId || "none"}_${firstAccountId}`,
+      properties: {
+        connectedAccounts: accounts.length,
+      },
+    });
+  }, [accounts, isLoading, projectId]);
 
   const canContinue = useMemo(() => accounts.length > 0, [accounts.length]);
   const oauthNextPath = useMemo(() => {
@@ -459,6 +472,13 @@ export default function ConnectRedditPage() {
           type="button"
           disabled={!canContinue || isLoading}
           onClick={() => {
+            void trackAnalyticsEvent({
+              eventName: "onboarding_step_connect_reddit_continue",
+              onceKey: `onboarding_connect_continue_${projectId || "none"}`,
+              properties: {
+                connectedAccounts: accounts.length,
+              },
+            });
             router.push(roadmapHref);
           }}
           className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"

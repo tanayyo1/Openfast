@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AnalyticsBeacon } from "@/components/analytics/AnalyticsBeacon";
 import { MaxWidth } from "@/components/public/MaxWidth";
 
 const heroSignals = [
@@ -104,6 +105,11 @@ const tools = [
 export default function HomePage() {
   return (
     <div>
+      <AnalyticsBeacon
+        eventName="homepage_view"
+        source="web_public"
+        onceKey="public_homepage_view"
+      />
       <section className="relative pb-20 pt-16">
         <MaxWidth>
           <div className="grid gap-12 lg:grid-cols-[1.15fr_0.85fr]">

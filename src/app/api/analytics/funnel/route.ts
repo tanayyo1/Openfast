@@ -6,6 +6,7 @@ import {
   getFunnelData,
   getEventCountsLast24h,
   getFullFunnelPaths,
+  getTimeToFirstValueMetrics,
 } from "@/lib/analytics/funnel";
 
 function authError(err: unknown) {
@@ -41,7 +42,7 @@ export async function GET(req: Request) {
     );
   }
 
-  const [funnelData, eventCounts, fullPaths] = await Promise.all([
+  const [funnelData, eventCounts, fullPaths, ttfv] = await Promise.all([
     getFunnelData(session.workspaceId, dateRange.startDate, dateRange.endDate),
     getEventCountsLast24h(session.workspaceId),
     getFullFunnelPaths(
@@ -50,10 +51,16 @@ export async function GET(req: Request) {
       dateRange.endDate,
       5,
     ),
+    getTimeToFirstValueMetrics(
+      session.workspaceId,
+      dateRange.startDate,
+      dateRange.endDate,
+    ),
   ]);
 
   return NextResponse.json({
     funnel: funnelData,
+    ttfv,
     eventCountsLast24h: eventCounts,
     recentCompleteFunnels: fullPaths,
     requestedBy: {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { trackAnalyticsEvent } from "@/lib/analytics/client";
 
 type GenerateProject = {
   id: string;
@@ -195,6 +196,23 @@ export function RoadmapGenerateForm({
                   return;
                 }
 
+                void trackAnalyticsEvent({
+                  eventName: "onboarding_step_roadmap_generated",
+                  onceKey: `onboarding_roadmap_generated_${roadmapId}`,
+                  properties: {
+                    projectId: selectedProjectId,
+                    horizonDays,
+                  },
+                });
+                void trackAnalyticsEvent({
+                  eventName: "onboarding_completed",
+                  onceKey: `onboarding_completed_${selectedProjectId}`,
+                  properties: {
+                    projectId: selectedProjectId,
+                    roadmapId,
+                    horizonDays,
+                  },
+                });
                 router.push(`/roadmaps/${encodeURIComponent(roadmapId)}`);
               } catch {
                 setError("Network error while generating roadmap.");

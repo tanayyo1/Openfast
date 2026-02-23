@@ -10,6 +10,7 @@ jest.mock("@/lib/analytics/funnel", () => ({
   getFunnelData: jest.fn(),
   getEventCountsLast24h: jest.fn(),
   getFullFunnelPaths: jest.fn(),
+  getTimeToFirstValueMetrics: jest.fn(),
 }));
 
 import {
@@ -27,6 +28,7 @@ const mockedFunnel = jest.requireMock("@/lib/analytics/funnel") as {
   getFunnelData: jest.Mock;
   getEventCountsLast24h: jest.Mock;
   getFullFunnelPaths: jest.Mock;
+  getTimeToFirstValueMetrics: jest.Mock;
 };
 
 async function readJson(res: Response) {
@@ -54,6 +56,14 @@ describe("analytics funnel route", () => {
     });
     mockedFunnel.getEventCountsLast24h.mockResolvedValue([]);
     mockedFunnel.getFullFunnelPaths.mockResolvedValue([]);
+    mockedFunnel.getTimeToFirstValueMetrics.mockResolvedValue({
+      sampleSize: 0,
+      avgMinutes: null,
+      p50Minutes: null,
+      p90Minutes: null,
+      minMinutes: null,
+      maxMinutes: null,
+    });
   });
 
   test("returns 400 for invalid explicit dates", async () => {
@@ -82,8 +92,19 @@ describe("analytics funnel route", () => {
         "http://test.local/api/analytics/funnel?start=2026-02-10T00:00:00.000Z&end=2026-02-11T00:00:00.000Z",
       ),
     );
+    const json = (await readJson(res)) as {
+      ttfv?: { sampleSize: number };
+    };
 
     expect(res.status).toBe(200);
+    expect(json.ttfv).toEqual({
+      sampleSize: 0,
+      avgMinutes: null,
+      p50Minutes: null,
+      p90Minutes: null,
+      minMinutes: null,
+      maxMinutes: null,
+    });
     expect(mockedFunnel.getFunnelData).toHaveBeenCalledWith(
       "ws_1",
       expect.any(Date),
@@ -95,6 +116,11 @@ describe("analytics funnel route", () => {
       expect.any(Date),
       expect.any(Date),
       5,
+    );
+    expect(mockedFunnel.getTimeToFirstValueMetrics).toHaveBeenCalledWith(
+      "ws_1",
+      expect.any(Date),
+      expect.any(Date),
     );
   });
 

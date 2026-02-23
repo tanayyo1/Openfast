@@ -120,6 +120,12 @@
 - [x] Updated `scripts/smoke-local.ts` to auto-load `.env*` so local smoke checks behave consistently with app runtime config.
 - [x] Verified launch readiness and localhost smoke checks now run successfully without manual `source .env.local`.
 
+### Recent Post-Generator Input Quality Hardening (OAK-905, 2026-02-23)
+
+- [x] Added topic/text normalization helpers for public post generation to remove noisy prefixes (e.g. `discuss about`) and trailing punctuation.
+- [x] Applied normalized topic/product/audience/tone input across both OpenAI and deterministic fallback generation paths.
+- [x] Added regression tests for noisy-input normalization and fallback draft quality expectations.
+
 ### Recent Core App Live-Data Wiring (2026-02-21)
 
 - [x] Replaced `useDemoStore` on `/dashboard`, `/projects`, `/projects/[id]`, and `/projects/[id]/settings` with workspace-scoped server-side data from Prisma.

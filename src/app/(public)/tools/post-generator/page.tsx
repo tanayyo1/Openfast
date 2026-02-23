@@ -27,6 +27,8 @@ type PostGenerateResponse = {
   subredditRulesPreview?: string[];
 };
 
+type DraftVariantPreview = { title: string | null; body: string };
+
 export default function PostGeneratorPage() {
   const [topic, setTopic] = useState("");
   const [product, setProduct] = useState("");
@@ -38,6 +40,12 @@ export default function PostGeneratorPage() {
   const [error, setError] = useState<string | null>(null);
   const [handoffError, setHandoffError] = useState<string | null>(null);
   const [result, setResult] = useState<PostGenerateResponse | null>(null);
+  const bestDraft = result?.variants[0] ?? result?.draft ?? null;
+  const draftCards: Array<DraftVariantPreview | number> = result
+    ? result.variants.length > 0
+      ? result.variants
+      : [result.draft]
+    : [1, 2, 3];
 
   useEffect(() => {
     try {
@@ -126,11 +134,17 @@ export default function PostGeneratorPage() {
     }
   }
 
-  function startOnboardingFromDraft() {
+  function startOnboardingFromDraft(selectedDraft: DraftVariantPreview) {
     if (!result) return;
     setHandoffError(null);
+    const draftBody = selectedDraft.body.trim();
+    if (draftBody.length === 0) {
+      setHandoffError(
+        "Selected draft body is empty. Generate again and choose a draft with content.",
+      );
+      return;
+    }
 
-    const primary = result.variants[0] ?? result.draft;
     const persisted = savePostGeneratorHandoff({
       topic: topic.trim(),
       product: product.trim(),
@@ -138,8 +152,8 @@ export default function PostGeneratorPage() {
       tone: tone.trim() || "helpful",
       goal,
       subreddit: subreddit.trim() || null,
-      draftTitle: primary?.title ?? null,
-      draftBody: primary?.body ?? "",
+      draftTitle: selectedDraft.title ?? null,
+      draftBody,
       source: result.source,
     });
 
@@ -282,13 +296,13 @@ export default function PostGeneratorPage() {
                     Source: {result.source === "openai" ? "OpenAI" : "Fallback"}
                   </span>
                 ) : null}
-                {result ? (
+                {bestDraft ? (
                   <button
                     type="button"
-                    onClick={startOnboardingFromDraft}
+                    onClick={() => startOnboardingFromDraft(bestDraft)}
                     className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90"
                   >
-                    Use in app
+                    Use best draft in app
                   </button>
                 ) : null}
               </div>
@@ -308,47 +322,54 @@ export default function PostGeneratorPage() {
               </p>
             ) : null}
             <div className="mt-6 space-y-4">
-              {(result?.variants.length ? result.variants : [1, 2, 3]).map(
-                (item, index) => (
-                  <div
-                    key={
-                      typeof item === "number" ? item : `${item.title}-${index}`
-                    }
-                    className="rounded-2xl border border-border bg-card/80 p-5"
-                  >
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                      Draft {index + 1}
-                    </p>
-                    <p className="mt-3 text-sm font-semibold">
-                      {typeof item === "number"
-                        ? "Title placeholder for your Reddit post"
-                        : (item.title ?? "Untitled draft")}
-                    </p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {typeof item === "number"
-                        ? "Body preview will appear here. It should include context, value, and a clear discussion prompt."
-                        : item.body}
-                    </p>
-                    {result ? (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
-                          Risk {result.risk.riskScore}
-                        </span>
-                        {(result.risk.riskReasons || [])
-                          .slice(0, 2)
-                          .map((reason) => (
-                            <span
-                              key={reason}
-                              className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground"
-                            >
-                              {reason}
-                            </span>
-                          ))}
-                      </div>
-                    ) : null}
-                  </div>
-                ),
-              )}
+              {draftCards.map((item, index) => (
+                <div
+                  key={
+                    typeof item === "number" ? item : `${item.title}-${index}`
+                  }
+                  className="rounded-2xl border border-border bg-card/80 p-5"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                    Draft {index + 1}
+                  </p>
+                  <p className="mt-3 text-sm font-semibold">
+                    {typeof item === "number"
+                      ? "Title placeholder for your Reddit post"
+                      : (item.title ?? "Untitled draft")}
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {typeof item === "number"
+                      ? "Body preview will appear here. It should include context, value, and a clear discussion prompt."
+                      : item.body}
+                  </p>
+                  {typeof item === "number" ? null : (
+                    <button
+                      type="button"
+                      onClick={() => startOnboardingFromDraft(item)}
+                      className="mt-3 rounded-full border border-border px-3 py-1 text-xs font-semibold text-foreground transition hover:border-foreground/40"
+                    >
+                      Use this draft in app
+                    </button>
+                  )}
+                  {result ? (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
+                        Risk {result.risk.riskScore}
+                      </span>
+                      {(result.risk.riskReasons || [])
+                        .slice(0, 2)
+                        .map((reason) => (
+                          <span
+                            key={reason}
+                            className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground"
+                          >
+                            {reason}
+                          </span>
+                        ))}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
               {result && result.risk.suggestedFixes.length > 0 ? (
                 <div className="rounded-2xl border border-border bg-card/60 p-4 text-xs text-muted-foreground">
                   <p className="font-semibold text-foreground">

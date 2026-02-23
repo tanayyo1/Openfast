@@ -139,6 +139,12 @@
 - [x] Updated onboarding create-project flow to clear handoff context only after successful project creation.
 - [x] Extended handoff unit coverage for read/consume/clear behavior and malformed payload cleanup.
 
+### Recent Variant-Selective Tool Handoff (OAK-904, 2026-02-23)
+
+- [x] Updated `/tools/post-generator` so users can send a specific draft variant into onboarding instead of always exporting draft 1.
+- [x] Added per-card `Use this draft in app` actions plus a `Use best draft in app` shortcut.
+- [x] Hardened handoff action with empty-draft guardrail and clear UI error messaging.
+
 ### Recent Core App Live-Data Wiring (2026-02-21)
 
 - [x] Replaced `useDemoStore` on `/dashboard`, `/projects`, `/projects/[id]`, and `/projects/[id]/settings` with workspace-scoped server-side data from Prisma.

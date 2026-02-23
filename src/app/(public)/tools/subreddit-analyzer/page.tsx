@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { MaxWidth } from "@/components/public/MaxWidth";
 
@@ -79,7 +80,8 @@ export default function SubredditAnalyzerPage() {
             </p>
             <h1 className="mt-4 text-4xl font-semibold">Subreddit analyzer</h1>
             <p className="mt-4 text-sm text-muted-foreground">
-              Check rules, activity, and best-time windows before you post.
+              Check rules, activity, and best-time windows before posting so you
+              avoid low-fit or high-risk subreddits.
             </p>
             <form
               className="mt-8 rounded-[24px] border border-border bg-card/80 p-6"
@@ -213,6 +215,27 @@ export default function SubredditAnalyzerPage() {
                 </p>
               )}
             </div>
+          </div>
+        </div>
+        <div className="mt-10 rounded-[24px] border border-border bg-card/80 p-6">
+          <p className="text-sm font-semibold">Turn insights into execution</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            In the full app, these signals feed recommendations, task planning,
+            and approval-first scheduling.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              href="/signup"
+              className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+            >
+              Start free account
+            </Link>
+            <Link
+              href="/tools/post-generator"
+              className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
+            >
+              Next: Post generator
+            </Link>
           </div>
         </div>
       </MaxWidth>

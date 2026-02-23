@@ -92,6 +92,13 @@
 - [x] Updated onboarding progress routing to prefer onboarding step-3 path before completion, then route completed users to `/roadmaps`.
 - [x] Added regression coverage for new onboarding step-3 routing and onboarding-mode roadmap form behavior.
 
+### Recent Public Surface Repositioning (OAK-915, 2026-02-23)
+
+- [x] Repositioned homepage messaging around safety, low ban risk, and speed-to-value for founders.
+- [x] Updated homepage proof cards, value pillars, and CTA copy to reflect conversion-first positioning.
+- [x] Tightened free-tool positioning copy across post generator, subreddit analyzer, and shadowban checker.
+- [x] Added conversion bridge sections on all public tools with direct CTA into signup/pricing and next-step tool flow.
+
 ### Recent Core App Live-Data Wiring (2026-02-21)
 
 - [x] Replaced `useDemoStore` on `/dashboard`, `/projects`, `/projects/[id]`, and `/projects/[id]/settings` with workspace-scoped server-side data from Prisma.

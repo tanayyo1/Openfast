@@ -3,60 +3,60 @@ import { AnalyticsBeacon } from "@/components/analytics/AnalyticsBeacon";
 import { MaxWidth } from "@/components/public/MaxWidth";
 
 const heroSignals = [
-  "Compliance guardrails baked in",
-  "Approval-first publishing flow",
-  "Subreddit-aware task planning",
+  "Safe output by default",
+  "Lower ban-risk workflow",
+  "Fast weekly execution loop",
 ];
 
 const proofCards = [
   {
     label: "Risk Score",
-    value: "18 / 100",
-    detail: "Draft flagged as low-risk and ready for review",
+    value: "12 / 100",
+    detail: "Draft checked against subreddit policy hints before approval",
   },
   {
-    label: "Best Window",
-    value: "Tue 09:00",
-    detail: "Highest engagement forecast in r/startups",
+    label: "Time To First Value",
+    value: "< 20 min",
+    detail: "Connect, generate first roadmap, and ship first safe draft cycle",
   },
   {
-    label: "Queue Health",
-    value: "98.7%",
-    detail: "Publish success in last 30 days (demo baseline)",
+    label: "Approval Gate",
+    value: "100%",
+    detail: "Nothing posts without explicit human approval",
   },
 ];
 
 const pillars = [
   {
-    title: "Plan with subreddit intelligence",
+    title: "Find where you can post safely",
     description:
-      "Match your product goals to subreddits using rules, activity windows, and risk signals.",
+      "Map product goals to subreddits with rules, risk context, and realistic timing windows.",
   },
   {
-    title: "Write with built-in compliance context",
+    title: "Generate drafts without spam patterns",
     description:
-      "Generate variants with rule-aware prompts, then keep only drafts that pass risk checks.",
+      "Create variants with compliance cues and keep only drafts that pass risk checks.",
   },
   {
-    title: "Ship with approval-first automation",
+    title: "Ship fast with guardrails on",
     description:
-      "Schedule confidently with idempotent jobs and metrics feedback after publish.",
+      "Use approval-first scheduling with queue safety and post-publish feedback loops.",
   },
 ];
 
 const steps = [
   {
-    title: "Create project and connect account",
+    title: "Create project + connect Reddit",
     detail:
       "Set tone, goals, and constraints. Then connect Reddit via OAuth with encrypted token storage.",
   },
   {
-    title: "Generate recommendations and roadmap",
+    title: "Generate recommendations + roadmap",
     detail:
       "Pick top subreddits and receive day-by-day post/comment tasks with suggested time windows.",
   },
   {
-    title: "Approve, schedule, and learn",
+    title: "Approve, schedule, improve",
     detail:
       "Review every draft, schedule safely, and use analytics snapshots to improve the next cycle.",
   },
@@ -64,20 +64,20 @@ const steps = [
 
 const featureGrid = [
   {
-    title: "Workspace-scoped projects",
-    body: "Run multiple growth experiments with strict isolation across teams and accounts.",
+    title: "Safety-first activation",
+    body: "Three clear steps to first value: create project, connect account, generate roadmap.",
   },
   {
     title: "Draft lifecycle controls",
-    body: "Move drafts from DRAFT to REVIEWING to APPROVED before they can be scheduled.",
+    body: "Move drafts through review states before scheduling to avoid accidental risky posting.",
   },
   {
-    title: "Queue-backed publishing",
-    body: "Use deterministic job IDs and retries to avoid duplicate publish behavior.",
+    title: "Queue-backed execution",
+    body: "Use deterministic jobs and retries to prevent duplicate or unsafe publish behavior.",
   },
   {
-    title: "Metrics snapshots",
-    body: "Track score, comments, and post state over time for accountable iteration.",
+    title: "Feedback loop analytics",
+    body: "Track risk, engagement, and timing to improve the next cycle instead of guessing.",
   },
 ];
 
@@ -85,19 +85,19 @@ const tools = [
   {
     title: "Post generator",
     description:
-      "Shape Reddit-ready copy quickly with structure hints and tone controls.",
+      "Draft compliant post variants quickly with tone and structure guidance.",
     href: "/tools/post-generator",
   },
   {
     title: "Subreddit analyzer",
     description:
-      "Review rules, activity profile, and timing signals before you post.",
+      "Check rules, activity signals, and posting windows before committing to a subreddit.",
     href: "/tools/subreddit-analyzer",
   },
   {
     title: "Shadowban check",
     description:
-      "Run visibility checks and inspect account-health warning signals.",
+      "Validate visibility signals so you can slow down early if account risk rises.",
     href: "/tools/shadowban-check",
   },
 ];
@@ -115,16 +115,15 @@ export default function HomePage() {
           <div className="grid gap-12 lg:grid-cols-[1.15fr_0.85fr]">
             <div>
               <p className="inline-flex items-center gap-2 rounded-full border border-border bg-background/80 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                MediaFast-style Reddit execution engine
+                Safety + quality + speed
               </p>
               <h1 className="mt-6 text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
-                Build a predictable Reddit growth pipeline without losing
-                authenticity.
+                Grow on Reddit without gambling your account.
               </h1>
               <p className="mt-6 text-base text-muted-foreground sm:text-lg">
-                ReditFast gives founders a compliance-first workflow from
-                discovery to scheduling: recommendations, roadmap tasks, AI
-                variants, review gates, and analytics.
+                ReditFast helps founders ship useful Reddit content with lower
+                ban risk: subreddit fit, safer drafts, approval-first
+                scheduling, and feedback loops.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link
@@ -260,10 +259,10 @@ export default function HomePage() {
                 </h2>
               </div>
               <Link
-                href="/dashboard"
+                href="/signup"
                 className="rounded-full border border-border px-5 py-2 text-sm font-semibold transition hover:border-foreground/40"
               >
-                Open app
+                Start activation flow
               </Link>
             </div>
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -299,7 +298,7 @@ export default function HomePage() {
                 Free tools
               </p>
               <h2 className="mt-4 text-3xl font-semibold sm:text-4xl">
-                Validate your workflow before you subscribe.
+                Try core value before signup.
               </h2>
             </div>
             <Link
@@ -339,11 +338,11 @@ export default function HomePage() {
         <MaxWidth>
           <div className="rounded-[32px] border border-border bg-primary/10 p-10 text-center">
             <h2 className="text-3xl font-semibold sm:text-4xl">
-              Ready to turn Reddit into a repeatable growth channel?
+              Ready for safer Reddit growth with less guesswork?
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-sm text-muted-foreground">
-              Start with free tools, then move into recommendations, roadmap
-              tasks, approval-first scheduling, and analytics loops.
+              Start with free tools, then move into the guided 3-step activation
+              flow and your first full execution cycle.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-4">
               <Link

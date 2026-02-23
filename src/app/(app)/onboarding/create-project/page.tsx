@@ -2,10 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { OnboardingFlowHeader } from "@/components/onboarding/OnboardingFlowHeader";
 import { trackAnalyticsEvent } from "@/lib/analytics/client";
 import { normalizeProjectUrlInput } from "@/lib/projects/url";
+import {
+  buildProjectPrefillFromPostGenerator,
+  consumePostGeneratorHandoff,
+} from "@/lib/publicToolHandoff";
 
 const goalOptions = [
   {
@@ -22,18 +26,44 @@ const goalOptions = [
 
 export default function CreateProjectPage() {
   const router = useRouter();
+  const handoffLoadedRef = useRef(false);
 
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
   const [brandVoice, setBrandVoice] = useState("");
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
+  const [handoffNotice, setHandoffNotice] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isValid = useMemo(() => {
     return name.trim().length > 1 && description.trim().length > 10;
   }, [name, description]);
+
+  useEffect(() => {
+    if (handoffLoadedRef.current) return;
+    handoffLoadedRef.current = true;
+
+    const handoff = consumePostGeneratorHandoff();
+    if (!handoff) return;
+
+    const prefill = buildProjectPrefillFromPostGenerator(handoff);
+    setName((current) => (current.trim().length > 0 ? current : prefill.name));
+    setDescription((current) =>
+      current.trim().length > 0 ? current : prefill.description,
+    );
+    setBrandVoice((current) =>
+      current.trim().length > 0 ? current : prefill.brandVoice,
+    );
+    setSelectedGoals((current) =>
+      current.length > 0 ? current : [prefill.primaryGoal],
+    );
+
+    setHandoffNotice(
+      `Imported draft context from post generator (${handoff.source === "openai" ? "OpenAI" : "fallback"}). Review and save.`,
+    );
+  }, []);
 
   async function saveProject() {
     setError(null);
@@ -142,6 +172,11 @@ export default function CreateProjectPage() {
       />
 
       <div className="rounded-[24px] border border-border bg-card/80 p-6">
+        {handoffNotice ? (
+          <p className="mb-4 rounded-2xl border border-border bg-background/70 px-4 py-3 text-sm text-muted-foreground">
+            {handoffNotice}
+          </p>
+        ) : null}
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="text-sm font-semibold" htmlFor="name">

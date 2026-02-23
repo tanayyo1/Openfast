@@ -99,6 +99,14 @@
 - [x] Tightened free-tool positioning copy across post generator, subreddit analyzer, and shadowban checker.
 - [x] Added conversion bridge sections on all public tools with direct CTA into signup/pricing and next-step tool flow.
 
+### Recent ICP + Pricing Packaging V1 (OAK-912, 2026-02-23)
+
+- [x] Reworked `/pricing` package copy around explicit ICP fit (`best for` / `not for`) to reduce ambiguous plan selection.
+- [x] Aligned public plan feature bullets with real backend entitlement limits from `limitsForPlan` to prevent pricing drift.
+- [x] Added shared safety baseline messaging (compliance checks + mandatory human approval) across both public plans.
+- [x] Wired Pro CTA to live billing checkout API with robust unauthenticated fallback to signup and explicit provider/config error messaging.
+- [x] Added unit coverage for pricing CTA checkout edge cases (unauthorized redirect, provider/config failures, duplicate-click race lock).
+
 ### Recent Core App Live-Data Wiring (2026-02-21)
 
 - [x] Replaced `useDemoStore` on `/dashboard`, `/projects`, `/projects/[id]`, and `/projects/[id]/settings` with workspace-scoped server-side data from Prisma.

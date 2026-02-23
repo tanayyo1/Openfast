@@ -1,34 +1,48 @@
 import Link from "next/link";
 import { MaxWidth } from "@/components/public/MaxWidth";
+import { PricingPlanCta } from "@/components/public/PricingPlanCta";
+import { limitsForPlan } from "@/lib/billing/plans";
+
+const freeLimits = limitsForPlan("FREE");
+const proLimits = limitsForPlan("PRO");
 
 const plans = [
   {
+    plan: "FREE" as const,
     name: "Free",
     price: "$0",
     cadence: "per month",
-    description: "Start with essentials and safety-first guidance.",
+    bestFor: "Solo founders validating the first Reddit growth loop.",
+    notFor: "Teams that need multi-account scale and advanced analytics.",
+    description: "Safety-first baseline to ship useful posts without burnout.",
     features: [
-      "1 project",
-      "1 Reddit account",
-      "Basic roadmap (7 days)",
-      "10 drafts per month",
-      "Manual posting only",
+      `${freeLimits.maxProjects} project`,
+      `${freeLimits.maxRedditAccounts} Reddit account`,
+      `${freeLimits.roadmapDays}-day roadmap horizon`,
+      `${freeLimits.maxDraftsPerMonth} AI drafts / month`,
+      `Up to ${freeLimits.maxScheduledPosts} scheduled items`,
+      "Manual approval required before publish",
     ],
     cta: "Get started",
   },
   {
+    plan: "PRO" as const,
     name: "Pro",
     price: "$39",
     cadence: "per month",
-    description: "Full planning and scheduling for growing teams.",
+    bestFor: "Operators running repeatable weekly Reddit execution loops.",
+    notFor: "Enterprise orgs needing dedicated support and custom controls.",
+    description:
+      "Scale output with Smart Finder, analytics, and safer queueing.",
     features: [
-      "5 projects",
-      "3 Reddit accounts",
-      "Full roadmap (30 days)",
-      "2,000 AI drafts / month",
-      "Auto-scheduling + analytics",
+      `${proLimits.maxProjects} projects`,
+      `${proLimits.maxRedditAccounts} Reddit accounts`,
+      `${proLimits.roadmapDays}-day roadmap horizon`,
+      `${proLimits.maxDraftsPerMonth.toLocaleString()} AI drafts / month`,
+      `Up to ${proLimits.maxScheduledPosts} scheduled items`,
+      "Smart Finder + advanced analytics",
     ],
-    cta: "Start Pro",
+    cta: "Upgrade to Pro",
     highlight: true,
   },
 ];
@@ -42,12 +56,38 @@ export default function PricingPage() {
             Pricing
           </p>
           <h1 className="mt-4 text-4xl font-semibold sm:text-5xl">
-            Plans built for steady Reddit growth.
+            Simple pricing for the operator loop.
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-sm text-muted-foreground">
-            Choose the pace that matches your team. All plans include compliance
-            checks and human approval.
+            Pick the package that matches your stage. Every plan keeps human
+            approval as a hard gate so nothing posts unattended.
           </p>
+        </div>
+        <div className="mt-8 grid gap-4 rounded-[24px] border border-border bg-card/70 p-6 md:grid-cols-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Shared foundation
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Draft compliance checks + anti-pattern warnings on every variant.
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Safety behavior
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Human approval required before scheduling and publishing.
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Upgrade trigger
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Move to Pro once you run multiple projects/accounts weekly.
+            </p>
+          </div>
         </div>
         <div className="mt-12 grid gap-6 lg:grid-cols-2">
           {plans.map((plan) => (
@@ -64,6 +104,16 @@ export default function PricingPage() {
               </p>
               <p className="mt-4 text-4xl font-semibold">{plan.price}</p>
               <p className="text-xs text-muted-foreground">{plan.cadence}</p>
+              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Best for
+              </p>
+              <p className="mt-1 text-sm">{plan.bestFor}</p>
+              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Not for
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {plan.notFor}
+              </p>
               <p className="mt-4 text-sm text-muted-foreground">
                 {plan.description}
               </p>
@@ -75,16 +125,17 @@ export default function PricingPage() {
                   </li>
                 ))}
               </ul>
-              <Link
-                href="/signup"
-                className={`mt-6 inline-flex w-full items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  plan.highlight
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                    : "border border-border text-foreground hover:border-foreground/40"
-                }`}
-              >
-                {plan.cta}
-              </Link>
+              <div className="mt-6">
+                <PricingPlanCta
+                  plan={plan.plan}
+                  cta={plan.cta}
+                  className={`inline-flex w-full items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    plan.highlight
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                      : "border border-border text-foreground hover:border-foreground/40"
+                  }`}
+                />
+              </div>
             </div>
           ))}
         </div>

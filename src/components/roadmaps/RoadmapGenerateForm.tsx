@@ -36,6 +36,9 @@ export function RoadmapGenerateForm({
     () => Boolean(selectedProjectId) && accounts.length > 0,
     [accounts.length, selectedProjectId],
   );
+  const connectHref = selectedProjectId
+    ? `/onboarding/connect-reddit?projectId=${encodeURIComponent(selectedProjectId)}`
+    : "/onboarding/connect-reddit";
 
   return (
     <div className="space-y-8">
@@ -98,9 +101,17 @@ export function RoadmapGenerateForm({
             <p className="text-sm font-semibold">Connected Reddit accounts</p>
             <div className="mt-2 rounded-2xl border border-border bg-background/70 p-4">
               {accounts.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No active accounts connected. Connect one to proceed.
-                </p>
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    No active accounts connected. Connect one to proceed.
+                  </p>
+                  <Link
+                    href={connectHref}
+                    className="inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+                  >
+                    Connect Reddit account
+                  </Link>
+                </div>
               ) : (
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   {accounts.map((account) => (
@@ -133,6 +144,14 @@ export function RoadmapGenerateForm({
         ) : null}
 
         <div className="mt-6 flex flex-wrap gap-3">
+          {accounts.length === 0 ? (
+            <Link
+              href={connectHref}
+              className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
+            >
+              Connect Reddit account
+            </Link>
+          ) : null}
           <button
             type="button"
             disabled={!canGenerate || busy}

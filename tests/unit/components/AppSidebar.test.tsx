@@ -6,11 +6,9 @@ import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 import { AppSidebar } from "@/components/app/AppSidebar";
 
-const usePathnameMock = jest.fn();
-
-jest.mock("next/navigation", () => ({
-  usePathname: () => usePathnameMock(),
-}));
+const requireSessionMock = jest.fn();
+const findFirstMock = jest.fn();
+const getWorkspaceEntitlementsMock = jest.fn();
 
 jest.mock("next/link", () => ({
   __esModule: true,
@@ -29,50 +27,88 @@ jest.mock("next/link", () => ({
   ),
 }));
 
+jest.mock("@/lib/server/auth-guards", () => ({
+  requireSession: () => requireSessionMock(),
+}));
+
+jest.mock("@/lib/prisma", () => ({
+  prisma: {
+    workspaceMember: {
+      findFirst: (...args: unknown[]) => findFirstMock(...args),
+    },
+  },
+}));
+
+jest.mock("@/lib/billing/quota", () => ({
+  getWorkspaceEntitlements: (...args: unknown[]) =>
+    getWorkspaceEntitlementsMock(...args),
+}));
+
 describe("AppSidebar", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    requireSessionMock.mockResolvedValue({ user: { id: "user_1" } });
+    findFirstMock.mockResolvedValue({ workspaceId: "ws_1" });
+    getWorkspaceEntitlementsMock.mockResolvedValue({
+      hasAdvancedAnalytics: true,
+      hasSmartFinder: true,
+    });
   });
 
-  test("marks parent nav item active for nested routes", () => {
-    usePathnameMock.mockReturnValue("/content/drafts/d_123");
-    render(<AppSidebar />);
+  test("renders core and entitlement-gated nav links", async () => {
+    render(await AppSidebar());
 
-    expect(screen.getByRole("link", { name: "Content" })).toHaveAttribute(
-      "aria-current",
-      "page",
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+      "href",
+      "/dashboard",
     );
-    expect(screen.getByRole("link", { name: "Dashboard" })).not.toHaveAttribute(
-      "aria-current",
+    expect(screen.getByRole("link", { name: "Analytics" })).toHaveAttribute(
+      "href",
+      "/analytics",
     );
-  });
-
-  test("marks nav item active on exact href match", () => {
-    usePathnameMock.mockReturnValue("/content");
-    render(<AppSidebar />);
-
-    expect(screen.getByRole("link", { name: "Content" })).toHaveAttribute(
-      "aria-current",
-      "page",
+    expect(
+      screen.getByRole("link", { name: "Brand monitoring" }),
+    ).toHaveAttribute("href", "/brand-monitoring");
+    expect(screen.getByRole("link", { name: "Opportunities" })).toHaveAttribute(
+      "href",
+      "/opportunities",
     );
-  });
-
-  test("does not mark dashboard active for nested paths", () => {
-    usePathnameMock.mockReturnValue("/dashboard/overview");
-    render(<AppSidebar />);
-
-    expect(screen.getByRole("link", { name: "Dashboard" })).not.toHaveAttribute(
-      "aria-current",
-    );
-  });
-
-  test("marks quick links active when pathname matches", () => {
-    usePathnameMock.mockReturnValue("/settings");
-    render(<AppSidebar />);
-
     expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(
-      "aria-current",
-      "page",
+      "href",
+      "/settings",
     );
+  });
+
+  test("hides gated links when workspace has no paid entitlements", async () => {
+    getWorkspaceEntitlementsMock.mockResolvedValue({
+      hasAdvancedAnalytics: false,
+      hasSmartFinder: false,
+    });
+
+    render(await AppSidebar());
+
+    expect(screen.queryByRole("link", { name: "Analytics" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Brand monitoring" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Opportunities" }),
+    ).not.toBeInTheDocument();
+  });
+
+  test("recovers from auth-like session errors", async () => {
+    requireSessionMock.mockRejectedValue(new Error("UNAUTHORIZED"));
+    render(await AppSidebar());
+
+    expect(screen.getByRole("link", { name: "Content" })).toHaveAttribute(
+      "href",
+      "/content",
+    );
+    expect(screen.queryByRole("link", { name: "Analytics" })).not.toBeInTheDocument();
+  });
+
+  test("throws on unexpected session errors", async () => {
+    requireSessionMock.mockRejectedValue(new Error("DB_DOWN"));
+    await expect(AppSidebar()).rejects.toThrow("DB_DOWN");
   });
 });

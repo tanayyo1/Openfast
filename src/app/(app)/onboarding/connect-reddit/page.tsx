@@ -41,7 +41,7 @@ const demandScorecardGuide = [
 type ConnectedAccount = {
   id: string;
   redditUsername: string;
-  safetyTier: "NEW" | "ESTABLISHED" | "TRUSTED" | "RESTRICTED";
+  safetyTier: "NEW" | "WARM" | "ESTABLISHED" | "TRUSTED" | "RESTRICTED";
 };
 
 type OAuthStatusResponse = {
@@ -160,6 +160,10 @@ export default function ConnectRedditPage() {
     () => `/api/reddit/oauth/start?next=${encodeURIComponent(oauthNextPath)}`,
     [oauthNextPath],
   );
+  const roadmapHref = useMemo(() => {
+    if (!projectId) return "/roadmaps/generate";
+    return `/roadmaps/generate?projectId=${encodeURIComponent(projectId)}`;
+  }, [projectId]);
   const error = actionError ?? oauthStatusError ?? accountsError;
 
   async function startOAuth() {
@@ -339,6 +343,17 @@ export default function ConnectRedditPage() {
         </div>
 
         <div className="space-y-4">
+          {!isLoading && canContinue ? (
+            <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              <p className="text-sm font-semibold">
+                Roadmaps unlocked. Your account connection is active.
+              </p>
+              <p className="mt-1 text-sm">
+                Continue to roadmap generation and create your first task plan.
+              </p>
+            </div>
+          ) : null}
+
           <div className="rounded-[24px] border border-border bg-background/70 p-6">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold">Connected accounts</p>
@@ -442,16 +457,15 @@ export default function ConnectRedditPage() {
         </Link>
         <button
           type="button"
-          disabled={!canContinue}
+          disabled={!canContinue || isLoading}
           onClick={() => {
-            const base = projectId
-              ? `/roadmaps/generate?projectId=${encodeURIComponent(projectId)}`
-              : "/roadmaps/generate";
-            router.push(base);
+            router.push(roadmapHref);
           }}
           className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
         >
-          Continue
+          {canContinue
+            ? "Go to roadmap generation"
+            : "Connect an account to continue"}
         </button>
       </div>
     </div>

@@ -38,10 +38,10 @@ const demandScorecardGuide = [
   "If scorecard blockers appear, resolve those before posting promotional content.",
 ];
 
-type ConnectedAccount = {
+type Account = {
   id: string;
   redditUsername: string;
-  safetyTier: "NEW" | "ESTABLISHED" | "TRUSTED" | "RESTRICTED";
+  safetyTier: "NEW" | "WARM" | "ESTABLISHED" | "TRUSTED" | "RESTRICTED";
 };
 
 export default function ConnectRedditPage() {
@@ -49,83 +49,56 @@ export default function ConnectRedditPage() {
   const searchParams = useSearchParams();
 
   const projectId = searchParams.get("projectId") ?? "";
+  const nextPath = projectId
+    ? `/onboarding/connect-reddit?projectId=${encodeURIComponent(projectId)}`
+    : "/onboarding/connect-reddit";
 
-  const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
-  const [username, setUsername] = useState("");
-  const [tier, setTier] = useState<"NEW" | "ESTABLISHED">("NEW");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  async function loadAccounts() {
-    setIsLoading(true);
-    try {
-      const res = await fetch("/api/reddit/accounts", { cache: "no-store" });
-      const json = (await res.json()) as {
-        items?: ConnectedAccount[];
-        error?: string;
-        code?: string;
-      };
-      if (!res.ok) {
-        setError(json.error ?? "Failed to load connected accounts");
-        setAccounts([]);
-        return;
-      }
-      setAccounts(json.items ?? []);
-    } catch {
-      setError("Network issue while loading accounts");
-      setAccounts([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadAccounts() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const res = await fetch("/api/reddit/accounts", { cache: "no-store" });
+        const json = (await res.json()) as
+          | { items?: Account[]; error?: string }
+          | undefined;
+
+        if (!res.ok) {
+          throw new Error(json?.error ?? "Failed to load Reddit accounts");
+        }
+
+        if (!cancelled) {
+          setAccounts(json?.items ?? []);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        const message =
+          err instanceof Error ? err.message : "Failed to load Reddit accounts";
+        setError(message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
     void loadAccounts();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const canContinue = useMemo(() => accounts.length > 0, [accounts.length]);
-
-  async function connectLocalAccount() {
-    const clean = username.trim();
-    if (!clean) {
-      setError("Enter a Reddit username to connect.");
-      return;
-    }
-
-    setError(null);
-    setIsConnecting(true);
-    try {
-      const res = await fetch("/api/reddit/accounts/dev-connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: clean, tier }),
-      });
-
-      const json = (await res.json()) as { error?: string; code?: string };
-      if (!res.ok) {
-        if (json.code === "ACCOUNT_ALREADY_CONNECTED") {
-          setError("That account is already connected.");
-        } else if (json.code === "TOKEN_ENCRYPTION_NOT_CONFIGURED") {
-          setError(
-            "Token encryption is not configured. Check TOKEN_ENCRYPTION_KEYS.",
-          );
-        } else if (json.code === "FORBIDDEN") {
-          setError("Local mock connect is disabled in production mode.");
-        } else {
-          setError(json.error ?? "Failed to connect local account.");
-        }
-        return;
-      }
-
-      setUsername("");
-      await loadAccounts();
-    } catch {
-      setError("Network issue while connecting account.");
-    } finally {
-      setIsConnecting(false);
-    }
-  }
+  const canContinue = useMemo(() => {
+    return accounts.length > 0;
+  }, [accounts.length]);
+  const roadmapHref = projectId
+    ? `/roadmaps/generate?projectId=${encodeURIComponent(projectId)}`
+    : "/roadmaps/generate";
 
   return (
     <div className="space-y-8">
@@ -137,8 +110,8 @@ export default function ConnectRedditPage() {
           Connect your Reddit account
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Use local workspace mode to simulate account linking while live OAuth
-          access is pending.
+          Connect at least one Reddit account to generate roadmaps and schedule
+          safely.
         </p>
       </div>
 
@@ -163,81 +136,53 @@ export default function ConnectRedditPage() {
             ))}
           </div>
 
-          <a
-            href={`/api/reddit/oauth/start?next=${encodeURIComponent("/onboarding/connect-reddit")}`}
-            className="mt-6 block w-full rounded-full border border-border px-5 py-3 text-center text-sm font-semibold"
-          >
-            Connect with Reddit OAuth
-          </a>
-
           <div className="mt-6 rounded-2xl border border-border bg-background/70 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Local mode connect
+              Connect account
             </p>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="text-sm font-semibold" htmlFor="username">
-                  Reddit username
-                </label>
-                <input
-                  id="username"
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  placeholder="founder_handle"
-                  className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-semibold" htmlFor="tier">
-                  Account tier
-                </label>
-                <select
-                  id="tier"
-                  value={tier}
-                  onChange={(event) =>
-                    setTier(event.target.value as "NEW" | "ESTABLISHED")
-                  }
-                  className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm"
-                >
-                  <option value="NEW">NEW</option>
-                  <option value="ESTABLISHED">ESTABLISHED</option>
-                </select>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={connectLocalAccount}
-              disabled={isConnecting}
-              className="mt-4 w-full rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+            <p className="mt-2 text-sm text-muted-foreground">
+              OAuth will redirect you to Reddit and back after authorization.
+            </p>
+            <Link
+              href={`/api/reddit/oauth/start?next=${encodeURIComponent(nextPath)}`}
+              className="mt-4 inline-flex w-full justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
             >
-              {isConnecting ? "Connecting..." : "Connect local account"}
-            </button>
+              Connect with Reddit
+            </Link>
           </div>
 
           <p className="mt-4 text-xs text-muted-foreground">
-            Tokens are encrypted at rest. Local mode stores placeholder
-            credentials only.
+            Tokens are encrypted at rest and never written to logs.
           </p>
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-[24px] border border-border bg-background/70 p-6">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold">Connected accounts</p>
-              <button
-                type="button"
-                onClick={() => void loadAccounts()}
-                className="rounded-full border border-border px-3 py-1 text-xs font-semibold"
-              >
-                Refresh
-              </button>
+          {error ? (
+            <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4">
+              <p className="text-sm text-destructive">{error}</p>
             </div>
+          ) : null}
+          {!loading && canContinue ? (
+            <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              <p className="text-sm font-semibold">
+                Roadmaps unlocked. Your account connection is active.
+              </p>
+              <p className="mt-1 text-sm">
+                Continue to roadmap generation and create your first task plan.
+              </p>
+            </div>
+          ) : null}
+
+          <div className="rounded-[24px] border border-border bg-background/70 p-6">
+            <p className="text-sm font-semibold">Connected accounts</p>
             <p className="mt-2 text-sm text-muted-foreground">
               Keep accounts healthy by following safe cadence tiers.
             </p>
-            {isLoading ? (
-              <div className="mt-4 rounded-2xl border border-border bg-card/80 p-4 text-sm text-muted-foreground">
-                Loading accounts...
+            {loading ? (
+              <div className="mt-4 rounded-2xl border border-border bg-card/80 p-4">
+                <p className="text-sm text-muted-foreground">
+                  Loading accounts...
+                </p>
               </div>
             ) : accounts.length === 0 ? (
               <div className="mt-4 rounded-2xl border border-border bg-card/80 p-4">
@@ -259,7 +204,7 @@ export default function ConnectRedditPage() {
                           u/{account.redditUsername}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          Tier: {account.safetyTier}
+                          Tier: {account.safetyTier.toLowerCase()}
                         </p>
                       </div>
                       <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
@@ -309,12 +254,6 @@ export default function ConnectRedditPage() {
         </div>
       </div>
 
-      {error ? (
-        <p className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
-
       <div className="flex flex-wrap gap-3">
         <Link
           href="/onboarding"
@@ -324,16 +263,15 @@ export default function ConnectRedditPage() {
         </Link>
         <button
           type="button"
-          disabled={!canContinue}
+          disabled={!canContinue || loading}
           onClick={() => {
-            const base = projectId
-              ? `/roadmaps/generate?projectId=${encodeURIComponent(projectId)}`
-              : "/roadmaps/generate";
-            router.push(base);
+            router.push(roadmapHref);
           }}
           className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
         >
-          Continue
+          {canContinue
+            ? "Go to roadmap generation"
+            : "Connect an account to continue"}
         </button>
       </div>
     </div>

@@ -4,6 +4,7 @@
  */
 
 import { execSync } from "child_process";
+import { loadEnvConfig } from "@next/env";
 import Redis from "ioredis";
 import { prisma } from "@/lib/prisma";
 import { getTokenKeyring } from "@/lib/security/tokenCrypto";
@@ -15,6 +16,8 @@ type CheckResult = {
   status: CheckStatus;
   detail: string;
 };
+
+loadEnvConfig(process.cwd());
 
 function env(name: string) {
   const value = process.env[name];

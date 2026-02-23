@@ -231,16 +231,22 @@ export default function TaskDetailPage() {
 
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="rounded-[24px] border border-border bg-card/80 p-6">
-          <p className="text-sm font-semibold">Task checklist</p>
+          <p className="text-sm font-semibold">Task checklist guidance</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            These steps are guidance only. Complete them in the draft flow.
+          </p>
           <div className="mt-4 space-y-3 text-sm text-muted-foreground">
             {checklist.map((item) => (
-              <label
+              <div
                 key={item}
                 className="flex items-start gap-3 rounded-2xl border border-border bg-background/70 px-4 py-3"
               >
-                <input type="checkbox" className="mt-1 h-4 w-4" />
+                <span
+                  className="mt-1 inline-block h-2.5 w-2.5 rounded-full bg-muted-foreground/40"
+                  aria-hidden="true"
+                />
                 <span>{item}</span>
-              </label>
+              </div>
             ))}
           </div>
         </div>

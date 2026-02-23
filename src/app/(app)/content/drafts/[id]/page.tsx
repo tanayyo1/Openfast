@@ -211,7 +211,10 @@ export default function DraftPage() {
     ];
   }, [draft]);
 
-  async function saveDraft(input: { title: string; body: string }) {
+  async function persistDraft(
+    input: { title: string; body: string },
+    opts?: { showNotice?: boolean },
+  ) {
     if (!draft || saving || acting) return;
     setSaving(true);
     setError(null);
@@ -237,32 +240,44 @@ export default function DraftPage() {
         throw new Error(json?.error ?? "Failed to save draft");
       }
 
+      const updatedDraft = json.draft;
       setDraft((current) =>
         current
           ? {
               ...current,
-              title: json.draft?.title ?? current.title,
-              body: json.draft?.body ?? current.body,
-              status: json.draft?.status ?? current.status,
+              title: updatedDraft?.title ?? current.title,
+              body: updatedDraft?.body ?? current.body,
+              status: updatedDraft?.status ?? current.status,
             }
           : current,
       );
-      setNotice("Draft saved");
+      if (opts?.showNotice ?? true) {
+        setNotice("Draft saved");
+      }
+      return true;
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to save draft";
       setError(message);
+      return false;
     } finally {
       setSaving(false);
     }
   }
 
-  async function requestApproval() {
+  async function saveDraft(input: { title: string; body: string }) {
+    await persistDraft(input, { showNotice: true });
+  }
+
+  async function requestApproval(input: { title: string; body: string }) {
     if (!draft || saving || acting) return;
+
+    const saved = await persistDraft(input, { showNotice: false });
+    if (!saved) return;
+
     setActing(true);
     setError(null);
     setNotice(null);
-
     try {
       const res = await fetch(
         `/api/drafts/${encodeURIComponent(draft.id)}/request-approval`,
@@ -281,7 +296,7 @@ export default function DraftPage() {
           ? { ...current, status: json.draft?.status ?? current.status }
           : current,
       );
-      setNotice("Draft sent for approval");
+      setNotice("Draft saved and sent for approval");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to request approval";
@@ -489,6 +504,7 @@ export default function DraftPage() {
         onRequestApproval={canRequestApproval ? requestApproval : undefined}
         onApprove={canApprove ? approve : undefined}
         onRewrite={draft.status !== "ARCHIVED" ? handleRewriteOpen : undefined}
+        isBusy={saving || acting || rewriteLoading}
       />
 
       <RewriteDialog

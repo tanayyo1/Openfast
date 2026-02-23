@@ -20,9 +20,10 @@ type DraftEditorProps = {
   initialBody?: string;
   onSelectVariant?: (index: number) => void;
   onSave?: (input: { title: string; body: string }) => void;
-  onRequestApproval?: () => void;
+  onRequestApproval?: (input: { title: string; body: string }) => void;
   onApprove?: () => void;
   onRewrite?: () => void;
+  isBusy?: boolean;
 };
 
 const FALLBACK_VARIANT: Variant = {
@@ -49,6 +50,7 @@ export function DraftEditor({
   onRequestApproval,
   onApprove,
   onRewrite,
+  isBusy = false,
 }: DraftEditorProps) {
   const safeInitialIndex = clampVariantIndex(
     initialSelectedIndex,
@@ -139,7 +141,7 @@ export function DraftEditor({
       <div className="rounded-[24px] border border-border bg-background/70 p-6">
         <p className="text-sm font-semibold">Editor</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Save edits, then request approval before scheduling.
+          Request approval will save your latest edits before sending.
         </p>
         <div className="mt-5 space-y-4">
           <div>
@@ -169,8 +171,9 @@ export function DraftEditor({
             {onSave ? (
               <button
                 type="button"
+                disabled={isBusy}
                 onClick={() => onSave({ title, body })}
-                className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
+                className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
               >
                 Save draft
               </button>
@@ -178,8 +181,9 @@ export function DraftEditor({
             {onRequestApproval ? (
               <button
                 type="button"
-                onClick={() => onRequestApproval()}
-                className="rounded-full border border-border px-5 py-2 text-sm font-semibold"
+                disabled={isBusy}
+                onClick={() => onRequestApproval({ title, body })}
+                className="rounded-full border border-border px-5 py-2 text-sm font-semibold disabled:opacity-60"
               >
                 Request approval
               </button>
@@ -187,8 +191,9 @@ export function DraftEditor({
             {onApprove ? (
               <button
                 type="button"
+                disabled={isBusy}
                 onClick={() => onApprove()}
-                className="rounded-full border border-border px-5 py-2 text-sm font-semibold"
+                className="rounded-full border border-border px-5 py-2 text-sm font-semibold disabled:opacity-60"
               >
                 Approve
               </button>
@@ -196,8 +201,9 @@ export function DraftEditor({
             {onRewrite ? (
               <button
                 type="button"
+                disabled={isBusy}
                 onClick={() => onRewrite()}
-                className="rounded-full border border-border px-5 py-2 text-sm font-semibold"
+                className="rounded-full border border-border px-5 py-2 text-sm font-semibold disabled:opacity-60"
               >
                 Rewrite
               </button>

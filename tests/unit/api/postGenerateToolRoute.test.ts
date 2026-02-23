@@ -105,7 +105,7 @@ describe("post-generate tool route", () => {
     };
 
     expect(json.source).toBe("fallback");
-    expect(json.draft.title).toContain("onboarding experiments");
+    expect(json.draft.title).toContain("Onboarding experiments");
     expect(json.variants.length).toBeGreaterThanOrEqual(3);
     expect(json.risk.riskScore).toEqual(expect.any(Number));
     expect(json.policyHints.linkPolicy).toBe("DISALLOWED_IN_POSTS");
@@ -115,6 +115,37 @@ describe("post-generate tool route", () => {
     expect(mockedGenerateDraftVariantsWithOpenAI).toHaveBeenCalledWith(
       expect.objectContaining({
         mode: "GENERATE",
+        taskTitle: "onboarding experiments",
+      }),
+    );
+  });
+
+  test("normalizes noisy topic input before generation", async () => {
+    const res = await postGenerateTool(
+      new Request("http://test.local/api/tools/post-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: "discuss about onboarding experiments.",
+          product: "ReditFast.",
+          audience: "founders",
+          tone: "helpful",
+          goal: "feedback",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as {
+      source: "openai" | "fallback";
+      draft: { title: string | null; body: string };
+    };
+
+    expect(json.source).toBe("fallback");
+    expect(json.draft.title).toContain("Onboarding experiments");
+    expect(json.draft.title).not.toMatch(/discuss about/i);
+    expect(mockedGenerateDraftVariantsWithOpenAI).toHaveBeenCalledWith(
+      expect.objectContaining({
         taskTitle: "onboarding experiments",
       }),
     );

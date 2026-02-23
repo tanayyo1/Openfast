@@ -9,6 +9,8 @@ import { parseSubredditRules } from "@/lib/subreddit/rulesParser";
 import { generateDraftVariantsWithOpenAI } from "@/lib/content/openaiVariants";
 import {
   buildPostGeneratorFallbackVariants,
+  normalizePostGeneratorText,
+  normalizePostGeneratorTopic,
   type PostGeneratorGoal,
 } from "@/lib/content/postGeneratorTool";
 
@@ -76,7 +78,16 @@ export async function POST(req: Request) {
   }
 
   const input = parsed.data;
-  const normalizedSubreddit = input.subreddit?.toLowerCase().replace(/^r\//, "");
+  const normalizedSubreddit = input.subreddit
+    ?.toLowerCase()
+    .replace(/^r\//, "");
+  const normalizedTopic = normalizePostGeneratorTopic(input.topic);
+  const normalizedProduct =
+    normalizePostGeneratorText(input.product) || input.product.trim();
+  const normalizedAudience =
+    normalizePostGeneratorText(input.audience) || input.audience.trim();
+  const normalizedTone =
+    normalizePostGeneratorText(input.tone) || input.tone.trim();
   let policyHints: Record<string, unknown> | null = null;
   let rulesText: string | null = null;
 
@@ -113,17 +124,17 @@ export async function POST(req: Request) {
   }
 
   const taskInstructions = [
-    `Create a reddit-ready draft about "${input.topic}" for ${input.audience}.`,
+    `Create a reddit-ready draft about "${normalizedTopic}" for ${normalizedAudience}.`,
     goalInstruction(input.goal),
     "Use a discussion-first tone and avoid hard CTA language.",
     "Avoid promotional phrasing, link spam, and manipulative engagement bait.",
   ].join(" ");
   const llmGenerated = await generateDraftVariantsWithOpenAI({
     mode: "GENERATE",
-    projectName: input.product,
+    projectName: normalizedProduct,
     subredditName: normalizedSubreddit ?? null,
     subredditRulesText: rulesText,
-    taskTitle: input.topic,
+    taskTitle: normalizedTopic,
     taskInstructions,
     baseTitle: null,
     baseBody: "",
@@ -135,15 +146,16 @@ export async function POST(req: Request) {
     llmGenerated && llmGenerated.variants.length >= 3
       ? llmGenerated
       : buildPostGeneratorFallbackVariants({
-          topic: input.topic,
-          product: input.product,
-          audience: input.audience,
-          tone: input.tone,
+          topic: normalizedTopic,
+          product: normalizedProduct,
+          audience: normalizedAudience,
+          tone: normalizedTone,
           goal: input.goal,
           subredditName: normalizedSubreddit ?? null,
           subredditRulesText: rulesText,
         });
-  const source = llmGenerated && llmGenerated.variants.length >= 3 ? "openai" : "fallback";
+  const source =
+    llmGenerated && llmGenerated.variants.length >= 3 ? "openai" : "fallback";
 
   const risk = assessRisk(
     generated.primary.title,

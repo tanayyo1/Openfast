@@ -22,6 +22,40 @@ type PostAngle = {
   questionPrompt: string;
 };
 
+function collapseWhitespace(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function stripTrailingPunctuation(value: string) {
+  return value.replace(/[.,;:!?]+$/g, "").trim();
+}
+
+function lowercaseFirst(value: string) {
+  if (!value) return value;
+  return value.charAt(0).toLowerCase() + value.slice(1);
+}
+
+function uppercaseFirst(value: string) {
+  if (!value) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+export function normalizePostGeneratorText(value: string) {
+  return stripTrailingPunctuation(collapseWhitespace(value));
+}
+
+export function normalizePostGeneratorTopic(topic: string) {
+  const original = collapseWhitespace(topic);
+  const strippedPrefix = original.replace(
+    /^(discuss|talk|write|post)\s+(about|on)\s+/i,
+    "",
+  );
+  const strippedAbout = strippedPrefix.replace(/^about\s+/i, "");
+  const cleaned = stripTrailingPunctuation(strippedAbout);
+  if (cleaned.length >= 3) return cleaned;
+  return stripTrailingPunctuation(original);
+}
+
 const ANGLES_BY_GOAL: Record<PostGeneratorGoal, PostAngle[]> = {
   awareness: [
     {
@@ -47,13 +81,15 @@ const ANGLES_BY_GOAL: Record<PostGeneratorGoal, PostAngle[]> = {
   feedback: [
     {
       heading: "current plan",
-      insightPrompt: "Share your current draft plan and your biggest uncertainty.",
+      insightPrompt:
+        "Share your current draft plan and your biggest uncertainty.",
       questionPrompt:
         "Which part of this plan is weakest or most likely to fail?",
     },
     {
       heading: "decision tradeoff",
-      insightPrompt: "Explain two options you are considering and the tradeoff.",
+      insightPrompt:
+        "Explain two options you are considering and the tradeoff.",
       questionPrompt: "Which option would you choose and why?",
     },
     {
@@ -67,7 +103,8 @@ const ANGLES_BY_GOAL: Record<PostGeneratorGoal, PostAngle[]> = {
   launch: [
     {
       heading: "build journey",
-      insightPrompt: "Share what you built, who it is for, and what surprised you.",
+      insightPrompt:
+        "Share what you built, who it is for, and what surprised you.",
       questionPrompt:
         "What would make this update more useful to this community?",
     },
@@ -88,7 +125,8 @@ const ANGLES_BY_GOAL: Record<PostGeneratorGoal, PostAngle[]> = {
   "case-study": [
     {
       heading: "before and after",
-      insightPrompt: "Share baseline, intervention, and outcome in plain language.",
+      insightPrompt:
+        "Share baseline, intervention, and outcome in plain language.",
       questionPrompt:
         "What additional context would make these results more trustworthy?",
     },
@@ -164,8 +202,8 @@ function buildVariantBody(input: {
   rulesSummary: string | null;
   index: number;
 }) {
-  const topic = input.topic.trim();
-  const contextLine = `I'm building ${input.product} for ${input.audience}, and I'm working through ${topic}.`;
+  const topic = normalizePostGeneratorTopic(input.topic);
+  const contextLine = `I'm building ${input.product} for ${input.audience}. I'm exploring ${lowercaseFirst(topic)}.`;
   const subredditContext = input.subredditName
     ? `Posting with r/${input.subredditName} norms in mind.`
     : null;
@@ -201,6 +239,15 @@ export function buildPostGeneratorFallbackVariants(
   input: BuildPostGeneratorFallbackInput,
   preferredLength: "short" | "medium" | "long" = "medium",
 ) {
+  const normalizedTopic = normalizePostGeneratorTopic(input.topic);
+  const normalizedProduct =
+    normalizePostGeneratorText(input.product) ||
+    collapseWhitespace(input.product);
+  const normalizedAudience =
+    normalizePostGeneratorText(input.audience) ||
+    collapseWhitespace(input.audience);
+  const normalizedTone =
+    normalizePostGeneratorText(input.tone) || collapseWhitespace(input.tone);
   const normalizedSubreddit = normalizeSubreddit(input.subredditName);
   const angles = ANGLES_BY_GOAL[input.goal];
   const rulesSummary = summarizeRules(input.subredditRulesText);
@@ -211,16 +258,16 @@ export function buildPostGeneratorFallbackVariants(
       ? ` for r/${normalizedSubreddit}`
       : "";
     const title = trimLength(
-      `${goalLabel(input.goal)} angle ${variantIndex}: ${input.topic}${subredditSuffix}`,
+      `${goalLabel(input.goal)} angle ${variantIndex}: ${uppercaseFirst(normalizedTopic)}${subredditSuffix}`,
       "short",
     );
     const body = trimLength(
       buildVariantBody({
         angle,
-        topic: input.topic,
-        product: input.product,
-        audience: input.audience,
-        tone: input.tone,
+        topic: normalizedTopic,
+        product: normalizedProduct,
+        audience: normalizedAudience,
+        tone: normalizedTone,
         subredditName: normalizedSubreddit,
         goal: input.goal,
         rulesSummary,

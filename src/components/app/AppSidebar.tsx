@@ -15,8 +15,8 @@ const coreNavItems = [
 ];
 
 const quickLinks = [
+  { label: "Settings", href: "/settings" },
   { label: "Support", href: "/seo/guides/support" },
-  { label: "Roadmap", href: "/seo/guides/reddit-marketing" },
 ];
 
 const RECOVERABLE_SESSION_ERRORS = new Set([
@@ -31,9 +31,9 @@ function isRecoverableSessionError(err: unknown) {
 }
 
 export async function AppSidebar() {
-  let entitlements: Awaited<
-    ReturnType<typeof getWorkspaceEntitlements>
-  > | null = null;
+  let entitlements:
+    | Awaited<ReturnType<typeof getWorkspaceEntitlements>>
+    | null = null;
 
   try {
     const session = await requireSession();
@@ -72,7 +72,7 @@ export async function AppSidebar() {
         </div>
         <div>
           <p className="text-base font-semibold">ReditFast</p>
-          <p className="text-xs text-muted-foreground">Workspace overview</p>
+          <p className="text-xs text-muted-foreground">Workspace hub</p>
         </div>
       </Link>
 

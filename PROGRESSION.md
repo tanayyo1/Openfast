@@ -93,6 +93,15 @@
 - [x] Added UX guard to prevent project-scope switching while a create action is in flight, reducing accidental race conditions.
 - [x] Added regression coverage for RED-84 page behavior and opportunities query validation (`tests/unit/components/OpportunitiesPage.test.tsx`, `tests/unit/api/projectOpportunitiesRoute.test.ts`).
 
+### Recent Health Actions Hardening (RED-85)
+
+- [x] Added live `Refresh health snapshot` account action on `/health` cards (calls `GET /api/reddit/accounts/:id/health`) with explicit queued/fresh/no-snapshot feedback.
+- [x] Hardened health-card action states so visibility checks are explicitly disabled when permalink is missing and all account actions lock while a request is in flight.
+- [x] Improved `/health` empty state with direct CTA to connect a Reddit account (`/onboarding/connect-reddit`) so action flow stays explicit.
+- [x] Aligned guardrail API behavior for restricted accounts (`recommendCommentsOnly: true`) and added edge-case coverage for restricted/inactive + low-health scenarios.
+- [x] Added RED-85 regression tests for health actions UI and risk-health APIs (`tests/unit/components/HealthAccountActions.test.tsx`, `tests/unit/api/redditAccountHealthRoute.test.ts`, `tests/integration/api/risk-health-tools.test.ts`).
+- [x] Completed follow-up strict audit fixes: robust non-JSON API error handling in health actions, duplicate-click race lock, delayed refresh to preserve notices, future-dated snapshot requeue logic, invalid snapshot-score handling, and workspace-membership account resolution.
+
 ### Recent Onboarding Progress Hardening (RED-86)
 
 - [x] Replaced static onboarding checklist with workspace-backed progress states (complete/current/blocked) on `/onboarding`.
@@ -126,6 +135,28 @@
 - [x] Added queue health service (`src/lib/ops/workspaceQueueHealth.ts`) that computes status counts, due/overdue/stale signals, and severity (`OK/WARNING/CRITICAL`) with configurable thresholds.
 - [x] Wired `/scheduling` and `/scheduling/queue` pages to display live queue health status/reasons alongside existing scheduling metrics.
 - [x] Added unit coverage for queue health severity derivation and route auth/error behavior (`tests/unit/lib/workspaceQueueHealth.test.ts`, `tests/unit/api/schedulingQueueHealthRoute.test.ts`).
+
+### Recent Left-Nav Route QA Hardening (RED-91)
+
+- [x] Added deterministic active-route matching helper (`isNavItemActive`) shared by desktop and mobile navigation.
+- [x] Updated desktop sidebar to show active route state (`aria-current="page"`) and keep quick-link highlight behavior consistent with the mobile menu.
+- [x] Expanded nav config tests with explicit nested-route activation assertions.
+- [x] Added route-coverage regression test (`tests/unit/lib/navRouteCoverage.test.ts`) to fail when any left-nav link points to a non-existent app route template.
+- [x] Added `LEFT_NAV_QA_CHECKLIST.md` manual QA checklist for desktop/mobile navigation route verification.
+
+### Recent Free Tool Post-Generator Quality Upgrade
+
+- [x] Switched `/api/tools/post-generate` to OpenAI-first generation with deterministic fallback only when LLM output is unavailable/insufficient.
+- [x] Added explicit generation source reporting (`openai` vs `fallback`) and surfaced that state in the public tool UI.
+- [x] Upgraded public post generator inputs with goal selection (`awareness`, `feedback`, `launch`, `case-study`) and persisted input memory in local storage.
+- [x] Reworked fallback output quality using distinct angle templates and discussion-oriented copy to avoid repetitive placeholder-style phrasing.
+- [x] Added route-level regression coverage for OpenAI success path and fallback enforcement (`tests/unit/api/postGenerateToolRoute.test.ts`).
+
+### Recent Project Scope + Quota Hardening (RED-97/RED-98)
+
+- [x] Enforced workspace-scoped DB writes for project PATCH/DELETE by switching to workspace-filtered write guards.
+- [x] Hardened project creation quota checks against concurrent request races via per-workspace transactional locking.
+- [x] Added integration coverage for cross-workspace write rejection and concurrent create quota behavior.
 
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 

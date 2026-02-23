@@ -52,3 +52,10 @@ export const appQuickLinks = [
   { label: "Settings", href: "/settings" },
   { label: "Support", href: "/seo/guides/support" },
 ] as const;
+
+export function isNavItemActive(pathname: string, href: string) {
+  if (href === "/dashboard") {
+    return pathname === href;
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}

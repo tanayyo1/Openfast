@@ -1,12 +1,21 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { MaxWidth } from "@/components/public/MaxWidth";
 
+const INPUT_STORAGE_KEY = "rf_post_generator_inputs_v2";
+
+type PostGoal = "awareness" | "feedback" | "launch" | "case-study";
+
 type PostGenerateResponse = {
+  source: "openai" | "fallback";
   draft: { title: string | null; body: string };
   variants: Array<{ title: string | null; body: string }>;
-  risk: { riskScore: number; riskReasons: string[] };
+  risk: {
+    riskScore: number;
+    riskReasons: string[];
+    suggestedFixes: Array<{ issue: string; fix: string }>;
+  };
   policyHints: {
     promoAllowed?: boolean;
     linkPolicy?: string;
@@ -21,10 +30,52 @@ export default function PostGeneratorPage() {
   const [product, setProduct] = useState("");
   const [audience, setAudience] = useState("founders");
   const [tone, setTone] = useState("helpful");
+  const [goal, setGoal] = useState<PostGoal>("feedback");
   const [subreddit, setSubreddit] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PostGenerateResponse | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(INPUT_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        topic?: string;
+        product?: string;
+        audience?: string;
+        tone?: string;
+        goal?: PostGoal;
+        subreddit?: string;
+      };
+      if (typeof parsed.topic === "string") setTopic(parsed.topic);
+      if (typeof parsed.product === "string") setProduct(parsed.product);
+      if (typeof parsed.audience === "string") setAudience(parsed.audience);
+      if (typeof parsed.tone === "string") setTone(parsed.tone);
+      if (
+        parsed.goal === "awareness" ||
+        parsed.goal === "feedback" ||
+        parsed.goal === "launch" ||
+        parsed.goal === "case-study"
+      ) {
+        setGoal(parsed.goal);
+      }
+      if (typeof parsed.subreddit === "string") setSubreddit(parsed.subreddit);
+    } catch {
+      // Keep page usable even when local storage has invalid data.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        INPUT_STORAGE_KEY,
+        JSON.stringify({ topic, product, audience, tone, goal, subreddit }),
+      );
+    } catch {
+      // Ignore storage failures in constrained browser modes.
+    }
+  }, [topic, product, audience, tone, goal, subreddit]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -46,6 +97,7 @@ export default function PostGeneratorPage() {
           product: product.trim(),
           audience: audience.trim() || "founders",
           tone: tone.trim() || "helpful",
+          goal,
           subreddit: subreddit.trim() || undefined,
         }),
       });
@@ -132,6 +184,22 @@ export default function PostGeneratorPage() {
                   />
                 </div>
                 <div>
+                  <label className="text-sm font-semibold" htmlFor="goal">
+                    Post goal
+                  </label>
+                  <select
+                    id="goal"
+                    value={goal}
+                    onChange={(e) => setGoal(e.target.value as PostGoal)}
+                    className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm"
+                  >
+                    <option value="feedback">Get feedback</option>
+                    <option value="awareness">Build awareness</option>
+                    <option value="launch">Launch update</option>
+                    <option value="case-study">Mini case study</option>
+                  </select>
+                </div>
+                <div>
                   <label className="text-sm font-semibold" htmlFor="subreddit">
                     Subreddit (optional)
                   </label>
@@ -176,10 +244,23 @@ export default function PostGeneratorPage() {
             </form>
           </div>
           <div className="rounded-[28px] border border-border bg-background/70 p-6">
-            <p className="text-sm font-semibold">Drafts</p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm font-semibold">Drafts</p>
+              {result ? (
+                <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
+                  Source: {result.source === "openai" ? "OpenAI" : "Fallback"}
+                </span>
+              ) : null}
+            </div>
             <p className="mt-2 text-sm text-muted-foreground">
               Preview three variants before you export into the main app.
             </p>
+            {result?.source === "fallback" ? (
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                AI generation was unavailable, so you are seeing deterministic
+                fallback drafts.
+              </p>
+            ) : null}
             <div className="mt-6 space-y-4">
               {(result?.variants.length ? result.variants : [1, 2, 3]).map(
                 (item, index) => (
@@ -222,6 +303,23 @@ export default function PostGeneratorPage() {
                   </div>
                 ),
               )}
+              {result && result.risk.suggestedFixes.length > 0 ? (
+                <div className="rounded-2xl border border-border bg-card/60 p-4 text-xs text-muted-foreground">
+                  <p className="font-semibold text-foreground">
+                    Quick compliance fixes
+                  </p>
+                  <ul className="mt-2 space-y-2">
+                    {result.risk.suggestedFixes.slice(0, 3).map((item) => (
+                      <li key={`${item.issue}-${item.fix}`}>
+                        <span className="font-semibold text-foreground">
+                          {item.issue}:
+                        </span>{" "}
+                        {item.fix}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               {result?.policyHints ? (
                 <div className="rounded-2xl border border-border bg-card/60 p-4 text-xs text-muted-foreground">
                   <p className="font-semibold text-foreground">Policy hints</p>
@@ -230,6 +328,14 @@ export default function PostGeneratorPage() {
                     Flair required:{" "}
                     {result.policyHints.flairRequired ? "yes" : "no"}
                   </p>
+                  {result.subredditRulesPreview &&
+                  result.subredditRulesPreview.length > 0 ? (
+                    <ul className="mt-2 space-y-1">
+                      {result.subredditRulesPreview.map((rule) => (
+                        <li key={rule}>• {rule}</li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </div>
               ) : null}
             </div>

@@ -3,11 +3,27 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { appNavSections, appQuickLinks, isNavItemActive } from "./navConfig";
+import {
+  appQuickLinks,
+  isNavItemActive,
+  navSectionsForEntitlements,
+} from "./navConfig";
 
-export function AppMobileMenu() {
+type AppMobileMenuProps = {
+  hasAdvancedAnalytics: boolean;
+  hasSmartFinder: boolean;
+};
+
+export function AppMobileMenu({
+  hasAdvancedAnalytics,
+  hasSmartFinder,
+}: AppMobileMenuProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const navSections = navSectionsForEntitlements({
+    hasAdvancedAnalytics,
+    hasSmartFinder,
+  });
 
   useEffect(() => {
     setOpen(false);
@@ -64,7 +80,7 @@ export function AppMobileMenu() {
             </div>
 
             <nav className="mt-6 space-y-5">
-              {appNavSections.map((section) => (
+              {navSections.map((section) => (
                 <div key={section.title}>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     {section.title}

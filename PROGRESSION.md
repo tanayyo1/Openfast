@@ -107,6 +107,13 @@
 - [x] Wired Pro CTA to live billing checkout API with robust unauthenticated fallback to signup and explicit provider/config error messaging.
 - [x] Added unit coverage for pricing CTA checkout edge cases (unauthorized redirect, provider/config failures, duplicate-click race lock).
 
+### Recent MVP Refocus Nav Consistency (OAK-911, 2026-02-23)
+
+- [x] Unified app nav rendering between desktop sidebar and mobile menu using shared entitlement-aware filtering.
+- [x] Added explicit feature flags in nav config for paid surfaces (`/analytics`, `/brand-monitoring`, `/opportunities`) so free-plan nav stays focused.
+- [x] Extended header data payload with entitlement flags (`hasAdvancedAnalytics`, `hasSmartFinder`) to keep mobile nav behavior consistent with server state.
+- [x] Added regression coverage for entitlement-based nav filtering and updated sidebar/header data tests.
+
 ### Recent Core App Live-Data Wiring (2026-02-21)
 
 - [x] Replaced `useDemoStore` on `/dashboard`, `/projects`, `/projects/[id]`, and `/projects/[id]/settings` with workspace-scoped server-side data from Prisma.

@@ -1,6 +1,7 @@
 export type AppNavItem = {
   label: string;
   href: string;
+  featureFlag?: "advancedAnalytics" | "smartFinder";
 };
 
 export type AppNavSection = {
@@ -24,7 +25,11 @@ export const appNavSections: AppNavSection[] = [
       { label: "Content", href: "/content" },
       { label: "Approvals", href: "/approvals" },
       { label: "Scheduling", href: "/scheduling" },
-      { label: "Opportunities", href: "/opportunities" },
+      {
+        label: "Opportunities",
+        href: "/opportunities",
+        featureFlag: "smartFinder",
+      },
     ],
   },
   {
@@ -37,8 +42,16 @@ export const appNavSections: AppNavSection[] = [
   {
     title: "Insights",
     items: [
-      { label: "Analytics", href: "/analytics" },
-      { label: "Brand Monitoring", href: "/brand-monitoring" },
+      {
+        label: "Analytics",
+        href: "/analytics",
+        featureFlag: "advancedAnalytics",
+      },
+      {
+        label: "Brand Monitoring",
+        href: "/brand-monitoring",
+        featureFlag: "smartFinder",
+      },
       { label: "Account Health", href: "/health" },
     ],
   },
@@ -47,6 +60,30 @@ export const appNavSections: AppNavSection[] = [
 export const appNavItems: AppNavItem[] = appNavSections.flatMap(
   (section) => section.items,
 );
+
+export type AppNavEntitlements = {
+  hasAdvancedAnalytics: boolean;
+  hasSmartFinder: boolean;
+};
+
+export function navSectionsForEntitlements(
+  entitlements: AppNavEntitlements,
+): AppNavSection[] {
+  return appNavSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => {
+        if (item.featureFlag === "advancedAnalytics") {
+          return entitlements.hasAdvancedAnalytics;
+        }
+        if (item.featureFlag === "smartFinder") {
+          return entitlements.hasSmartFinder;
+        }
+        return true;
+      }),
+    }))
+    .filter((section) => section.items.length > 0);
+}
 
 export const appQuickLinks = [
   { label: "Settings", href: "/settings" },

@@ -1,5 +1,6 @@
 import type { Plan } from "@prisma/client";
 import { redirect } from "next/navigation";
+import { limitsForPlan } from "@/lib/billing/plans";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/server/auth-guards";
 
@@ -19,6 +20,8 @@ export type AppHeaderData = {
   workspaceId: string | null;
   workspaceName: string;
   planLabel: string;
+  hasAdvancedAnalytics: boolean;
+  hasSmartFinder: boolean;
 };
 
 export function workspacePlanLabel(plan: Plan | null | undefined): string {
@@ -57,14 +60,19 @@ export async function loadAppHeaderData(): Promise<AppHeaderData> {
       workspaceId: null,
       workspaceName: "Workspace setup",
       planLabel: "Setup pending",
+      hasAdvancedAnalytics: false,
+      hasSmartFinder: false,
     };
   }
 
   const workspace = membership.workspace;
+  const limits = limitsForPlan(workspace.plan ?? "FREE");
 
   return {
     workspaceId: workspace.id,
     workspaceName: workspace.name.trim() || "Workspace",
     planLabel: workspacePlanLabel(workspace.plan),
+    hasAdvancedAnalytics: limits.hasAdvancedAnalytics,
+    hasSmartFinder: limits.hasSmartFinder,
   };
 }

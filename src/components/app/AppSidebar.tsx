@@ -2,22 +2,10 @@ import Link from "next/link";
 import { getWorkspaceEntitlements } from "@/lib/billing/quota";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/server/auth-guards";
-
-const coreNavItems = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Projects", href: "/projects" },
-  { label: "Onboarding", href: "/onboarding" },
-  { label: "Roadmaps", href: "/roadmaps" },
-  { label: "Content", href: "/content" },
-  { label: "Approvals", href: "/approvals" },
-  { label: "Scheduling", href: "/scheduling" },
-  { label: "Account health", href: "/health" },
-];
-
-const quickLinks = [
-  { label: "Settings", href: "/settings" },
-  { label: "Support", href: "/seo/guides/support" },
-];
+import {
+  appQuickLinks,
+  navSectionsForEntitlements,
+} from "@/components/app/navConfig";
 
 const RECOVERABLE_SESSION_ERRORS = new Set([
   "SUPABASE_NOT_CONFIGURED",
@@ -31,9 +19,9 @@ function isRecoverableSessionError(err: unknown) {
 }
 
 export async function AppSidebar() {
-  let entitlements:
-    | Awaited<ReturnType<typeof getWorkspaceEntitlements>>
-    | null = null;
+  let entitlements: Awaited<
+    ReturnType<typeof getWorkspaceEntitlements>
+  > | null = null;
 
   try {
     const session = await requireSession();
@@ -52,16 +40,10 @@ export async function AppSidebar() {
   }
 
   const navItems = [
-    ...coreNavItems,
-    ...(entitlements?.hasAdvancedAnalytics
-      ? [{ label: "Analytics", href: "/analytics" }]
-      : []),
-    ...(entitlements?.hasSmartFinder
-      ? [
-          { label: "Brand monitoring", href: "/brand-monitoring" },
-          { label: "Opportunities", href: "/opportunities" },
-        ]
-      : []),
+    ...navSectionsForEntitlements({
+      hasAdvancedAnalytics: entitlements?.hasAdvancedAnalytics ?? false,
+      hasSmartFinder: entitlements?.hasSmartFinder ?? false,
+    }).flatMap((section) => section.items),
   ];
 
   return (
@@ -94,7 +76,7 @@ export async function AppSidebar() {
           Quick links
         </p>
         <div className="mt-3 space-y-2">
-          {quickLinks.map((item) => (
+          {appQuickLinks.map((item) => (
             <Link
               key={item.href}
               href={item.href}

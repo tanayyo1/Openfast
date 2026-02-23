@@ -83,10 +83,6 @@ export default async function OnboardingPage() {
   return (
     <div className="space-y-8">
       <AnalyticsBeacon
-        eventName="signup_completed"
-        onceKey="onboarding_signup_completed"
-      />
-      <AnalyticsBeacon
         eventName="onboarding_step_hub_viewed"
         onceKey="onboarding_step_hub_viewed"
       />

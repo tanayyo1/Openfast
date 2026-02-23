@@ -9,16 +9,16 @@ echo "Running pre-commit checks..."
 BRANCH_NAME=$(git symbolic-ref --short HEAD)
 if [ "$BRANCH_NAME" = "main" ] || [ "$BRANCH_NAME" = "develop" ]; then
   echo "ERROR: Direct commits to $BRANCH_NAME branch are forbidden!"
-  echo "Create a feature branch: git checkout -b feature/LIN-XXX-description"
+  echo "Create a feature branch: git checkout -b feature/OAK-XXX-description"
   exit 1
 fi
 
 # Check branch naming convention (POSIX sh compatible)
-if ! echo "$BRANCH_NAME" | grep -Eq '^(feature|bugfix|hotfix|docs|refactor|test)/LIN-[0-9]+-[a-z0-9-]+$'; then
+if ! echo "$BRANCH_NAME" | grep -Eq '^(feature|bugfix|hotfix|docs|refactor|test)/(LIN|RED|OAK)-[0-9]+-[a-z0-9-]+$'; then
   echo "ERROR: Invalid branch name: $BRANCH_NAME"
-  echo "Branch must follow pattern: type/LIN-XXX-description"
+  echo "Branch must follow pattern: type/(LIN|RED|OAK)-XXX-description"
   echo "Valid types: feature, bugfix, hotfix, docs, refactor, test"
-  echo "Example: feature/LIN-123-add-scheduler"
+  echo "Example: feature/OAK-123-add-scheduler"
   exit 1
 fi
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { OnboardingFlowHeader } from "@/components/onboarding/OnboardingFlowHeader";
 import { trackAnalyticsEvent } from "@/lib/analytics/client";
 import { normalizeProjectUrlInput } from "@/lib/projects/url";
 
@@ -134,21 +135,11 @@ export default function CreateProjectPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Onboarding
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold">
-          Create your first project
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Add core details so we can recommend subreddits and safe posting
-          cadence.
-        </p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          This setup runs in local workspace mode for now.
-        </p>
-      </div>
+      <OnboardingFlowHeader
+        stepIndex={1}
+        title="Create your first project"
+        description="Add core details so we can recommend subreddits and safe posting cadence."
+      />
 
       <div className="rounded-[24px] border border-border bg-card/80 p-6">
         <div className="grid gap-4 md:grid-cols-2">

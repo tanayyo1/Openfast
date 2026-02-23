@@ -88,11 +88,11 @@ export default async function OnboardingPage() {
       />
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Onboarding
+          Activation hub
         </p>
         <h1 className="mt-3 text-3xl font-semibold">Set up your workspace</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Complete these steps to unlock scheduling and analytics.
+          Follow this 3-step flow to unlock scheduling and analytics.
         </p>
       </div>
 

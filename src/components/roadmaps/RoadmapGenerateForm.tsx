@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { OnboardingFlowHeader } from "@/components/onboarding/OnboardingFlowHeader";
 import { trackAnalyticsEvent } from "@/lib/analytics/client";
 
 type GenerateProject = {
@@ -20,12 +21,14 @@ type Props = {
   projects: GenerateProject[];
   accounts: GenerateAccount[];
   initialProjectId: string;
+  mode?: "default" | "onboarding";
 };
 
 export function RoadmapGenerateForm({
   projects,
   accounts,
   initialProjectId,
+  mode = "default",
 }: Props) {
   const router = useRouter();
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
@@ -40,19 +43,29 @@ export function RoadmapGenerateForm({
   const connectHref = selectedProjectId
     ? `/onboarding/connect-reddit?projectId=${encodeURIComponent(selectedProjectId)}`
     : "/onboarding/connect-reddit";
+  const backHref = mode === "onboarding" ? connectHref : "/roadmaps";
 
   return (
     <div className="space-y-8">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Roadmaps
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold">Generate roadmap</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Generate a workspace-scoped roadmap from live project and account
-          context.
-        </p>
-      </div>
+      {mode === "onboarding" ? (
+        <OnboardingFlowHeader
+          stepIndex={3}
+          projectId={selectedProjectId || null}
+          title="Generate your first roadmap"
+          description="Create your first execution plan from live project and account context."
+        />
+      ) : (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Roadmaps
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold">Generate roadmap</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Generate a workspace-scoped roadmap from live project and account
+            context.
+          </p>
+        </div>
+      )}
 
       <div className="rounded-[24px] border border-border bg-card/80 p-6">
         <div className="grid gap-4 md:grid-cols-2">
@@ -225,7 +238,7 @@ export function RoadmapGenerateForm({
             {busy ? "Generating..." : "Generate"}
           </button>
           <Link
-            href="/roadmaps"
+            href={backHref}
             className="rounded-full border border-border px-5 py-2 text-sm font-semibold"
           >
             Back

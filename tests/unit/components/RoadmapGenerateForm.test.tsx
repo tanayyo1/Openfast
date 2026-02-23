@@ -93,4 +93,21 @@ describe("RoadmapGenerateForm", () => {
       expect(pushMock).toHaveBeenCalledWith("/roadmaps/rm_1");
     });
   });
+
+  test("renders onboarding mode with step header and back link to connect step", () => {
+    render(
+      <RoadmapGenerateForm
+        projects={[{ id: "p_1", name: "Project One" }]}
+        accounts={[{ id: "a_1", redditUsername: "user1", safetyTier: "NEW" }]}
+        initialProjectId="p_1"
+        mode="onboarding"
+      />,
+    );
+
+    expect(screen.getByText("Step 3 of 3")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute(
+      "href",
+      "/onboarding/connect-reddit?projectId=p_1",
+    );
+  });
 });

@@ -51,6 +51,8 @@ describe("app header data", () => {
       workspaceId: "ws_1",
       workspaceName: "ReditFast HQ",
       planLabel: "Pro plan",
+      hasAdvancedAnalytics: true,
+      hasSmartFinder: true,
     });
     expect(mockedPrisma.workspaceMember.findFirst).toHaveBeenCalledWith({
       where: { userId: "u_1" },
@@ -72,6 +74,8 @@ describe("app header data", () => {
       workspaceId: null,
       workspaceName: "Workspace setup",
       planLabel: "Setup pending",
+      hasAdvancedAnalytics: false,
+      hasSmartFinder: false,
     });
   });
 
@@ -88,6 +92,8 @@ describe("app header data", () => {
 
     expect(data.workspaceName).toBe("Workspace");
     expect(data.planLabel).toBe("Enterprise plan");
+    expect(data.hasAdvancedAnalytics).toBe(true);
+    expect(data.hasSmartFinder).toBe(true);
   });
 
   test("propagates auth/page redirect errors", async () => {

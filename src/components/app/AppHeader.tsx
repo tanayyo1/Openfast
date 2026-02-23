@@ -8,7 +8,10 @@ export async function AppHeader() {
     <header className="sticky top-0 z-30 border-b border-border bg-background/90 px-6 py-4 backdrop-blur sm:px-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <AppMobileMenu />
+          <AppMobileMenu
+            hasAdvancedAnalytics={header.hasAdvancedAnalytics}
+            hasSmartFinder={header.hasSmartFinder}
+          />
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
               Workspace

@@ -3,6 +3,7 @@ import {
   appNavSections,
   appQuickLinks,
   isNavItemActive,
+  navSectionsForEntitlements,
 } from "@/components/app/navConfig";
 
 describe("app navigation config", () => {
@@ -62,5 +63,29 @@ describe("app navigation config", () => {
     expect(
       isNavItemActive("/seo/guides/supporting", "/seo/guides/support"),
     ).toBe(false);
+  });
+
+  test("filters entitlement-gated links consistently", () => {
+    const freeSections = navSectionsForEntitlements({
+      hasAdvancedAnalytics: false,
+      hasSmartFinder: false,
+    });
+    const freeHrefs = freeSections.flatMap((section) =>
+      section.items.map((item) => item.href),
+    );
+    expect(freeHrefs).not.toContain("/analytics");
+    expect(freeHrefs).not.toContain("/brand-monitoring");
+    expect(freeHrefs).not.toContain("/opportunities");
+
+    const paidSections = navSectionsForEntitlements({
+      hasAdvancedAnalytics: true,
+      hasSmartFinder: true,
+    });
+    const paidHrefs = paidSections.flatMap((section) =>
+      section.items.map((item) => item.href),
+    );
+    expect(paidHrefs).toContain("/analytics");
+    expect(paidHrefs).toContain("/brand-monitoring");
+    expect(paidHrefs).toContain("/opportunities");
   });
 });

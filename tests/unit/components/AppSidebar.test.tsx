@@ -67,7 +67,7 @@ describe("AppSidebar", () => {
       "/analytics",
     );
     expect(
-      screen.getByRole("link", { name: "Brand monitoring" }),
+      screen.getByRole("link", { name: "Brand Monitoring" }),
     ).toHaveAttribute("href", "/brand-monitoring");
     expect(screen.getByRole("link", { name: "Opportunities" })).toHaveAttribute(
       "href",
@@ -87,9 +87,11 @@ describe("AppSidebar", () => {
 
     render(await AppSidebar());
 
-    expect(screen.queryByRole("link", { name: "Analytics" })).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: "Brand monitoring" }),
+      screen.queryByRole("link", { name: "Analytics" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Brand Monitoring" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "Opportunities" }),
@@ -104,7 +106,9 @@ describe("AppSidebar", () => {
       "href",
       "/content",
     );
-    expect(screen.queryByRole("link", { name: "Analytics" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Analytics" }),
+    ).not.toBeInTheDocument();
   });
 
   test("throws on unexpected session errors", async () => {

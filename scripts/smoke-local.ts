@@ -11,6 +11,10 @@
  *   SMOKE_TIMEOUT_MS=10000
  */
 
+import { loadEnvConfig } from "@next/env";
+
+loadEnvConfig(process.cwd());
+
 type CheckResult = {
   target: string;
   status: "PASS" | "WARN" | "FAIL";

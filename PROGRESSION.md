@@ -114,6 +114,12 @@
 - [x] Extended header data payload with entitlement flags (`hasAdvancedAnalytics`, `hasSmartFinder`) to keep mobile nav behavior consistent with server state.
 - [x] Added regression coverage for entitlement-based nav filtering and updated sidebar/header data tests.
 
+### Recent Local Readiness Script DX Hardening (OAK-902, 2026-02-23)
+
+- [x] Updated `scripts/launch-readiness.ts` to auto-load `.env*` via Next env loader, removing false missing-variable failures in clean shells.
+- [x] Updated `scripts/smoke-local.ts` to auto-load `.env*` so local smoke checks behave consistently with app runtime config.
+- [x] Verified launch readiness and localhost smoke checks now run successfully without manual `source .env.local`.
+
 ### Recent Core App Live-Data Wiring (2026-02-21)
 
 - [x] Replaced `useDemoStore` on `/dashboard`, `/projects`, `/projects/[id]`, and `/projects/[id]/settings` with workspace-scoped server-side data from Prisma.

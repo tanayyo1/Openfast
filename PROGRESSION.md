@@ -126,6 +126,13 @@
 - [x] Applied normalized topic/product/audience/tone input across both OpenAI and deterministic fallback generation paths.
 - [x] Added regression tests for noisy-input normalization and fallback draft quality expectations.
 
+### Recent Tool-To-Onboarding Handoff Bridge (OAK-906, 2026-02-23)
+
+- [x] Added one-click `Use in app` action on `/tools/post-generator` to carry generated context into onboarding.
+- [x] Added local handoff store/consume helpers (`src/lib/publicToolHandoff.ts`) with malformed-payload handling.
+- [x] Added onboarding prefill on `/onboarding/create-project` (name/description/voice/goal) from post-generator context with explicit import notice.
+- [x] Added unit coverage for handoff save/consume and project prefill derivation.
+
 ### Recent Core App Live-Data Wiring (2026-02-21)
 
 - [x] Replaced `useDemoStore` on `/dashboard`, `/projects`, `/projects/[id]`, and `/projects/[id]/settings` with workspace-scoped server-side data from Prisma.

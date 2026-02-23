@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { MaxWidth } from "@/components/public/MaxWidth";
+import { savePostGeneratorHandoff } from "@/lib/publicToolHandoff";
 
 const INPUT_STORAGE_KEY = "rf_post_generator_inputs_v2";
 
@@ -35,6 +36,7 @@ export default function PostGeneratorPage() {
   const [subreddit, setSubreddit] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [handoffError, setHandoffError] = useState<string | null>(null);
   const [result, setResult] = useState<PostGenerateResponse | null>(null);
 
   useEffect(() => {
@@ -122,6 +124,33 @@ export default function PostGeneratorPage() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function startOnboardingFromDraft() {
+    if (!result) return;
+    setHandoffError(null);
+
+    const primary = result.variants[0] ?? result.draft;
+    const persisted = savePostGeneratorHandoff({
+      topic: topic.trim(),
+      product: product.trim(),
+      audience: audience.trim() || "founders",
+      tone: tone.trim() || "helpful",
+      goal,
+      subreddit: subreddit.trim() || null,
+      draftTitle: primary?.title ?? null,
+      draftBody: primary?.body ?? "",
+      source: result.source,
+    });
+
+    if (!persisted) {
+      setHandoffError(
+        "Unable to carry this draft into onboarding. Please retry in a normal browser tab.",
+      );
+      return;
+    }
+
+    window.location.assign("/onboarding/create-project?source=post-generator");
   }
 
   return (
@@ -247,15 +276,31 @@ export default function PostGeneratorPage() {
           <div className="rounded-[28px] border border-border bg-background/70 p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm font-semibold">Drafts</p>
-              {result ? (
-                <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
-                  Source: {result.source === "openai" ? "OpenAI" : "Fallback"}
-                </span>
-              ) : null}
+              <div className="flex flex-wrap items-center gap-2">
+                {result ? (
+                  <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
+                    Source: {result.source === "openai" ? "OpenAI" : "Fallback"}
+                  </span>
+                ) : null}
+                {result ? (
+                  <button
+                    type="button"
+                    onClick={startOnboardingFromDraft}
+                    className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90"
+                  >
+                    Use in app
+                  </button>
+                ) : null}
+              </div>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
               Preview three variants before you export into the main app.
             </p>
+            {handoffError ? (
+              <p className="mt-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {handoffError}
+              </p>
+            ) : null}
             {result?.source === "fallback" ? (
               <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
                 AI generation was unavailable, so you are seeing deterministic

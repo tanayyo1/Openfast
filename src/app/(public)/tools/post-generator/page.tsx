@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { MaxWidth } from "@/components/public/MaxWidth";
 
@@ -135,8 +136,8 @@ export default function PostGeneratorPage() {
               Reddit post generator
             </h1>
             <p className="mt-4 text-sm text-muted-foreground">
-              Draft Reddit posts with structure hints, tone control, and
-              compliance cues.
+              Draft safer Reddit posts with structure hints, tone control, and
+              compliance cues before you publish anything.
             </p>
             <form
               className="mt-8 rounded-[24px] border border-border bg-card/80 p-6"
@@ -339,6 +340,27 @@ export default function PostGeneratorPage() {
                 </div>
               ) : null}
             </div>
+          </div>
+        </div>
+        <div className="mt-10 rounded-[24px] border border-border bg-card/80 p-6">
+          <p className="text-sm font-semibold">What to do after this tool</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Run this inside the full workflow so drafts are reviewed, approved,
+            and scheduled with pacing safeguards.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              href="/signup"
+              className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+            >
+              Start free account
+            </Link>
+            <Link
+              href="/pricing"
+              className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
+            >
+              View plans
+            </Link>
           </div>
         </div>
       </MaxWidth>

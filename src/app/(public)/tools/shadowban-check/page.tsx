@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { MaxWidth } from "@/components/public/MaxWidth";
 
@@ -65,7 +66,8 @@ export default function ShadowbanCheckPage() {
             </p>
             <h1 className="mt-4 text-4xl font-semibold">Shadowban detector</h1>
             <p className="mt-4 text-sm text-muted-foreground">
-              Check visibility signals and track account health trends.
+              Check visibility signals early so you can reduce posting risk
+              before distribution drops.
             </p>
             <form
               className="mt-8 rounded-[24px] border border-border bg-card/80 p-6"
@@ -160,6 +162,29 @@ export default function ShadowbanCheckPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+        <div className="mt-10 rounded-[24px] border border-border bg-card/80 p-6">
+          <p className="text-sm font-semibold">
+            Use this before scaling volume
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Combine account-health checks with approval-first publishing to keep
+            growth steady and safer.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              href="/signup"
+              className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+            >
+              Start free account
+            </Link>
+            <Link
+              href="/tools/subreddit-analyzer"
+              className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
+            >
+              Next: Subreddit analyzer
+            </Link>
           </div>
         </div>
       </MaxWidth>

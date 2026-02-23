@@ -1,6 +1,6 @@
 # PROGRESSION.md - MediaFast Clone MVP Tracker
 
-> **Last Updated**: 2026-02-22
+> **Last Updated**: 2026-02-23
 > **Target**: `mediafast_clone_system_design_report.md`
 > **Current Estimate**: ~99% of overall parity complete (MVP complete; Tier 2 complete; Tier 3 complete for planned scope; Tier 4 planned items shipped; remaining work is optional hardening/polish)
 
@@ -83,6 +83,14 @@
 - [x] Added client analytics event emitter (`/api/analytics/events`) wiring for homepage view, signup start/completion, onboarding step completions, and roadmap generation completion.
 - [x] Added workspace funnel `ttfv` (time-to-first-value) metrics (`sampleSize`, `avg/p50/p90/min/max` in minutes) to `/api/analytics/funnel`.
 - [x] Added mandatory `test:core-loop` CI job as a dedicated release gate that runs `tests/integration/api/e2e-smoke.test.ts` with DB + Redis.
+
+### Recent Activation UX 3-Step Flow (OAK-913, 2026-02-23)
+
+- [x] Added shared 3-step onboarding flow header (`OnboardingFlowHeader`) with progress bar and deterministic step links.
+- [x] Updated onboarding step pages (`/onboarding/create-project`, `/onboarding/connect-reddit`) to use guided step framing and reduced cognitive load copy.
+- [x] Added dedicated onboarding step-3 route (`/onboarding/generate-roadmap`) and wired onboarding CTA flow to use it.
+- [x] Updated onboarding progress routing to prefer onboarding step-3 path before completion, then route completed users to `/roadmaps`.
+- [x] Added regression coverage for new onboarding step-3 routing and onboarding-mode roadmap form behavior.
 
 ### Recent Core App Live-Data Wiring (2026-02-21)
 

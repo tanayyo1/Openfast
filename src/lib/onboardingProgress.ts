@@ -35,8 +35,8 @@ function formatCount(value: number, singular: string, plural: string) {
 }
 
 function buildRoadmapHref(projectId: string | null) {
-  if (!projectId) return "/roadmaps/generate";
-  return `/roadmaps/generate?projectId=${encodeURIComponent(projectId)}`;
+  if (!projectId) return "/onboarding/generate-roadmap";
+  return `/onboarding/generate-roadmap?projectId=${encodeURIComponent(projectId)}`;
 }
 
 function buildConnectHref(projectId: string | null) {
@@ -75,7 +75,7 @@ export function buildOnboardingProgress(
         title: "Generate your roadmap",
         description:
           "Create an initial plan once project and Reddit account are ready.",
-        href: "/roadmaps/generate",
+        href: "/onboarding/generate-roadmap",
         action: "Generate roadmap",
         status: "blocked",
         detail: "Complete workspace setup first.",
@@ -130,7 +130,7 @@ export function buildOnboardingProgress(
       title: "Generate your roadmap",
       description:
         "Turn your project and account setup into an executable posting plan.",
-      href: buildRoadmapHref(input.latestProjectId),
+      href: roadmapDone ? "/roadmaps" : buildRoadmapHref(input.latestProjectId),
       action: roadmapDone ? "View roadmaps" : "Generate roadmap",
       status: roadmapDone
         ? "complete"

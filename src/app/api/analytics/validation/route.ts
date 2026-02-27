@@ -17,7 +17,6 @@ export async function GET() {
   } catch (err) {
     return authError(err);
   }
-
   const entitlements = await getWorkspaceEntitlements(session.workspaceId);
   if (!entitlements.hasAdvancedAnalytics) {
     return NextResponse.json(

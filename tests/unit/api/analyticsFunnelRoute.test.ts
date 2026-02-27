@@ -13,10 +13,8 @@ jest.mock("@/lib/analytics/funnel", () => ({
   getTimeToFirstValueMetrics: jest.fn(),
 }));
 
-import {
-  GET as getAnalyticsFunnel,
-  resolveDateRange,
-} from "@/app/api/analytics/funnel/route";
+import { GET as getAnalyticsFunnel } from "@/app/api/analytics/funnel/route";
+import { resolveDateRange } from "@/lib/analytics/dateRange";
 
 const mockedGuards = jest.requireMock("@/lib/server/auth-guards") as {
   requireWorkspaceSession: jest.Mock;

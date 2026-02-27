@@ -10,12 +10,12 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 
-jest.mock("@/lib/billing/stripe", () => ({
-  getStripe: jest.fn(),
+jest.mock("@/lib/billing/polar", () => ({
+  getPolar: jest.fn(),
 }));
 
 import { POST as checkout } from "@/app/api/billing/checkout/route";
-import { getStripe } from "@/lib/billing/stripe";
+import { getPolar } from "@/lib/billing/polar";
 
 const mockedGuards = jest.requireMock("@/lib/server/auth-guards") as {
   requireWorkspaceSession: jest.Mock;
@@ -23,7 +23,7 @@ const mockedGuards = jest.requireMock("@/lib/server/auth-guards") as {
 const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
   workspace: { findUnique: jest.Mock };
 };
-const mockedGetStripe = getStripe as jest.Mock;
+const mockedGetPolar = getPolar as jest.Mock;
 
 async function readJson(res: Response) {
   const text = await res.text();
@@ -31,10 +31,13 @@ async function readJson(res: Response) {
 }
 
 describe("billing checkout route", () => {
+  let polarMock: {
+    checkouts: { create: jest.Mock };
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.STRIPE_PRICE_PRO_MONTHLY = "price_pro";
-    process.env.STRIPE_PRICE_LIFETIME = "price_life";
+    process.env.POLAR_PRODUCT_PRO = "product_pro_uuid";
     process.env.APP_URL = "https://app.example.com";
     process.env.BILLING_ALLOWED_REDIRECT_ORIGINS = "https://app.example.com";
 
@@ -45,21 +48,19 @@ describe("billing checkout route", () => {
     mockedPrisma.workspace.findUnique.mockResolvedValue({
       id: "ws_1",
       name: "Workspace 1",
-      subscription: null,
+      owner: { email: "owner@test.com" },
     });
-    mockedGetStripe.mockReturnValue({
-      customers: {
-        create: jest.fn().mockResolvedValue({ id: "cus_1" }),
+
+    polarMock = {
+      checkouts: {
+        create: jest.fn().mockResolvedValue({
+          id: "polar_ch_1",
+          url: "https://checkout.polar.sh/polar_ch_1",
+          status: "open",
+        }),
       },
-      checkout: {
-        sessions: {
-          create: jest.fn().mockResolvedValue({
-            id: "cs_1",
-            url: "https://checkout.stripe.test/session/cs_1",
-          }),
-        },
-      },
-    });
+    };
+    mockedGetPolar.mockReturnValue(polarMock);
   });
 
   test("creates a checkout session for PRO plan", async () => {
@@ -70,26 +71,27 @@ describe("billing checkout route", () => {
         body: JSON.stringify({
           plan: "PRO",
           successUrl: "https://app.example.com/dashboard?billing=ok",
-          cancelUrl: "https://app.example.com/pricing?billing=cancel",
+          cancelUrl: "https://app.example.com/pricing?billing=cancelled",
         }),
       }),
     );
 
     expect(res.status).toBe(200);
     const json = (await readJson(res)) as {
+      checkoutId: string;
       checkoutSessionId: string;
       checkoutUrl: string;
     };
-    expect(json.checkoutSessionId).toBe("cs_1");
-    expect(json.checkoutUrl).toContain("checkout.stripe.test");
+    expect(json.checkoutId).toBe("polar_ch_1");
+    expect(json.checkoutSessionId).toBe("polar_ch_1");
+    expect(json.checkoutUrl).toContain("checkout.polar.sh");
 
-    const stripe = mockedGetStripe.mock.results[0]?.value as {
-      checkout: { sessions: { create: jest.Mock } };
-    };
-    expect(stripe.checkout.sessions.create).toHaveBeenCalledWith(
+    expect(polarMock.checkouts.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        mode: "subscription",
-        line_items: [{ price: "price_pro", quantity: 1 }],
+        products: ["product_pro_uuid"],
+        customerEmail: "owner@test.com",
+        successUrl: "https://app.example.com/dashboard?billing=ok",
+        returnUrl: "https://app.example.com/pricing?billing=cancelled",
         metadata: expect.objectContaining({
           workspaceId: "ws_1",
           userId: "u_1",
@@ -97,6 +99,39 @@ describe("billing checkout route", () => {
         }),
       }),
     );
+  });
+
+  test("returns both checkoutId and checkoutSessionId for backward compat", async () => {
+    const res = await checkout(
+      new Request("http://test.local/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: "PRO" }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as {
+      checkoutId: string;
+      checkoutSessionId: string;
+    };
+    expect(json.checkoutId).toBe(json.checkoutSessionId);
+  });
+
+  test("returns 500 when POLAR_PRODUCT_PRO is not configured", async () => {
+    delete process.env.POLAR_PRODUCT_PRO;
+
+    const res = await checkout(
+      new Request("http://test.local/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: "PRO" }),
+      }),
+    );
+
+    expect(res.status).toBe(500);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("PRICE_NOT_CONFIGURED");
   });
 
   test("rejects redirect url outside allowed origins", async () => {
@@ -114,6 +149,39 @@ describe("billing checkout route", () => {
     expect(res.status).toBe(400);
     const json = (await readJson(res)) as { code: string };
     expect(json.code).toBe("INVALID_REDIRECT_URL");
+  });
+
+  test("rejects cancelUrl outside allowed origins", async () => {
+    const res = await checkout(
+      new Request("http://test.local/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: "PRO",
+          cancelUrl: "https://evil.example.com/cancel",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("INVALID_REDIRECT_URL");
+  });
+
+  test("returns BILLING_PROVIDER_ERROR when Polar API fails", async () => {
+    polarMock.checkouts.create.mockRejectedValue(new Error("Polar API down"));
+
+    const res = await checkout(
+      new Request("http://test.local/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: "PRO" }),
+      }),
+    );
+
+    expect(res.status).toBe(500);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("BILLING_PROVIDER_ERROR");
   });
 
   test("returns unauthorized when session is missing", async () => {

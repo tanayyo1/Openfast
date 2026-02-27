@@ -43,6 +43,25 @@ const createRoadmapSchema = z.object({
   horizonDays: z.number().int().min(1).max(60).default(30),
 });
 
+function summarizeRecommendationReason(reasons: unknown) {
+  if (Array.isArray(reasons)) {
+    const textReasons = reasons
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+    if (textReasons.length > 0) {
+      return textReasons.slice(0, 2).join(" ");
+    }
+  }
+  if (reasons && typeof reasons === "object") {
+    const summary = (reasons as Record<string, unknown>).summary;
+    if (typeof summary === "string" && summary.trim().length > 0) {
+      return summary.trim();
+    }
+  }
+  return "Good fit based on project niche and subreddit activity.";
+}
+
 export async function GET(req: Request) {
   let session;
   try {
@@ -307,14 +326,7 @@ export async function POST(req: Request) {
           };
         }
 
-        const recReasons =
-          rec.reasons && typeof rec.reasons === "object"
-            ? (rec.reasons as Record<string, unknown>)
-            : {};
-        const reasonSummary =
-          typeof recReasons.summary === "string" && recReasons.summary
-            ? recReasons.summary
-            : "Good fit based on project niche and subreddit activity.";
+        const reasonSummary = summarizeRecommendationReason(rec.reasons);
         const mappedPainPoints = painPointBySubreddit.get(rec.subredditId) ?? [];
         const painPointHint =
           mappedPainPoints.length > 0

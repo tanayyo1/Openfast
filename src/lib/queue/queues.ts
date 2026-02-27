@@ -4,6 +4,7 @@ import { QUEUE_NAMES } from "./constants";
 
 let publishQueue: Queue | null = null;
 let metricsFetchQueue: Queue | null = null;
+let redditAdsSyncQueue: Queue | null = null;
 let contentGenerateQueue: Queue | null = null;
 let subredditIngestQueue: Queue | null = null;
 let subredditComputeTimeWindowsQueue: Queue | null = null;
@@ -40,6 +41,12 @@ export function getMetricsFetchQueue() {
   if (!metricsFetchQueue)
     metricsFetchQueue = createQueue(QUEUE_NAMES.REDDIT_METRICS_FETCH);
   return metricsFetchQueue;
+}
+
+export function getRedditAdsSyncQueue() {
+  if (!redditAdsSyncQueue)
+    redditAdsSyncQueue = createQueue(QUEUE_NAMES.REDDIT_ADS_SYNC);
+  return redditAdsSyncQueue;
 }
 
 export function getContentGenerateQueue() {
@@ -102,6 +109,7 @@ export async function closeAllQueues() {
   const queues = [
     publishQueue,
     metricsFetchQueue,
+    redditAdsSyncQueue,
     contentGenerateQueue,
     subredditIngestQueue,
     subredditComputeTimeWindowsQueue,
@@ -114,6 +122,7 @@ export async function closeAllQueues() {
 
   publishQueue = null;
   metricsFetchQueue = null;
+  redditAdsSyncQueue = null;
   contentGenerateQueue = null;
   subredditIngestQueue = null;
   subredditComputeTimeWindowsQueue = null;

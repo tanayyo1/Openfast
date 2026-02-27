@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+import { getWorkspaceEntitlements } from "@/lib/billing/quota";
+import { resolveDateRange } from "@/lib/analytics/dateRange";
 import {
   getFunnelData,
   getEventCountsLast24h,
   getFullFunnelPaths,
+  getTimeToFirstValueMetrics,
 } from "@/lib/analytics/funnel";
 
 function authError(err: unknown) {
@@ -21,29 +24,43 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url);
-  const period = searchParams.get("period") || "7d";
-  const startDateStr = searchParams.get("start");
-  const endDateStr = searchParams.get("end");
-
-  let startDate: Date;
-  let endDate = new Date();
-
-  if (startDateStr && endDateStr) {
-    startDate = new Date(startDateStr);
-    endDate = new Date(endDateStr);
-  } else {
-    const days = period === "24h" ? 1 : period === "30d" ? 30 : 7;
-    startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const dateRange = resolveDateRange(searchParams);
+  if (!dateRange.ok) {
+    return NextResponse.json(
+      { error: "Invalid query params", code: "INVALID_DATE_RANGE" },
+      { status: 400 },
+    );
+  }
+  const entitlements = await getWorkspaceEntitlements(session.workspaceId);
+  if (!entitlements.hasAdvancedAnalytics) {
+    return NextResponse.json(
+      {
+        error: "Advanced analytics is available on paid plans",
+        code: "ADVANCED_ANALYTICS_REQUIRED",
+      },
+      { status: 403 },
+    );
   }
 
-  const [funnelData, eventCounts, fullPaths] = await Promise.all([
-    getFunnelData(startDate, endDate),
-    getEventCountsLast24h(),
-    getFullFunnelPaths(5),
+  const [funnelData, eventCounts, fullPaths, ttfv] = await Promise.all([
+    getFunnelData(session.workspaceId, dateRange.startDate, dateRange.endDate),
+    getEventCountsLast24h(session.workspaceId),
+    getFullFunnelPaths(
+      session.workspaceId,
+      dateRange.startDate,
+      dateRange.endDate,
+      5,
+    ),
+    getTimeToFirstValueMetrics(
+      session.workspaceId,
+      dateRange.startDate,
+      dateRange.endDate,
+    ),
   ]);
 
   return NextResponse.json({
     funnel: funnelData,
+    ttfv,
     eventCountsLast24h: eventCounts,
     recentCompleteFunnels: fullPaths,
     requestedBy: {

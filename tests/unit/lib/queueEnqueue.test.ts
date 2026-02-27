@@ -1,6 +1,7 @@
 jest.mock("@/lib/queue/queues", () => ({
   getPublishQueue: jest.fn(),
   getMetricsFetchQueue: jest.fn(),
+  getRedditAdsSyncQueue: jest.fn(),
   getSubredditIngestQueue: jest.fn(),
   getSubredditComputeTimeWindowsQueue: jest.fn(),
 }));
@@ -8,6 +9,10 @@ jest.mock("@/lib/queue/queues", () => ({
 jest.mock("@/lib/queue/jobIds", () => ({
   publishJobId: jest.fn((id: string) => `publish:${id}`),
   metricsFetchJobId: jest.fn((id: string) => `metrics:${id}`),
+  redditAdsSyncJobId: jest.fn(
+    (input: { campaignId: string; status: string; version: string }) =>
+      `reddit_ads_sync:${input.campaignId}:${input.status}:${input.version}`,
+  ),
   subredditIngestJobId: jest.fn((name: string) => `subreddit_ingest:${name}`),
   subredditComputeTimeWindowsJobId: jest.fn(
     (id: string) => `subreddit_windows:${id}`,
@@ -17,6 +22,7 @@ jest.mock("@/lib/queue/jobIds", () => ({
 import {
   enqueueMetricsFetchJob,
   enqueuePublishJob,
+  enqueueRedditAdsSyncJob,
   enqueueSubredditComputeTimeWindowsJob,
   enqueueSubredditIngestJob,
 } from "@/lib/queue/enqueue";
@@ -24,6 +30,7 @@ import {
 const mockedQueues = jest.requireMock("@/lib/queue/queues") as {
   getPublishQueue: jest.Mock;
   getMetricsFetchQueue: jest.Mock;
+  getRedditAdsSyncQueue: jest.Mock;
   getSubredditIngestQueue: jest.Mock;
   getSubredditComputeTimeWindowsQueue: jest.Mock;
 };
@@ -65,6 +72,35 @@ describe("enqueue helpers", () => {
       "metrics_fetch",
       { publishedItemId: "pi_1" },
       expect.objectContaining({ jobId: "metrics:pi_1" }),
+    );
+  });
+
+  test("enqueueRedditAdsSyncJob uses deterministic jobId by default", async () => {
+    const add = jest.fn().mockResolvedValue({ id: "job3b" });
+    mockedQueues.getRedditAdsSyncQueue.mockReturnValue({ add });
+
+    await enqueueRedditAdsSyncJob({
+      workspaceId: "ws_1",
+      campaignId: "cmp_1",
+      status: "ACTIVE",
+      action: "UPSERT",
+      trigger: "STATUS_CHANGE",
+      version: "2026-02-21T00:00:00.000Z",
+    });
+
+    expect(add).toHaveBeenCalledWith(
+      "reddit_ads_sync",
+      {
+        workspaceId: "ws_1",
+        campaignId: "cmp_1",
+        status: "ACTIVE",
+        action: "UPSERT",
+        trigger: "STATUS_CHANGE",
+        version: "2026-02-21T00:00:00.000Z",
+      },
+      expect.objectContaining({
+        jobId: "reddit_ads_sync:cmp_1:ACTIVE:2026-02-21T00:00:00.000Z",
+      }),
     );
   });
 

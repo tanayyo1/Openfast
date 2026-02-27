@@ -1,36 +1,414 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { DraftEditor } from "@/components/app/editor/DraftEditor";
-import { useDemoStore } from "@/stores/demoStore";
+import {
+  RewriteDialog,
+  type RewriteOptions,
+} from "@/components/app/editor/RewriteDialog";
+
+type DraftStatus = "DRAFT" | "REVIEWING" | "APPROVED" | "REJECTED" | "ARCHIVED";
+
+type DraftDetail = {
+  id: string;
+  taskId: string | null;
+  subredditId: string | null;
+  type: "POST" | "COMMENT";
+  title: string | null;
+  body: string;
+  variants: unknown;
+  status: DraftStatus;
+  riskScore: number;
+  riskReasons: string[];
+};
+
+type TaskDetail = {
+  id: string;
+  roadmapId: string;
+  dayIndex: number;
+  type: string;
+  subredditId: string | null;
+};
+
+type VariantView = {
+  title: string;
+  body: string;
+  riskScore: number;
+  notes: string[];
+};
+
+function formatTaskType(value: string) {
+  return value.toLowerCase().replaceAll("_", " ");
+}
+
+function statusLabel(status: DraftStatus) {
+  switch (status) {
+    case "DRAFT":
+      return "Draft";
+    case "REVIEWING":
+      return "Needs approval";
+    case "APPROVED":
+      return "Approved";
+    case "REJECTED":
+      return "Rejected";
+    case "ARCHIVED":
+      return "Archived";
+    default:
+      return status;
+  }
+}
+
+function parseVariants(
+  raw: unknown,
+  fallbackRisk: number,
+  notes: string[],
+): VariantView[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  const list: VariantView[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const candidate = item as {
+      title?: unknown;
+      body?: unknown;
+      score?: unknown;
+      notes?: unknown;
+    };
+    if (typeof candidate.body !== "string") continue;
+
+    let riskScore = fallbackRisk;
+    if (typeof candidate.score === "number") {
+      if (candidate.score >= 0 && candidate.score <= 1) {
+        riskScore = Math.round((1 - candidate.score) * 100);
+      } else if (candidate.score >= 0 && candidate.score <= 100) {
+        riskScore = Math.round(candidate.score);
+      }
+    }
+
+    const variantNotes = Array.isArray(candidate.notes)
+      ? candidate.notes.filter(
+          (entry): entry is string => typeof entry === "string",
+        )
+      : notes;
+
+    list.push({
+      title: typeof candidate.title === "string" ? candidate.title : "",
+      body: candidate.body,
+      riskScore,
+      notes: variantNotes.length > 0 ? variantNotes : notes,
+    });
+  }
+
+  return list;
+}
 
 export default function DraftPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const draftId = params?.id ? decodeURIComponent(params.id) : "";
 
-  const draft = useDemoStore((state) =>
-    state.drafts.find((d) => d.id === draftId),
-  );
-  const task = useDemoStore((state) =>
-    draft ? state.tasks.find((t) => t.id === draft.taskId) : undefined,
-  );
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [acting, setActing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [draft, setDraft] = useState<DraftDetail | null>(null);
+  const [task, setTask] = useState<TaskDetail | null>(null);
 
-  const selectDraftVariant = useDemoStore((state) => state.selectDraftVariant);
-  const saveDraftEdits = useDemoStore((state) => state.saveDraftEdits);
-  const requestApproval = useDemoStore((state) => state.requestApproval);
-  const approveDraft = useDemoStore((state) => state.approveDraft);
+  const [rewriteOpen, setRewriteOpen] = useState(false);
+  const [rewriteLoading, setRewriteLoading] = useState(false);
+  const [rewriteError, setRewriteError] = useState<string | null>(null);
+  const [rewriteResult, setRewriteResult] = useState<{
+    newDraftId: string;
+  } | null>(null);
 
-  if (!draft || !task) {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const draftRes = await fetch(
+          `/api/drafts/${encodeURIComponent(draftId)}?includeStructure=1`,
+          {
+            cache: "no-store",
+          },
+        );
+        const draftJson = (await draftRes.json()) as
+          | { draft?: DraftDetail; error?: string }
+          | undefined;
+
+        if (!draftRes.ok || !draftJson?.draft) {
+          throw new Error(draftJson?.error ?? "Draft not found");
+        }
+
+        let nextTask: TaskDetail | null = null;
+        if (draftJson.draft.taskId) {
+          const taskRes = await fetch(
+            `/api/tasks/${encodeURIComponent(draftJson.draft.taskId)}`,
+            { cache: "no-store" },
+          );
+          const taskJson = (await taskRes.json()) as
+            | { task?: TaskDetail; error?: string }
+            | undefined;
+          if (taskRes.ok && taskJson?.task) {
+            nextTask = taskJson.task;
+          }
+        }
+
+        if (cancelled) return;
+        setDraft(draftJson.draft);
+        setTask(nextTask);
+      } catch (err) {
+        if (cancelled) return;
+        const message =
+          err instanceof Error ? err.message : "Failed to load draft";
+        setError(message);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    if (!draftId) {
+      setError("Draft not found");
+      setLoading(false);
+      return;
+    }
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [draftId]);
+
+  const variants = useMemo(() => {
+    if (!draft) return [];
+    const notes =
+      draft.riskReasons.length > 0
+        ? draft.riskReasons
+        : ["Review for subreddit fit before publishing."];
+    const parsed = parseVariants(draft.variants, draft.riskScore, notes);
+    if (parsed.length > 0) {
+      return parsed;
+    }
+
+    return [
+      {
+        title: draft.title ?? "",
+        body: draft.body,
+        riskScore: draft.riskScore,
+        notes,
+      },
+    ];
+  }, [draft]);
+
+  async function persistDraft(
+    input: { title: string; body: string },
+    opts?: { showNotice?: boolean },
+  ) {
+    if (!draft || saving || acting) return;
+    setSaving(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const res = await fetch(`/api/drafts/${encodeURIComponent(draft.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: draft.type === "POST" ? input.title.trim() || null : null,
+          body: input.body.trim(),
+        }),
+      });
+      const json = (await res.json()) as
+        | {
+            draft?: { title: string | null; body: string; status: DraftStatus };
+            error?: string;
+          }
+        | undefined;
+
+      if (!res.ok || !json?.draft) {
+        throw new Error(json?.error ?? "Failed to save draft");
+      }
+
+      const updatedDraft = json.draft;
+      setDraft((current) =>
+        current
+          ? {
+              ...current,
+              title: updatedDraft?.title ?? current.title,
+              body: updatedDraft?.body ?? current.body,
+              status: updatedDraft?.status ?? current.status,
+            }
+          : current,
+      );
+      if (opts?.showNotice ?? true) {
+        setNotice("Draft saved");
+      }
+      return true;
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to save draft";
+      setError(message);
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveDraft(input: { title: string; body: string }) {
+    await persistDraft(input, { showNotice: true });
+  }
+
+  async function requestApproval(input: { title: string; body: string }) {
+    if (!draft || saving || acting) return;
+
+    const saved = await persistDraft(input, { showNotice: false });
+    if (!saved) return;
+
+    setActing(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch(
+        `/api/drafts/${encodeURIComponent(draft.id)}/request-approval`,
+        { method: "POST" },
+      );
+      const json = (await res.json()) as
+        | { draft?: { status: DraftStatus }; error?: string }
+        | undefined;
+
+      if (!res.ok || !json?.draft) {
+        throw new Error(json?.error ?? "Failed to request approval");
+      }
+
+      setDraft((current) =>
+        current
+          ? { ...current, status: json.draft?.status ?? current.status }
+          : current,
+      );
+      setNotice("Draft saved and sent for approval");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to request approval";
+      setError(message);
+    } finally {
+      setActing(false);
+    }
+  }
+
+  async function approve() {
+    if (!draft || saving || acting) return;
+    setActing(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const res = await fetch(
+        `/api/drafts/${encodeURIComponent(draft.id)}/approve`,
+        {
+          method: "POST",
+        },
+      );
+      const json = (await res.json()) as
+        | { draft?: { status: DraftStatus }; error?: string }
+        | undefined;
+
+      if (!res.ok || !json?.draft) {
+        throw new Error(json?.error ?? "Failed to approve draft");
+      }
+
+      setDraft((current) =>
+        current
+          ? { ...current, status: json.draft?.status ?? current.status }
+          : current,
+      );
+      setNotice("Draft approved");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to approve draft";
+      setError(message);
+    } finally {
+      setActing(false);
+    }
+  }
+
+  function handleRewriteOpen() {
+    setRewriteError(null);
+    setRewriteOpen(true);
+  }
+
+  async function handleRewriteSubmit(opts: RewriteOptions) {
+    if (!draft || rewriteLoading) return;
+    setRewriteLoading(true);
+    setRewriteError(null);
+
+    try {
+      const res = await fetch(
+        `/api/drafts/${encodeURIComponent(draft.id)}/rewrite`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(opts),
+        },
+      );
+      const json = (await res.json()) as
+        | { draft?: { id: string }; error?: string }
+        | undefined;
+
+      if ((res.status !== 202 && !res.ok) || !json?.draft?.id) {
+        throw new Error(json?.error ?? "Failed to create rewrite");
+      }
+
+      setRewriteResult({ newDraftId: json.draft.id });
+      setRewriteOpen(false);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to create rewrite";
+      setRewriteError(message);
+    } finally {
+      setRewriteLoading(false);
+    }
+  }
+
+  if (loading) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold">Draft not found</h1>
+        <h1 className="text-2xl font-semibold">Loading draft...</h1>
+      </div>
+    );
+  }
+
+  if (!draft) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold">
+          {error === "Draft not found"
+            ? "Draft not found"
+            : "Unable to load draft"}
+        </h1>
+        {error && error !== "Draft not found" ? (
+          <p className="text-sm text-muted-foreground">{error}</p>
+        ) : null}
         <Link href="/content" className="text-sm underline">
           Back to drafts
         </Link>
       </div>
     );
   }
+
+  const canEdit = draft.status === "DRAFT" || draft.status === "REJECTED";
+  const canRequestApproval = canEdit;
+  const canApprove = draft.status === "REVIEWING";
 
   return (
     <div className="space-y-8">
@@ -40,12 +418,23 @@ export default function DraftPage() {
             Draft
           </p>
           <h1 className="mt-3 text-3xl font-semibold">
-            {task.type} for {task.subreddit}
+            {task ? formatTaskType(task.type) : draft.type.toLowerCase()} for{" "}
+            {task?.subredditId ?? draft.subredditId ?? "general"}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Status: {draft.status}
-            <span className="mx-2 text-muted-foreground/40">|</span>
-            Best-time window: {task.bestWindow}
+            Status: {statusLabel(draft.status)}
+            {task ? (
+              <>
+                <span className="mx-2 text-muted-foreground/40">|</span>
+                Day {task.dayIndex}
+              </>
+            ) : null}
+            {saving || acting ? (
+              <>
+                <span className="mx-2 text-muted-foreground/40">|</span>
+                Updating...
+              </>
+            ) : null}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -70,23 +459,60 @@ export default function DraftPage() {
         </div>
       </div>
 
+      {error ? (
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-5 py-4 text-sm text-destructive">
+          {error}
+        </div>
+      ) : null}
+
+      {notice ? (
+        <div className="rounded-2xl border border-green-300 bg-green-50 px-5 py-4 text-sm text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300">
+          {notice}
+        </div>
+      ) : null}
+
+      {rewriteResult ? (
+        <div className="rounded-2xl border border-green-300 bg-green-50 px-5 py-4 dark:border-green-800 dark:bg-green-950">
+          <p className="text-sm font-semibold text-green-800 dark:text-green-200">
+            Rewrite created
+          </p>
+          <p className="mt-1 text-sm text-green-700 dark:text-green-300">
+            New variants have been generated.{" "}
+            <button
+              type="button"
+              onClick={() =>
+                router.push(
+                  `/content/drafts/${encodeURIComponent(rewriteResult.newDraftId)}`,
+                )
+              }
+              className="underline"
+            >
+              View new draft
+            </button>
+          </p>
+        </div>
+      ) : null}
+
       <DraftEditor
-        variants={draft.variants}
-        initialSelectedIndex={draft.selectedIndex}
-        initialTitle={draft.editedTitle}
-        initialBody={draft.editedBody}
-        onSelectVariant={(index) =>
-          selectDraftVariant({ draftId: draft.id, index })
-        }
-        onSave={({ title, body }) =>
-          saveDraftEdits({ draftId: draft.id, title, body })
-        }
-        onRequestApproval={() => requestApproval({ taskId: task.id })}
-        onApprove={
-          draft.status === "Needs approval"
-            ? () => approveDraft({ taskId: task.id })
-            : undefined
-        }
+        key={draft.id}
+        variants={variants}
+        taskType={draft.type === "POST" ? "Post" : "Comment"}
+        subreddit={task?.subredditId ?? draft.subredditId ?? "general"}
+        initialTitle={draft.title ?? ""}
+        initialBody={draft.body}
+        onSave={canEdit ? saveDraft : undefined}
+        onRequestApproval={canRequestApproval ? requestApproval : undefined}
+        onApprove={canApprove ? approve : undefined}
+        onRewrite={draft.status !== "ARCHIVED" ? handleRewriteOpen : undefined}
+        isBusy={saving || acting || rewriteLoading}
+      />
+
+      <RewriteDialog
+        open={rewriteOpen}
+        onOpenChange={setRewriteOpen}
+        onSubmit={handleRewriteSubmit}
+        loading={rewriteLoading}
+        error={rewriteError}
       />
     </div>
   );

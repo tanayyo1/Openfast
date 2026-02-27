@@ -9,7 +9,12 @@ import { enforcePublicToolRateLimit } from "@/lib/rateLimit/publicTools";
 import { requireSession } from "@/lib/server/auth-guards";
 
 const querySchema = z.object({
-  name: z.string().min(2).max(120),
+  name: z
+    .string()
+    .trim()
+    .min(2)
+    .max(120)
+    .regex(/^(r\/)?[A-Za-z0-9_]+$/, "Invalid subreddit format"),
 });
 
 export async function GET(req: Request) {
@@ -56,28 +61,50 @@ export async function GET(req: Request) {
 
   let queued = false;
   if (!subreddit) {
-    await enqueueSubredditIngestJob({ subredditName: name }).catch(
-      () => undefined,
-    );
-    queued = true;
+    try {
+      await enqueueSubredditIngestJob({ subredditName: name });
+      queued = true;
+    } catch {
+      queued = false;
+    }
     return NextResponse.json({
       queued,
-      message: "Subreddit not in cache yet. Ingest queued.",
-      meta: { limit: rl.limit, remaining: rl.remaining },
+      message: queued
+        ? "Subreddit not in cache yet. Ingest queued."
+        : "Subreddit not in cache yet and queue is unavailable. Retry shortly.",
+      meta: {
+        limit: rl.limit,
+        remaining: rl.remaining,
+        resetAfterSeconds: rl.resetAfterSeconds,
+      },
     });
   }
 
   const staleHours = Math.floor(
     (Date.now() - subreddit.lastFetchedAt.getTime()) / (1000 * 60 * 60),
   );
+  let queueUnavailable = false;
   if (staleHours >= 24) {
-    await enqueueSubredditIngestJob({ subredditName: name }).catch(
-      () => undefined,
-    );
-    await enqueueSubredditComputeTimeWindowsJob({
-      subredditId: subreddit.id,
-    }).catch(() => undefined);
-    queued = true;
+    let ingestQueued = false;
+    let windowsQueued = false;
+
+    try {
+      await enqueueSubredditIngestJob({ subredditName: name });
+      ingestQueued = true;
+    } catch {
+      queueUnavailable = true;
+    }
+
+    try {
+      await enqueueSubredditComputeTimeWindowsJob({
+        subredditId: subreddit.id,
+      });
+      windowsQueued = true;
+    } catch {
+      queueUnavailable = true;
+    }
+
+    queued = ingestQueued || windowsQueued;
   }
 
   return NextResponse.json({
@@ -96,6 +123,14 @@ export async function GET(req: Request) {
     latestRulesFetchedAt: subreddit.rules[0]?.fetchedAt ?? null,
     staleHours,
     queuedRefresh: queued,
-    meta: { limit: rl.limit, remaining: rl.remaining },
+    refreshWarning:
+      queueUnavailable && !queued
+        ? "Refresh queue unavailable; returning cached data."
+        : null,
+    meta: {
+      limit: rl.limit,
+      remaining: rl.remaining,
+      resetAfterSeconds: rl.resetAfterSeconds,
+    },
   });
 }

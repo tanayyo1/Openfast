@@ -5,14 +5,17 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { MaxWidth } from "@/components/public/MaxWidth";
 import { useSupabase } from "@/components/providers/SupabaseProvider";
+import { trackAnalyticsEvent } from "@/lib/analytics/client";
+import { toFriendlyAuthError } from "@/lib/supabase/auth-errors";
 
 function setDemoAuthCookie() {
+  // Local-mode auth gate for non-production development environments.
   document.cookie = `rf_demo_auth=1; Path=/; Max-Age=${60 * 60 * 24 * 30}`;
 }
 
 export default function SignupPage() {
   const router = useRouter();
-  const { supabase } = useSupabase();
+  const { supabase, initError } = useSupabase();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,10 +43,16 @@ export default function SignupPage() {
               setError(null);
               setMessage(null);
               setLoading(true);
+              void trackAnalyticsEvent({
+                eventName: "signup_started",
+                source: "web_public",
+                onceKey: "signup_started_submit",
+              });
 
               if (!supabase) {
                 // Allow local UI testing without Supabase configured.
                 if (process.env.NODE_ENV !== "production") {
+                  setLoading(false);
                   setDemoAuthCookie();
                   router.push("/onboarding");
                   return;
@@ -54,53 +63,65 @@ export default function SignupPage() {
                 return;
               }
 
-              const { data, error } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                  data: {
-                    name,
+              try {
+                const { data, error } = await supabase.auth.signUp({
+                  email,
+                  password,
+                  options: {
+                    data: {
+                      name,
+                    },
                   },
-                },
-              });
-
-              setLoading(false);
-
-              if (error) {
-                setError(error.message);
-                return;
-              }
-
-              if (
-                data.user &&
-                data.user.identities &&
-                data.user.identities.length === 0
-              ) {
-                setError(
-                  "This email is already registered. Please sign in instead.",
-                );
-                return;
-              }
-
-              // Check if email confirmation is required
-              if (data.session) {
-                // Auto-confirmed (email confirmation disabled)
-                // Sync user to our database
-                const syncRes = await fetch("/api/auth/sync", {
-                  method: "POST",
                 });
 
-                if (!syncRes.ok) {
-                  console.error("Failed to sync user to database");
-                  // Still redirect - auth worked, sync can happen later
+                if (error) {
+                  setError(toFriendlyAuthError(error));
+                  return;
                 }
 
-                router.push("/onboarding");
-              } else {
-                // Email confirmation required
-                setMessage(
-                  "Check your email for a confirmation link to complete your registration.",
-                );
+                if (
+                  data.user &&
+                  data.user.identities &&
+                  data.user.identities.length === 0
+                ) {
+                  setError(
+                    "This email is already registered. Please sign in instead.",
+                  );
+                  return;
+                }
+
+                // Check if email confirmation is required
+                if (data.session) {
+                  // Auto-confirmed (email confirmation disabled)
+                  // Sync user to our database. If sync fails, keep onboarding flow.
+                  try {
+                    const syncRes = await fetch("/api/auth/sync", {
+                      method: "POST",
+                    });
+                    if (!syncRes.ok) {
+                      console.error("Failed to sync user to database");
+                    }
+                  } catch (syncError) {
+                    console.error("Sync error:", syncError);
+                  }
+                  void trackAnalyticsEvent({
+                    eventName: "signup_completed",
+                    source: "web_app",
+                    onceKey: "signup_completed_auto_confirmed",
+                    properties: { method: "password" },
+                  });
+
+                  router.push("/onboarding");
+                } else {
+                  // Email confirmation required
+                  setMessage(
+                    "Check your email for a confirmation link to complete your registration.",
+                  );
+                }
+              } catch (err) {
+                setError(toFriendlyAuthError(err));
+              } finally {
+                setLoading(false);
               }
             }}
           >
@@ -148,6 +169,11 @@ export default function SignupPage() {
                 {error}
               </p>
             ) : null}
+            {!error && initError ? (
+              <p className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
+                {initError}
+              </p>
+            ) : null}
             {message ? (
               <p className="rounded-2xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-600">
                 {message}
@@ -169,7 +195,7 @@ export default function SignupPage() {
                 }}
                 className="w-full rounded-full border border-border bg-background px-4 py-3 text-sm font-semibold transition hover:bg-muted"
               >
-                Demo create account
+                Continue in local mode
               </button>
             ) : null}
           </form>

@@ -47,6 +47,48 @@ check_file() {
     fi
 }
 
+# Function to check .env.local variable existence
+get_env_var() {
+    local name=$1
+    local line
+    line=$(grep -E "^[[:space:]]*${name}=" .env.local | tail -n 1 || true)
+    if [ -z "$line" ]; then
+        echo ""
+        return 0
+    fi
+    local value="${line#*=}"
+    value="${value%\"}"
+    value="${value#\"}"
+    value="${value%\'}"
+    value="${value#\'}"
+    echo "$value"
+}
+
+has_env_var() {
+    local name=$1
+    local value
+    value=$(get_env_var "$name")
+    [ -n "$value" ]
+}
+
+# Function to check if git hook is executable
+check_hook_executable() {
+    local file=$1
+    local name=$2
+    if [ -x "$file" ]; then
+        echo -e "${GREEN}[OK] ${name} is executable${NC}"
+        return 0
+    fi
+
+    echo -e "${RED}[FAIL] ${name} is not executable (run: chmod +x ${file})${NC}"
+    return 1
+}
+
+has_valid_reddit_redirect_uri() {
+    local value=$1
+    [[ "$value" =~ ^https?://[^[:space:]]+/api/reddit/oauth/callback/?$ ]]
+}
+
 # Function to check directory exists
 check_dir() {
     local dir=$1
@@ -140,6 +182,22 @@ else
     ERRORS=$((ERRORS+1))
 fi
 
+if [ -f ".husky/pre-commit" ]; then
+    if ! check_hook_executable ".husky/pre-commit" "pre-commit hook"; then
+        ERRORS=$((ERRORS+1))
+    fi
+fi
+if [ -f ".husky/commit-msg" ]; then
+    if ! check_hook_executable ".husky/commit-msg" "commit-msg hook"; then
+        ERRORS=$((ERRORS+1))
+    fi
+fi
+if [ -f ".husky/pre-push" ]; then
+    if ! check_hook_executable ".husky/pre-push" "pre-push hook"; then
+        ERRORS=$((ERRORS+1))
+    fi
+fi
+
 echo ""
 echo -e "${YELLOW}Checking environment...${NC}"
 
@@ -147,42 +205,68 @@ if [ -f ".env.local" ]; then
     echo -e "${GREEN}[OK] .env.local exists${NC}"
     
     # Check for required variables
-    if grep -q "DATABASE_URL" .env.local; then
+    if has_env_var "DATABASE_URL"; then
         echo -e "${GREEN}[OK] DATABASE_URL is set${NC}"
     else
         echo -e "${RED}[FAIL] DATABASE_URL is missing in .env.local${NC}"
         ERRORS=$((ERRORS+1))
     fi
-    
-    if grep -q "REDDIT_CLIENT_ID" .env.local; then
+
+    if has_env_var "REDIS_URL"; then
+        echo -e "${GREEN}[OK] REDIS_URL is set${NC}"
+    else
+        echo -e "${RED}[FAIL] REDIS_URL is missing in .env.local${NC}"
+        ERRORS=$((ERRORS+1))
+    fi
+
+    if has_env_var "APP_URL"; then
+        echo -e "${GREEN}[OK] APP_URL is set${NC}"
+    else
+        echo -e "${RED}[FAIL] APP_URL is missing in .env.local${NC}"
+        ERRORS=$((ERRORS+1))
+    fi
+
+    if has_env_var "NEXT_PUBLIC_SUPABASE_URL"; then
+        echo -e "${GREEN}[OK] NEXT_PUBLIC_SUPABASE_URL is set${NC}"
+    else
+        echo -e "${RED}[FAIL] NEXT_PUBLIC_SUPABASE_URL is missing${NC}"
+        ERRORS=$((ERRORS+1))
+    fi
+
+    if has_env_var "NEXT_PUBLIC_SUPABASE_ANON_KEY"; then
+        echo -e "${GREEN}[OK] NEXT_PUBLIC_SUPABASE_ANON_KEY is set${NC}"
+    else
+        echo -e "${RED}[FAIL] NEXT_PUBLIC_SUPABASE_ANON_KEY is missing${NC}"
+        ERRORS=$((ERRORS+1))
+    fi
+
+    if has_env_var "TOKEN_ENCRYPTION_KEYS"; then
+        echo -e "${GREEN}[OK] TOKEN_ENCRYPTION_KEYS is set${NC}"
+    else
+        echo -e "${YELLOW}[WARN] TOKEN_ENCRYPTION_KEYS missing (Reddit token encryption will fail)${NC}"
+    fi
+
+    if has_env_var "REDDIT_CLIENT_ID" && has_env_var "REDDIT_CLIENT_SECRET" && has_env_var "REDDIT_REDIRECT_URI"; then
         echo -e "${GREEN}[OK] Reddit OAuth credentials are set${NC}"
+        REDDIT_REDIRECT_URI_VALUE=$(get_env_var "REDDIT_REDIRECT_URI")
+        if has_valid_reddit_redirect_uri "$REDDIT_REDIRECT_URI_VALUE"; then
+            echo -e "${GREEN}[OK] REDDIT_REDIRECT_URI format looks correct${NC}"
+        else
+            echo -e "${YELLOW}[WARN] REDDIT_REDIRECT_URI should be a valid URL ending with /api/reddit/oauth/callback${NC}"
+        fi
     else
         echo -e "${YELLOW}[WARN] Reddit OAuth credentials not set (needed for Reddit integration)${NC}"
+    fi
+
+    if has_env_var "OPENAI_API_KEY"; then
+        echo -e "${GREEN}[OK] OPENAI_API_KEY is set${NC}"
+    else
+        echo -e "${YELLOW}[WARN] OPENAI_API_KEY missing (AI quality/features may degrade)${NC}"
     fi
 else
     echo -e "${RED}[FAIL] .env.local is missing - copy from .env.example${NC}"
     ERRORS=$((ERRORS+1))
 fi
-
-echo ""
-echo -e "${YELLOW}Testing git hooks...${NC}"
-
-# Create a test branch
-TEST_BRANCH="test/setup-verification-$(date +%s)"
-git checkout -b "$TEST_BRANCH" 2>/dev/null || true
-
-# Try to make an invalid commit (should fail)
-echo "Testing commit message validation..."
-if git commit -m "invalid commit" --allow-empty --no-verify 2>/dev/null; then
-    echo -e "${RED}[FAIL] Commit-msg hook not working (commit should have been rejected)${NC}"
-    ERRORS=$((ERRORS+1))
-else
-    echo -e "${GREEN}[OK] Commit-msg hook is working${NC}"
-fi
-
-# Clean up test branch
-git checkout main 2>/dev/null || git checkout - 2>/dev/null || true
-git branch -D "$TEST_BRANCH" 2>/dev/null || true
 
 echo ""
 echo -e "${BLUE}========================================${NC}"
@@ -192,7 +276,7 @@ if [ $ERRORS -eq 0 ]; then
     echo ""
     echo -e "${YELLOW}Next steps:${NC}"
     echo "1. Set up your environment variables in .env.local"
-    echo "2. Set up the database: npx prisma migrate dev"
+    echo "2. Run launch readiness checks: npm run check:launch"
     echo "3. Start development: npm run dev"
     exit 0
 else

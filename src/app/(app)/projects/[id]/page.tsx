@@ -1,22 +1,28 @@
-"use client";
-
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useDemoStore } from "@/stores/demoStore";
+import {
+  goalsToList,
+  loadProjectDetailPageData,
+} from "@/lib/dashboardProjectsPageData";
 
-export default function ProjectDetailPage() {
-  const params = useParams<{ id: string }>();
-  const projectId = params?.id ? decodeURIComponent(params.id) : "";
+export default async function ProjectDetailPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  let projectId = "";
+  try {
+    projectId = decodeURIComponent(params.id ?? "");
+  } catch {
+    projectId = "";
+  }
 
-  const project = useDemoStore((state) =>
-    state.projects.find((p) => p.id === projectId),
-  );
-  const roadmaps = useDemoStore((state) =>
-    state.roadmaps.filter((r) => r.projectId === projectId),
-  );
-  const tasks = useDemoStore((state) =>
-    state.tasks.filter((t) => t.projectId === projectId),
-  );
+  const {
+    project,
+    roadmapCount,
+    pendingApprovals,
+    scheduledCount,
+    latestRoadmap,
+  } = await loadProjectDetailPageData(projectId);
 
   if (!project) {
     return (
@@ -29,9 +35,6 @@ export default function ProjectDetailPage() {
     );
   }
 
-  const pending = tasks.filter((t) => t.status === "Needs approval").length;
-  const scheduled = tasks.filter((t) => t.status === "Scheduled").length;
-
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -42,7 +45,9 @@ export default function ProjectDetailPage() {
           <h1 className="mt-3 text-3xl font-semibold">{project.name}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Goals:{" "}
-            {project.goals.length > 0 ? project.goals.join(", ") : "Not set"}
+            {goalsToList(project.goals).length > 0
+              ? goalsToList(project.goals).join(", ")
+              : "Not set"}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -63,9 +68,9 @@ export default function ProjectDetailPage() {
 
       <div className="grid gap-4 md:grid-cols-3">
         {[
-          { label: "Roadmaps", value: String(roadmaps.length) },
-          { label: "Pending approvals", value: String(pending) },
-          { label: "Scheduled", value: String(scheduled) },
+          { label: "Roadmaps", value: String(roadmapCount) },
+          { label: "Pending approvals", value: String(pendingApprovals) },
+          { label: "Scheduled", value: String(scheduledCount) },
         ].map((item) => (
           <div
             key={item.label}
@@ -106,18 +111,25 @@ export default function ProjectDetailPage() {
           >
             Analytics
           </Link>
+          <Link
+            href={`/brand-monitoring?projectId=${encodeURIComponent(project.id)}`}
+            className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
+          >
+            Brand Monitoring
+          </Link>
         </div>
       </div>
 
-      {roadmaps.length > 0 ? (
+      {latestRoadmap ? (
         <div className="rounded-[24px] border border-border bg-card/80 p-6">
           <p className="text-sm font-semibold">Latest roadmap</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            {roadmaps[0]?.title}
+            Starts {latestRoadmap.startDate.toLocaleDateString()} for{" "}
+            {latestRoadmap.horizonDays} days
           </p>
           <div className="mt-4">
             <Link
-              href={`/roadmaps/${encodeURIComponent(roadmaps[0].id)}`}
+              href={`/roadmaps/${encodeURIComponent(latestRoadmap.id)}`}
               className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
             >
               Open roadmap

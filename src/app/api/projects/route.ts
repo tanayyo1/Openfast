@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { QuotaExceededError, assertWorkspaceQuota } from "@/lib/billing/quota";
+import { QuotaExceededError } from "@/lib/billing/quota";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+import { normalizeProjectUrlInput } from "@/lib/projects/url";
 
 const listQuerySchema = z.object({
   cursor: z.string().optional(),
@@ -35,7 +36,7 @@ function decodeCursor(raw: string): ProjectCursor | null {
 const createProjectSchema = z.object({
   name: z.string().min(1).max(120),
   description: z.string().min(1).max(10_000),
-  url: z.string().url().optional().nullable(),
+  url: z.union([z.string(), z.null()]).optional(),
   niche: z.string().min(1).max(120).default("general"),
   goals: z.unknown().optional(),
   brandVoice: z.unknown().optional(),
@@ -153,10 +154,82 @@ export async function POST(req: Request) {
   }
 
   const data = parsed.data;
+  let created;
+  const normalizedUrl =
+    data.url === undefined || data.url === null
+      ? null
+      : normalizeProjectUrlInput(data.url);
+  if (data.url !== undefined && data.url !== null && !normalizedUrl) {
+    return NextResponse.json(
+      {
+        error: "Invalid input",
+        code: "VALIDATION_ERROR",
+        details: {
+          fieldErrors: {
+            url: ["Provide a valid http(s) URL, e.g. https://example.com"],
+          },
+          formErrors: [],
+        },
+      },
+      { status: 400 },
+    );
+  }
   try {
-    await assertWorkspaceQuota({
-      workspaceId: session.workspaceId,
-      resource: "projects",
+    created = await prisma.$transaction(async (tx) => {
+      // Serialize project create attempts per workspace so quota checks cannot
+      // race under concurrent requests.
+      await tx.$queryRaw`
+        SELECT id
+        FROM workspaces
+        WHERE id = ${session.workspaceId}
+        FOR UPDATE
+      `;
+
+      const [entitlement, used] = await Promise.all([
+        tx.workspaceEntitlement.findUnique({
+          where: { workspaceId: session.workspaceId },
+          select: { maxProjects: true },
+        }),
+        tx.project.count({
+          where: {
+            workspaceId: session.workspaceId,
+            status: { not: "ARCHIVED" },
+          },
+        }),
+      ]);
+
+      const limit = entitlement?.maxProjects ?? 1;
+      if (used >= limit) {
+        throw new QuotaExceededError({
+          resource: "projects",
+          used,
+          limit,
+          message: "Project quota reached",
+        });
+      }
+
+      return tx.project.create({
+        data: {
+          workspaceId: session.workspaceId,
+          name: data.name,
+          description: data.description,
+          url: normalizedUrl,
+          niche: data.niche,
+          goals: data.goals ?? { primary: "traffic", targets: [], kpis: [] },
+          brandVoice: data.brandVoice ?? { tone: "neutral", do: [], dont: [] },
+          constraints: data.constraints ?? Prisma.DbNull,
+        },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          url: true,
+          niche: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
     });
   } catch (err) {
     if (err instanceof QuotaExceededError) {
@@ -171,29 +244,5 @@ export async function POST(req: Request) {
     }
     throw err;
   }
-
-  const created = await prisma.project.create({
-    data: {
-      workspaceId: session.workspaceId,
-      name: data.name,
-      description: data.description,
-      url: data.url ?? null,
-      niche: data.niche,
-      goals: data.goals ?? { primary: "traffic", targets: [], kpis: [] },
-      brandVoice: data.brandVoice ?? { tone: "neutral", do: [], dont: [] },
-      constraints: data.constraints ?? Prisma.DbNull,
-    },
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      url: true,
-      niche: true,
-      status: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
-
   return NextResponse.json({ project: created }, { status: 201 });
 }

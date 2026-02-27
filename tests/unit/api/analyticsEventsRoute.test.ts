@@ -8,6 +8,10 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 
+jest.mock("@/lib/rateLimit/analytics", () => ({
+  enforceAnalyticsIngestRateLimit: jest.fn(),
+}));
+
 import { POST as ingestEvents } from "@/app/api/analytics/events/route";
 import { Prisma } from "@prisma/client";
 
@@ -18,6 +22,9 @@ const mockedGuards = jest.requireMock("@/lib/server/auth-guards") as {
 const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
   $transaction: jest.Mock;
 };
+const mockedRateLimit = jest.requireMock("@/lib/rateLimit/analytics") as {
+  enforceAnalyticsIngestRateLimit: jest.Mock;
+};
 
 async function readJson<T>(res: Response): Promise<T> {
   const text = await res.text();
@@ -27,6 +34,12 @@ async function readJson<T>(res: Response): Promise<T> {
 describe("analytics events ingest route (RED-79A)", () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    mockedRateLimit.enforceAnalyticsIngestRateLimit.mockResolvedValue({
+      allowed: true,
+      limit: 120,
+      remaining: 119,
+      resetAfterSeconds: 60,
+    });
   });
 
   test("accepts public homepage event without session", async () => {
@@ -86,6 +99,65 @@ describe("analytics events ingest route (RED-79A)", () => {
     const body = await readJson<{ violations: Array<{ reason: string }> }>(res);
     expect(res.status).toBe(400);
     expect(body.violations[0]?.reason).toMatch(/authentication is required/i);
+    expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  test("rejects unauthenticated event without anonymousSessionId", async () => {
+    mockedGuards.requireWorkspaceSession.mockRejectedValue(
+      new Error("UNAUTHORIZED"),
+    );
+
+    const res = await ingestEvents(
+      new Request("http://test.local/api/analytics/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          events: [
+            {
+              eventName: "homepage_view",
+              source: "web_public",
+            },
+          ],
+        }),
+      }),
+    );
+
+    const body = await readJson<{ violations: Array<{ reason: string }> }>(res);
+    expect(res.status).toBe(400);
+    expect(body.violations[0]?.reason).toMatch(/anonymoussessionid is required/i);
+    expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  test("returns 429 when analytics ingest rate limit is exceeded", async () => {
+    mockedGuards.requireWorkspaceSession.mockRejectedValue(
+      new Error("UNAUTHORIZED"),
+    );
+    mockedRateLimit.enforceAnalyticsIngestRateLimit.mockResolvedValue({
+      allowed: false,
+      limit: 120,
+      remaining: 0,
+      resetAfterSeconds: 60,
+    });
+
+    const res = await ingestEvents(
+      new Request("http://test.local/api/analytics/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          events: [
+            {
+              eventName: "homepage_view",
+              source: "web_public",
+              anonymousSessionId: "anon_1",
+            },
+          ],
+        }),
+      }),
+    );
+
+    const body = await readJson<{ code: string }>(res);
+    expect(res.status).toBe(429);
+    expect(body.code).toBe("RATE_LIMITED");
     expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
   });
 

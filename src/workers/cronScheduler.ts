@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { runWorkspaceDailyRollups } from "@/lib/analytics/rollups";
 import {
   enqueueMetricsFetchJob,
   enqueueRiskAccountHealthJob,
@@ -7,6 +8,18 @@ import {
   enqueueSubredditIngestJob,
 } from "@/lib/queue/enqueue";
 import { emitOpsAlert } from "@/lib/ops/alerts";
+import {
+  getPublishQueue,
+  getContentGenerateQueue,
+  getMetricsFetchQueue,
+  getSubredditIngestQueue,
+  getSubredditComputeTimeWindowsQueue,
+  getRecommendationsGenerateQueue,
+  getRoadmapGenerateQueue,
+  getRiskAccountHealthQueue,
+  getRiskVisibilityCheckQueue,
+  getDeadLetterQueue,
+} from "@/lib/queue/queues";
 
 function bucketTag(date: Date, minutes: number) {
   const ms = minutes * 60 * 1000;
@@ -107,11 +120,100 @@ async function runDailyHealthAndReminders(now: Date) {
   );
 }
 
+export function parsePositiveInt(
+  raw: string | undefined,
+  fallback: number,
+): number {
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.floor(parsed);
+}
+
+export async function runBacklogCheck() {
+  const backlogThreshold = parsePositiveInt(
+    process.env.QUEUE_BACKLOG_ALERT_THRESHOLD,
+    1000,
+  );
+
+  const queueResolvers = [
+    { name: "reddit.publish", getQueue: getPublishQueue },
+    { name: "content.generate", getQueue: getContentGenerateQueue },
+    { name: "reddit.metrics_fetch", getQueue: getMetricsFetchQueue },
+    { name: "subreddit.ingest", getQueue: getSubredditIngestQueue },
+    {
+      name: "subreddit.compute_time_windows",
+      getQueue: getSubredditComputeTimeWindowsQueue,
+    },
+    {
+      name: "recommendations.generate",
+      getQueue: getRecommendationsGenerateQueue,
+    },
+    { name: "roadmap.generate", getQueue: getRoadmapGenerateQueue },
+    { name: "risk.account_health", getQueue: getRiskAccountHealthQueue },
+    { name: "risk.visibility_check", getQueue: getRiskVisibilityCheckQueue },
+    { name: "dead.letter", getQueue: getDeadLetterQueue },
+  ];
+
+  for (const { name, getQueue } of queueResolvers) {
+    try {
+      const queue = getQueue();
+      const counts = await queue.getJobCounts("waiting", "failed");
+      if (counts.waiting >= backlogThreshold) {
+        await emitOpsAlert({
+          type: "queue.backlog",
+          level: "warn",
+          message: `Queue backlog threshold exceeded: ${name}`,
+          details: { queue: name, waiting: counts.waiting, backlogThreshold },
+        });
+      }
+      if (counts.failed >= 100) {
+        await emitOpsAlert({
+          type: "queue.failed_accumulation",
+          level: "warn",
+          message: `High failed job count: ${name}`,
+          details: { queue: name, failed: counts.failed },
+        });
+      }
+    } catch (err: unknown) {
+      await emitOpsAlert({
+        type: "queue.backlog_check_failed",
+        level: "error",
+        message: `Backlog check failed for queue: ${name}`,
+        details: {
+          queue: name,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      }).catch(() => undefined);
+    }
+  }
+}
+
+async function runCronTask(taskName: string, fn: () => Promise<void>) {
+  try {
+    await fn();
+    return true;
+  } catch (err: unknown) {
+    await emitOpsAlert({
+      type: "cron.task_failed",
+      level: "error",
+      message: `Cron task failed: ${taskName}`,
+      details: {
+        task: taskName,
+        error: err instanceof Error ? err.message : String(err),
+      },
+    }).catch(() => undefined);
+    return false;
+  }
+}
+
 type CronState = {
   lastIngestDay: string | null;
   lastWindowsDay: string | null;
   lastReminderDay: string | null;
+  lastAnalyticsRollupDay: string | null;
   lastMetricsBucket: string | null;
+  lastBacklogBucket: string | null;
 };
 
 export function startCronScheduler() {
@@ -123,7 +225,9 @@ export function startCronScheduler() {
     lastIngestDay: null,
     lastWindowsDay: null,
     lastReminderDay: null,
+    lastAnalyticsRollupDay: null,
     lastMetricsBucket: null,
+    lastBacklogBucket: null,
   };
 
   const tick = async () => {
@@ -134,23 +238,75 @@ export function startCronScheduler() {
     const metricsBucket = `${day}:${hour}:${Math.floor(minute / 30)}`;
 
     if (state.lastMetricsBucket !== metricsBucket) {
-      state.lastMetricsBucket = metricsBucket;
-      await runMetricsRefresh(now);
+      const ok = await runCronTask("metrics_refresh", () =>
+        runMetricsRefresh(now),
+      );
+      if (ok) {
+        state.lastMetricsBucket = metricsBucket;
+      }
     }
 
     if (hour === 1 && minute < 10 && state.lastIngestDay !== day) {
-      state.lastIngestDay = day;
-      await runDailyIngest(now);
+      const ok = await runCronTask("daily_ingest", () => runDailyIngest(now));
+      if (ok) {
+        state.lastIngestDay = day;
+      }
     }
 
     if (hour === 2 && minute < 10 && state.lastWindowsDay !== day) {
-      state.lastWindowsDay = day;
-      await runDailyTimeWindows(now);
+      const ok = await runCronTask("daily_time_windows", () =>
+        runDailyTimeWindows(now),
+      );
+      if (ok) {
+        state.lastWindowsDay = day;
+      }
     }
 
     if (hour === 3 && minute < 10 && state.lastReminderDay !== day) {
-      state.lastReminderDay = day;
-      await runDailyHealthAndReminders(now);
+      const ok = await runCronTask("daily_health_and_reminders", () =>
+        runDailyHealthAndReminders(now),
+      );
+      if (ok) {
+        state.lastReminderDay = day;
+      }
+    }
+
+    if (hour === 4 && minute < 15 && state.lastAnalyticsRollupDay !== day) {
+      const ok = await runCronTask("daily_analytics_rollups", async () => {
+        const out = await runWorkspaceDailyRollups({ now });
+        if (out.failedWorkspaces.length > 0) {
+          const failedWorkspaceIds = out.failedWorkspaces.map(
+            (failure) => failure.workspaceId,
+          );
+          await emitOpsAlert({
+            type: "analytics.rollup_partial_failure",
+            level: "warn",
+            message: "Daily analytics rollups completed with workspace failures",
+            details: {
+              forDate: out.forDate,
+              scannedWorkspaces: out.scannedWorkspaces,
+              persisted: out.persisted,
+              failedWorkspaceIds,
+              failedWorkspaces: out.failedWorkspaces,
+            },
+          });
+          throw new Error(
+            `Workspace rollups failed for ${out.failedWorkspaces.length} of ${out.scannedWorkspaces} workspaces`,
+          );
+        }
+      });
+      if (ok) {
+        state.lastAnalyticsRollupDay = day;
+      }
+    }
+
+    // Check queue backlogs every 10 minutes.
+    const backlogBucket = `${day}:${hour}:${Math.floor(minute / 10)}`;
+    if (state.lastBacklogBucket !== backlogBucket) {
+      const ok = await runCronTask("backlog_check", runBacklogCheck);
+      if (ok) {
+        state.lastBacklogBucket = backlogBucket;
+      }
     }
   };
 

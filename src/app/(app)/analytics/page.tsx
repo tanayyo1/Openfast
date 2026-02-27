@@ -1,9 +1,8 @@
-"use client";
-
 import Link from "next/link";
-import { useMemo } from "react";
 import { Sparkline } from "@/components/app/charts/Sparkline";
-import { useDemoStore } from "@/stores/demoStore";
+import { getWorkspaceEntitlements } from "@/lib/billing/quota";
+import { getWorkspaceDashboardData } from "@/lib/analytics/dashboardData";
+import { requireWorkspaceSessionForPage } from "@/lib/server/page-auth";
 
 function makePoints(value: number) {
   const base = Math.max(1, value);
@@ -18,36 +17,84 @@ function makePoints(value: number) {
   ];
 }
 
-export default function AnalyticsPage() {
-  const projects = useDemoStore((state) => state.projects);
-  const tasks = useDemoStore((state) => state.tasks);
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: value % 1 === 0 ? 0 : 1,
+  }).format(value);
+}
 
-  const projectCards = useMemo(() => {
-    return projects.map((project) => {
-      const projectTasks = tasks.filter((t) => t.projectId === project.id);
-      const published = projectTasks.filter(
-        (t) => t.status === "Published",
-      ).length;
-      const scheduled = projectTasks.filter(
-        (t) => t.status === "Scheduled",
-      ).length;
-      const approvals = projectTasks.filter(
-        (t) => t.status === "Needs approval",
-      ).length;
-      const score = published * 12 + scheduled * 3;
+function trendDelta(points: number[]) {
+  if (points.length < 2) return 0;
+  return points[points.length - 1] - points[0];
+}
 
-      return {
-        id: project.id,
-        name: project.name,
-        metric: `${published} published, ${scheduled} scheduled`,
-        points: makePoints(score),
-        change:
-          approvals > 0
-            ? `${approvals} approvals pending`
-            : "No approvals pending",
-      };
-    });
-  }, [projects, tasks]);
+export default async function AnalyticsPage() {
+  const session = await requireWorkspaceSessionForPage();
+  const entitlements = await getWorkspaceEntitlements(session.workspaceId);
+
+  if (!entitlements.hasAdvancedAnalytics) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Analytics
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold">Performance overview</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Advanced analytics is available on paid plans.
+          </p>
+        </div>
+        <div className="rounded-[24px] border border-border bg-card/80 p-8">
+          <p className="text-sm font-semibold">Upgrade required</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Upgrade your plan to unlock workspace and project analytics.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/pricing"
+              className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
+            >
+              View plans
+            </Link>
+            <Link
+              href="/dashboard"
+              className="rounded-full border border-border px-5 py-2 text-sm font-semibold"
+            >
+              Dashboard
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const dashboard = await getWorkspaceDashboardData(session.workspaceId);
+  const projectCards = dashboard.byProject.map((project) => {
+    const scoreSignal =
+      project.totalScore + project.avgComments * 2 + project.scheduledCount;
+    const snapshotState = project.publishedCount
+      ? `${project.publishedCount} published, ${project.scheduledCount} scheduled`
+      : `${project.scheduledCount} scheduled, no publishes yet`;
+    const riskLine =
+      project.failedCount > 0 || project.removedCount > 0
+        ? `${project.failedCount} failed, ${project.removedCount} removed`
+        : "No failures or removals";
+
+    return {
+      id: project.projectId,
+      name: project.projectName,
+      metric: snapshotState,
+      points: makePoints(Math.round(scoreSignal)),
+      change: riskLine,
+    };
+  });
+  const scoreTrendPoints = dashboard.trend.map((point) => point.totalScore);
+  const commentTrendPoints = dashboard.trend.map((point) => point.totalComments);
+  const removalTrendPoints = dashboard.trend.map((point) => point.removedCount);
+  const trendWindowLabel =
+    dashboard.trend.length > 0
+      ? `${dashboard.trend[0]?.day} → ${dashboard.trend[dashboard.trend.length - 1]?.day}`
+      : "No trend window";
 
   return (
     <div className="space-y-8">
@@ -57,8 +104,48 @@ export default function AnalyticsPage() {
         </p>
         <h1 className="mt-3 text-3xl font-semibold">Performance overview</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Demo analytics. Backend metrics and rollups will replace these values.
+          Source:{" "}
+          {dashboard.source === "rollup"
+            ? "daily rollup"
+            : "live workspace snapshot"}{" "}
+          • Generated at {new Date(dashboard.generatedAt).toLocaleString()}.
         </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        {[
+          {
+            label: "Projects",
+            value: formatNumber(dashboard.summary.projectCount),
+            detail: "Active projects in workspace",
+          },
+          {
+            label: "Published",
+            value: formatNumber(dashboard.summary.publishedCount),
+            detail: `${formatNumber(dashboard.summary.removedCount)} removed`,
+          },
+          {
+            label: "Avg score",
+            value: formatNumber(dashboard.summary.avgScore),
+            detail: `${formatNumber(dashboard.summary.totalScore)} total`,
+          },
+          {
+            label: "Avg comments",
+            value: formatNumber(dashboard.summary.avgComments),
+            detail: `${formatNumber(dashboard.summary.totalComments)} total`,
+          },
+        ].map((item) => (
+          <div
+            key={item.label}
+            className="rounded-[24px] border border-border bg-card/80 p-5"
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              {item.label}
+            </p>
+            <p className="mt-3 text-3xl font-semibold">{item.value}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{item.detail}</p>
+          </div>
+        ))}
       </div>
 
       {projectCards.length === 0 ? (
@@ -108,6 +195,55 @@ export default function AnalyticsPage() {
           ))}
         </div>
       )}
+
+      <div className="rounded-[24px] border border-border bg-card/80 p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <p className="text-sm font-semibold">Time-series trend</p>
+          <p className="text-xs text-muted-foreground">{trendWindowLabel}</p>
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          {[
+            {
+              label: "Daily score",
+              value: formatNumber(scoreTrendPoints[scoreTrendPoints.length - 1] ?? 0),
+              detail: `${formatNumber(trendDelta(scoreTrendPoints))} net change`,
+              points: scoreTrendPoints,
+            },
+            {
+              label: "Daily comments",
+              value: formatNumber(
+                commentTrendPoints[commentTrendPoints.length - 1] ?? 0,
+              ),
+              detail: `${formatNumber(trendDelta(commentTrendPoints))} net change`,
+              points: commentTrendPoints,
+            },
+            {
+              label: "Daily removals",
+              value: formatNumber(
+                removalTrendPoints[removalTrendPoints.length - 1] ?? 0,
+              ),
+              detail: `${formatNumber(trendDelta(removalTrendPoints))} net change`,
+              points: removalTrendPoints,
+            },
+          ].map((metric) => (
+            <div
+              key={metric.label}
+              className="rounded-2xl border border-border bg-background/70 p-4"
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                {metric.label}
+              </p>
+              <div className="mt-3 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-2xl font-semibold">{metric.value}</p>
+                  <p className="text-xs text-muted-foreground">{metric.detail}</p>
+                </div>
+                <Sparkline points={metric.points} className="h-10 w-28 text-primary" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="rounded-[24px] border border-border bg-background/70 p-6">
         <p className="text-sm font-semibold">What to watch</p>

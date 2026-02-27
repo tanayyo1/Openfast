@@ -3,11 +3,12 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+import { normalizeProjectUrlInput } from "@/lib/projects/url";
 
 const updateProjectSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   description: z.string().min(1).max(10_000).optional(),
-  url: z.string().url().optional().nullable(),
+  url: z.union([z.string(), z.null()]).optional(),
   niche: z.string().min(1).max(120).optional(),
   goals: z.unknown().optional(),
   brandVoice: z.unknown().optional(),
@@ -86,21 +87,33 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   }
 
   const id = ctx.params.id;
-  const existing = await prisma.project.findFirst({
-    where: { id, workspaceId: session.workspaceId },
-    select: { id: true },
-  });
-
-  if (!existing) {
-    return NextResponse.json(
-      { error: "Not found", code: "NOT_FOUND" },
-      { status: 404 },
-    );
-  }
-
   if (parsed.data.goals === null || parsed.data.brandVoice === null) {
     return NextResponse.json(
       { error: "Invalid input", code: "VALIDATION_ERROR" },
+      { status: 400 },
+    );
+  }
+
+  const normalizedUrl =
+    parsed.data.url === undefined || parsed.data.url === null
+      ? parsed.data.url
+      : normalizeProjectUrlInput(parsed.data.url);
+  if (
+    parsed.data.url !== undefined &&
+    parsed.data.url !== null &&
+    !normalizedUrl
+  ) {
+    return NextResponse.json(
+      {
+        error: "Invalid input",
+        code: "VALIDATION_ERROR",
+        details: {
+          fieldErrors: {
+            url: ["Provide a valid http(s) URL, e.g. https://example.com"],
+          },
+          formErrors: [],
+        },
+      },
       { status: 400 },
     );
   }
@@ -110,7 +123,7 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     ...(parsed.data.description !== undefined
       ? { description: parsed.data.description }
       : {}),
-    ...(parsed.data.url !== undefined ? { url: parsed.data.url ?? null } : {}),
+    ...(parsed.data.url !== undefined ? { url: normalizedUrl ?? null } : {}),
     ...(parsed.data.niche !== undefined ? { niche: parsed.data.niche } : {}),
     ...(parsed.data.goals !== undefined
       ? { goals: parsed.data.goals as Prisma.InputJsonValue }
@@ -124,9 +137,18 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
   };
 
-  const updated = await prisma.project.update({
-    where: { id },
+  const updateResult = await prisma.project.updateMany({
+    where: { id, workspaceId: session.workspaceId },
     data: updateData,
+  });
+  if (updateResult.count === 0) {
+    return NextResponse.json(
+      { error: "Not found", code: "NOT_FOUND" },
+      { status: 404 },
+    );
+  }
+  const updated = await prisma.project.findFirst({
+    where: { id, workspaceId: session.workspaceId },
     select: {
       id: true,
       name: true,
@@ -141,6 +163,12 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
       updatedAt: true,
     },
   });
+  if (!updated) {
+    return NextResponse.json(
+      { error: "Not found", code: "NOT_FOUND" },
+      { status: 404 },
+    );
+  }
 
   return NextResponse.json({ project: updated });
 }
@@ -156,23 +184,16 @@ export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
   }
 
   const id = ctx.params.id;
-  const existing = await prisma.project.findFirst({
+  const archived = await prisma.project.updateMany({
     where: { id, workspaceId: session.workspaceId },
-    select: { id: true },
+    data: { status: "ARCHIVED" },
   });
-
-  if (!existing) {
+  if (archived.count === 0) {
     return NextResponse.json(
       { error: "Not found", code: "NOT_FOUND" },
       { status: 404 },
     );
   }
-
-  await prisma.project.update({
-    where: { id },
-    data: { status: "ARCHIVED" },
-    select: { id: true },
-  });
 
   return NextResponse.json({ ok: true });
 }

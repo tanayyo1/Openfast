@@ -1,29 +1,184 @@
 "use client";
 
 import Link from "next/link";
-import { useDemoStore } from "@/stores/demoStore";
+import { useEffect, useMemo, useState } from "react";
+
+type DraftListItem = {
+  id: string;
+  projectId: string;
+  taskId: string | null;
+  subredditId: string | null;
+  type: "POST" | "COMMENT";
+  title: string | null;
+  body: string;
+  variants: unknown;
+  status: "DRAFT" | "REVIEWING" | "APPROVED" | "REJECTED" | "ARCHIVED";
+  riskScore: number;
+  updatedAt: string;
+};
+
+type ProjectListItem = {
+  id: string;
+  name: string;
+};
+
+type TaskDetail = {
+  id: string;
+  subredditId: string | null;
+};
+
+type VariantCandidate = {
+  score?: number;
+};
+
+function readRiskFromVariants(input: unknown): number | null {
+  if (!Array.isArray(input)) return null;
+  const first = input.find(
+    (item): item is VariantCandidate =>
+      typeof item === "object" && item !== null,
+  );
+  if (!first || typeof first.score !== "number") return null;
+
+  if (first.score <= 1 && first.score >= 0) {
+    return Math.round((1 - first.score) * 100);
+  }
+
+  if (first.score <= 100 && first.score >= 0) {
+    return Math.round(first.score);
+  }
+
+  return null;
+}
+
+function statusLabel(status: DraftListItem["status"]) {
+  switch (status) {
+    case "DRAFT":
+      return "Draft";
+    case "REVIEWING":
+      return "Needs approval";
+    case "APPROVED":
+      return "Approved";
+    case "REJECTED":
+      return "Rejected";
+    case "ARCHIVED":
+      return "Archived";
+    default:
+      return status;
+  }
+}
 
 export default function ContentPage() {
-  const drafts = useDemoStore((state) => state.drafts);
-  const tasks = useDemoStore((state) => state.tasks);
-  const projects = useDemoStore((state) => state.projects);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<DraftListItem[]>([]);
+  const [projects, setProjects] = useState<Record<string, string>>({});
+  const [taskSubreddits, setTaskSubreddits] = useState<Record<string, string>>(
+    {},
+  );
 
-  const rows = drafts.map((draft) => {
-    const task = tasks.find((t) => t.id === draft.taskId);
-    const project = projects.find((p) => p.id === draft.projectId);
+  useEffect(() => {
+    let cancelled = false;
 
-    return {
-      id: draft.id,
-      title: draft.editedTitle,
-      status: draft.status,
-      project: project?.name ?? "Unknown",
-      subreddit: task?.subreddit ?? draft.subreddit,
-      risk:
-        draft.variants[draft.selectedIndex]?.riskScore ??
-        draft.variants[0]?.riskScore ??
-        0,
+    async function load() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const [draftsRes, projectsRes] = await Promise.all([
+          fetch("/api/drafts?limit=50", { cache: "no-store" }),
+          fetch("/api/projects?limit=100", { cache: "no-store" }),
+        ]);
+
+        const draftsJson = (await draftsRes.json()) as
+          | { items?: DraftListItem[]; error?: string }
+          | undefined;
+        const projectsJson = (await projectsRes.json()) as
+          | { items?: ProjectListItem[]; error?: string }
+          | undefined;
+
+        if (!draftsRes.ok) {
+          throw new Error(draftsJson?.error ?? "Failed to load drafts");
+        }
+        if (!projectsRes.ok) {
+          throw new Error(projectsJson?.error ?? "Failed to load projects");
+        }
+
+        const nextDrafts = (draftsJson?.items ?? []).filter(
+          (item) => item.status !== "ARCHIVED",
+        );
+
+        const projectMap = Object.fromEntries(
+          (projectsJson?.items ?? []).map((project) => [
+            project.id,
+            project.name,
+          ]),
+        );
+
+        const uniqueTaskIds = Array.from(
+          new Set(
+            nextDrafts
+              .map((item) => item.taskId)
+              .filter((value): value is string => Boolean(value)),
+          ),
+        );
+
+        const taskPairs = await Promise.all(
+          uniqueTaskIds.map(async (taskId) => {
+            try {
+              const res = await fetch(
+                `/api/tasks/${encodeURIComponent(taskId)}`,
+                {
+                  cache: "no-store",
+                },
+              );
+              if (!res.ok) return [taskId, ""] as const;
+              const json = (await res.json()) as { task?: TaskDetail };
+              return [taskId, json.task?.subredditId ?? ""] as const;
+            } catch {
+              return [taskId, ""] as const;
+            }
+          }),
+        );
+
+        if (cancelled) return;
+
+        setDrafts(nextDrafts);
+        setProjects(projectMap);
+        setTaskSubreddits(Object.fromEntries(taskPairs));
+      } catch (err) {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : "Failed to load";
+        setError(message);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
     };
-  });
+  }, []);
+
+  const rows = useMemo(() => {
+    return drafts.map((draft) => {
+      const variantRisk = readRiskFromVariants(draft.variants);
+      return {
+        id: draft.id,
+        title:
+          draft.title?.trim() || draft.body.slice(0, 80) || "Untitled draft",
+        status: statusLabel(draft.status),
+        project: projects[draft.projectId] ?? "Unknown project",
+        subreddit:
+          (draft.taskId ? taskSubreddits[draft.taskId] : "") ||
+          draft.subredditId ||
+          "general",
+        risk: variantRisk ?? draft.riskScore,
+      };
+    });
+  }, [drafts, projects, taskSubreddits]);
 
   return (
     <div className="space-y-8">
@@ -53,7 +208,24 @@ export default function ContentPage() {
         </div>
       </div>
 
-      {rows.length === 0 ? (
+      {error ? (
+        <div className="rounded-[24px] border border-destructive/30 bg-destructive/10 p-6">
+          <p className="text-sm font-semibold text-destructive">{error}</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-4 rounded-full border border-border px-4 py-2 text-sm font-semibold"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
+
+      {loading ? (
+        <div className="rounded-[24px] border border-border bg-card/80 p-8">
+          <p className="text-sm text-muted-foreground">Loading drafts...</p>
+        </div>
+      ) : rows.length === 0 ? (
         <div className="rounded-[24px] border border-border bg-card/80 p-8">
           <p className="text-sm font-semibold">No drafts yet</p>
           <p className="mt-2 text-sm text-muted-foreground">

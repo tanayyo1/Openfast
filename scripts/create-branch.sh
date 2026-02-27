@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Helper script for creating feature branches
-# Usage: ./scripts/create-branch.sh LIN-123 "add scheduler"
+# Usage: ./scripts/create-branch.sh OAK-123 "add scheduler"
 
 set -e
 
@@ -14,19 +14,19 @@ NC='\033[0m' # No Color
 # Validate arguments
 if [ $# -lt 2 ]; then
     echo -e "${RED}Error: Missing arguments${NC}"
-    echo "Usage: ./scripts/create-branch.sh <LINEAR_ID> <description>"
-    echo "Example: ./scripts/create-branch.sh LIN-123 'add scheduler service'"
+    echo "Usage: ./scripts/create-branch.sh <ISSUE_ID> <description>"
+    echo "Example: ./scripts/create-branch.sh OAK-123 'add scheduler service'"
     exit 1
 fi
 
-LINEAR_ID=$1
+ISSUE_ID=$1
 DESCRIPTION=$2
 BRANCH_TYPE=${3:-feature}  # Default to 'feature' if not specified
 
-# Validate Linear ID format
-if [[ ! $LINEAR_ID =~ ^LIN-[0-9]+$ ]]; then
-    echo -e "${RED}Error: Invalid Linear ID format${NC}"
-    echo "Expected format: LIN-XXX (e.g., LIN-123)"
+# Validate issue ID format
+if [[ ! $ISSUE_ID =~ ^(LIN|RED|OAK)-[0-9]+$ ]]; then
+    echo -e "${RED}Error: Invalid issue ID format${NC}"
+    echo "Expected format: LIN-XXX, RED-XXX, or OAK-XXX (e.g., OAK-123)"
     exit 1
 fi
 
@@ -42,7 +42,7 @@ fi
 BRANCH_DESC=$(echo "$DESCRIPTION" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd '[:alnum:]-')
 
 # Create full branch name
-BRANCH_NAME="${BRANCH_TYPE}/${LINEAR_ID}-${BRANCH_DESC}"
+BRANCH_NAME="${BRANCH_TYPE}/${ISSUE_ID}-${BRANCH_DESC}"
 
 echo -e "${YELLOW}Creating branch: ${BRANCH_NAME}${NC}"
 
@@ -80,6 +80,6 @@ echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo "1. Make your changes"
 echo "2. Run quality checks: npm run lint && npm run typecheck && npm run test:unit"
-echo "3. Commit: git commit -m \"${LINEAR_ID}: Your description\""
+echo "3. Commit: git commit -m \"${ISSUE_ID}: Your description\""
 echo "4. Push: git push origin ${BRANCH_NAME}"
 echo "5. Create PR on GitHub"

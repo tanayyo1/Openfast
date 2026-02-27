@@ -1,10 +1,11 @@
-"use client";
-
 import Link from "next/link";
-import { useDemoStore } from "@/stores/demoStore";
+import {
+  loadRoadmapsPageData,
+  roadmapWindowLabel,
+} from "@/lib/roadmapsPageData";
 
-export default function RoadmapsPage() {
-  const roadmaps = useDemoStore((state) => state.roadmaps);
+export default async function RoadmapsPage() {
+  const roadmaps = await loadRoadmapsPageData();
 
   return (
     <div className="space-y-8">
@@ -57,13 +58,15 @@ export default function RoadmapsPage() {
             >
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <p className="text-lg font-semibold">{roadmap.title}</p>
+                  <p className="text-lg font-semibold">
+                    {roadmap.projectName} roadmap v{roadmap.version}
+                  </p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    {roadmap.window}
+                    {roadmapWindowLabel(roadmap.startDate, roadmap.horizonDays)}
                   </p>
                 </div>
                 <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
-                  Active
+                  {roadmap.status.toLowerCase()}
                 </span>
               </div>
             </Link>

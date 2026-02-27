@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { BarMeter } from "@/components/app/charts/BarMeter";
+import { HealthAccountActions } from "@/components/app/health/HealthAccountActions";
 import { getHealthGuardrailThresholds } from "@/lib/health/guardrails";
 import { prisma } from "@/lib/prisma";
-import { requireWorkspaceSession } from "@/lib/server/auth-guards";
+import { requireWorkspaceSessionForPage } from "@/lib/server/page-auth";
 
 const DEFAULT_COMMENT_FIRST_MIN_COMMENTS = 3;
 
@@ -34,7 +35,7 @@ function scorePillTone(
 }
 
 export default async function HealthPage() {
-  const session = await requireWorkspaceSession();
+  const session = await requireWorkspaceSessionForPage();
   const healthThresholds = getHealthGuardrailThresholds();
   const commentFirstMinComments = parsePositiveEnvInt(
     "COMMENT_FIRST_MIN_COMMENTS",
@@ -50,18 +51,29 @@ export default async function HealthPage() {
       safetyTier: true,
       healthSnapshots: {
         orderBy: { capturedAt: "desc" },
-        take: 1,
+        take: 5,
         select: {
+          id: true,
           healthScore: true,
           capturedAt: true,
         },
       },
       visibilityChecks: {
         orderBy: { checkedAt: "desc" },
-        take: 1,
+        take: 5,
         select: {
+          id: true,
           result: true,
           checkedAt: true,
+          permalink: true,
+          visibleLoggedOut: true,
+        },
+      },
+      publishedItems: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          permalink: true,
         },
       },
     },
@@ -87,7 +99,7 @@ export default async function HealthPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Account health
+            Account Health
           </p>
           <h1 className="mt-3 text-3xl font-semibold">
             Protect delivery and trust
@@ -106,8 +118,18 @@ export default async function HealthPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         {accounts.length === 0 ? (
-          <div className="rounded-[24px] border border-border bg-card/80 p-6 text-sm text-muted-foreground">
-            No connected Reddit accounts yet.
+          <div className="rounded-[24px] border border-border bg-card/80 p-6">
+            <p className="text-sm font-semibold">No connected Reddit accounts</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Connect a Reddit account before running health snapshots or
+              visibility checks.
+            </p>
+            <Link
+              href="/onboarding/connect-reddit"
+              className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+            >
+              Connect account
+            </Link>
           </div>
         ) : (
           accounts.map((account) => {
@@ -269,20 +291,22 @@ export default async function HealthPage() {
                   </ul>
                 </div>
 
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
-                  >
-                    Run visibility check
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-full border border-border px-5 py-2 text-sm font-semibold"
-                  >
-                    View history
-                  </button>
-                </div>
+                <HealthAccountActions
+                  accountId={account.id}
+                  latestPermalink={account.publishedItems[0]?.permalink ?? null}
+                  visibilityHistory={account.visibilityChecks.map((item) => ({
+                    id: item.id,
+                    result: item.result,
+                    checkedAt: item.checkedAt.toISOString(),
+                    permalink: item.permalink,
+                    visibleLoggedOut: item.visibleLoggedOut,
+                  }))}
+                  healthHistory={account.healthSnapshots.map((item) => ({
+                    id: item.id,
+                    healthScore: item.healthScore,
+                    capturedAt: item.capturedAt.toISOString(),
+                  }))}
+                />
               </div>
             );
           })

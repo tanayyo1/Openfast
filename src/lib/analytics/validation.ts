@@ -16,13 +16,16 @@ export type ValidationResult = {
   summary: string;
 };
 
-export async function validateAnalyticsPipeline(): Promise<ValidationResult> {
+export async function validateAnalyticsPipeline(
+  workspaceId: string,
+): Promise<ValidationResult> {
   const checks: ValidationCheck[] = [];
 
   const homepageCount = await prisma.$queryRaw<{ count: bigint }[]>`
-    SELECT COUNT(*) as count
+    SELECT COUNT(DISTINCT COALESCE(user_id, anonymous_session_id)) as count
     FROM analytics_events
-    WHERE event_name = 'homepage_view'
+    WHERE workspace_id = ${workspaceId}
+      AND event_name = 'homepage_view'
   `;
   const homepageViews = Number(homepageCount[0]?.count ?? 0);
   checks.push({
@@ -37,20 +40,33 @@ export async function validateAnalyticsPipeline(): Promise<ValidationResult> {
     WITH session_stages AS (
       SELECT
         COALESCE(user_id, anonymous_session_id) as session_key,
-        ARRAY_AGG(DISTINCT event_name) as stages
+        MIN(CASE WHEN event_name = 'homepage_view' THEN event_ts END) as homepage_ts,
+        MIN(CASE WHEN event_name = 'signup_started' THEN event_ts END) as signup_started_ts,
+        MIN(CASE WHEN event_name = 'signup_completed' THEN event_ts END) as signup_completed_ts,
+        MIN(CASE WHEN event_name = 'onboarding_completed' THEN event_ts END) as onboarding_completed_ts,
+        MIN(CASE WHEN event_name = 'plan_activated' THEN event_ts END) as plan_activated_ts
       FROM analytics_events
-      WHERE event_name IN ('homepage_view', 'signup_completed', 'onboarding_completed', 'plan_activated')
+      WHERE workspace_id = ${workspaceId}
+        AND event_name IN ('homepage_view', 'signup_started', 'signup_completed', 'onboarding_completed', 'plan_activated')
       GROUP BY COALESCE(user_id, anonymous_session_id)
     )
     SELECT COUNT(*) as count
     FROM session_stages
-    WHERE stages @> ARRAY['homepage_view', 'signup_completed', 'onboarding_completed', 'plan_activated']::text[]
+    WHERE homepage_ts IS NOT NULL
+      AND signup_started_ts IS NOT NULL
+      AND signup_completed_ts IS NOT NULL
+      AND onboarding_completed_ts IS NOT NULL
+      AND plan_activated_ts IS NOT NULL
+      AND homepage_ts <= signup_started_ts
+      AND signup_started_ts <= signup_completed_ts
+      AND signup_completed_ts <= onboarding_completed_ts
+      AND onboarding_completed_ts <= plan_activated_ts
   `;
   const completeFunnels = Number(fullPaths[0]?.count ?? 0);
   checks.push({
     id: "full_funnel_path",
     description:
-      "At least 1 full funnel path (homepage → signup → onboarding → plan)",
+      "At least 1 ordered full funnel path (homepage → signup started → signup completed → onboarding → plan)",
     passed: completeFunnels >= 1,
     value: completeFunnels,
     threshold: 1,
@@ -59,8 +75,8 @@ export async function validateAnalyticsPipeline(): Promise<ValidationResult> {
   const malformedEvents = await prisma.$queryRaw<{ count: bigint }[]>`
     SELECT COUNT(*) as count
     FROM analytics_events
-    WHERE event_ts IS NULL
-       OR (user_id IS NULL AND anonymous_session_id IS NULL)
+    WHERE workspace_id = ${workspaceId}
+      AND (event_ts IS NULL OR (user_id IS NULL AND anonymous_session_id IS NULL))
   `;
   const malformed = Number(malformedEvents[0]?.count ?? 0);
   checks.push({
@@ -77,6 +93,7 @@ export async function validateAnalyticsPipeline(): Promise<ValidationResult> {
   await prisma.$queryRaw`
     SELECT event_name, COUNT(*) as count
     FROM analytics_events
+    WHERE workspace_id = ${workspaceId}
     GROUP BY event_name
     ORDER BY count DESC
     LIMIT 10
@@ -96,6 +113,7 @@ export async function validateAnalyticsPipeline(): Promise<ValidationResult> {
   >`
     SELECT event_name, COUNT(*) as count
     FROM analytics_events
+    WHERE workspace_id = ${workspaceId}
     GROUP BY event_name
     ORDER BY event_name
   `;
@@ -112,7 +130,8 @@ export async function validateAnalyticsPipeline(): Promise<ValidationResult> {
   const recentEvents = await prisma.$queryRaw<{ count: bigint }[]>`
     SELECT COUNT(*) as count
     FROM analytics_events
-    WHERE event_ts > NOW() - INTERVAL '24 hours'
+    WHERE workspace_id = ${workspaceId}
+      AND event_ts > NOW() - INTERVAL '24 hours'
   `;
   const last24h = Number(recentEvents[0]?.count ?? 0);
   checks.push({

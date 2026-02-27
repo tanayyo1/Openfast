@@ -3,17 +3,41 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { enforcePublicToolRateLimit } from "@/lib/rateLimit/publicTools";
 import { requireSession } from "@/lib/server/auth-guards";
-import { assessRisk, buildDraftVariants } from "@/lib/content/generator";
+import { assessRisk } from "@/lib/content/generator";
 import { fetchSubredditDataWithCache } from "@/lib/subreddit/rulesFetchCache";
 import { parseSubredditRules } from "@/lib/subreddit/rulesParser";
+import { generateDraftVariantsWithOpenAI } from "@/lib/content/openaiVariants";
+import {
+  buildPostGeneratorFallbackVariants,
+  normalizePostGeneratorText,
+  normalizePostGeneratorTopic,
+  type PostGeneratorGoal,
+} from "@/lib/content/postGeneratorTool";
 
 const schema = z.object({
   topic: z.string().min(3).max(200),
   product: z.string().min(2).max(120),
   audience: z.string().min(2).max(120).optional().default("founders"),
   tone: z.string().min(2).max(60).optional().default("helpful"),
+  goal: z
+    .enum(["awareness", "feedback", "launch", "case-study"])
+    .optional()
+    .default("feedback"),
   subreddit: z.string().min(2).max(120).optional(),
 });
+
+function goalInstruction(goal: PostGeneratorGoal) {
+  if (goal === "awareness") {
+    return "Spark awareness by sharing one practical learning and ending with a discussion question.";
+  }
+  if (goal === "launch") {
+    return "Frame this as a low-hype launch update focused on transparency and lessons learned.";
+  }
+  if (goal === "case-study") {
+    return "Present this as a mini case study with clear context, action, and outcome.";
+  }
+  return "Request specific feedback on approach, messaging, or tradeoffs.";
+}
 
 export async function POST(req: Request) {
   const userId = await requireSession()
@@ -54,7 +78,16 @@ export async function POST(req: Request) {
   }
 
   const input = parsed.data;
-  const normalizedSubreddit = input.subreddit?.toLowerCase().replace(/^r\//, "");
+  const normalizedSubreddit = input.subreddit
+    ?.toLowerCase()
+    .replace(/^r\//, "");
+  const normalizedTopic = normalizePostGeneratorTopic(input.topic);
+  const normalizedProduct =
+    normalizePostGeneratorText(input.product) || input.product.trim();
+  const normalizedAudience =
+    normalizePostGeneratorText(input.audience) || input.audience.trim();
+  const normalizedTone =
+    normalizePostGeneratorText(input.tone) || input.tone.trim();
   let policyHints: Record<string, unknown> | null = null;
   let rulesText: string | null = null;
 
@@ -91,24 +124,39 @@ export async function POST(req: Request) {
   }
 
   const taskInstructions = [
-    `Share practical lessons about ${input.topic} for ${input.audience}.`,
+    `Create a reddit-ready draft about "${normalizedTopic}" for ${normalizedAudience}.`,
+    goalInstruction(input.goal),
     "Use a discussion-first tone and avoid hard CTA language.",
+    "Avoid promotional phrasing, link spam, and manipulative engagement bait.",
   ].join(" ");
-  const generated = buildDraftVariants(
-    {
-      mode: "GENERATE",
-      baseTitle: null,
-      baseBody: "",
-      taskTitle: input.topic,
-      taskInstructions,
-      projectName: input.product,
-      brandVoice: { tone: input.tone },
-      subredditName: normalizedSubreddit ?? null,
-      subredditRulesText: rulesText,
-      variantCount: 3,
-    },
-    "medium",
-  );
+  const llmGenerated = await generateDraftVariantsWithOpenAI({
+    mode: "GENERATE",
+    projectName: normalizedProduct,
+    subredditName: normalizedSubreddit ?? null,
+    subredditRulesText: rulesText,
+    taskTitle: normalizedTopic,
+    taskInstructions,
+    baseTitle: null,
+    baseBody: "",
+    variantCount: 3,
+    preferredLength: "medium",
+  }).catch(() => null);
+
+  const generated =
+    llmGenerated && llmGenerated.variants.length >= 3
+      ? llmGenerated
+      : buildPostGeneratorFallbackVariants({
+          topic: normalizedTopic,
+          product: normalizedProduct,
+          audience: normalizedAudience,
+          tone: normalizedTone,
+          goal: input.goal,
+          subredditName: normalizedSubreddit ?? null,
+          subredditRulesText: rulesText,
+        });
+  const source =
+    llmGenerated && llmGenerated.variants.length >= 3 ? "openai" : "fallback";
+
   const risk = assessRisk(
     generated.primary.title,
     generated.primary.body,
@@ -123,6 +171,7 @@ export async function POST(req: Request) {
     variants: generated.variants,
     risk,
     policyHints,
+    source,
     subredditRulesPreview: rulesText
       ?.split(/\r?\n/)
       .filter(Boolean)

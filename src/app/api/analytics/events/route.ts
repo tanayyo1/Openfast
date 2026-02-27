@@ -8,6 +8,7 @@ import {
   isAllowedAnalyticsEventName,
   requiresWorkspaceContext,
 } from "@/lib/analytics/events";
+import { enforceAnalyticsIngestRateLimit } from "@/lib/rateLimit/analytics";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 
 const analyticsEventSchema = z.object({
@@ -55,6 +56,25 @@ export async function POST(req: Request) {
     session = null;
   }
 
+  const rateLimit = await enforceAnalyticsIngestRateLimit({
+    req,
+    userId: session?.user.id ?? null,
+  });
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      {
+        error: "Rate limit exceeded",
+        code: "RATE_LIMITED",
+        details: {
+          limit: rateLimit.limit,
+          remaining: rateLimit.remaining,
+          resetAfterSeconds: rateLimit.resetAfterSeconds,
+        },
+      },
+      { status: 429 },
+    );
+  }
+
   const rawJson = await req.json().catch(() => null);
   const parsed = ingestPayloadSchema.safeParse(rawJson);
 
@@ -77,6 +97,22 @@ export async function POST(req: Request) {
         index,
         reason:
           "Authentication is required for onboarding and plan activation events",
+      });
+      return;
+    }
+
+    if (!session && event.source !== "web_public") {
+      violations.push({
+        index,
+        reason: "Public ingestion only accepts source=web_public",
+      });
+      return;
+    }
+
+    if (!session && !event.anonymousSessionId) {
+      violations.push({
+        index,
+        reason: "anonymousSessionId is required for unauthenticated events",
       });
       return;
     }
@@ -184,7 +220,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error: "Failed to ingest analytics events",
-        code: err instanceof Error ? err.message : "INGEST_FAILED",
+        code: "INGEST_FAILED",
       },
       { status: 500 },
     );

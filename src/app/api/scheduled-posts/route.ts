@@ -26,7 +26,7 @@ const listQuerySchema = z.object({
     .optional(),
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
+  limit: z.coerce.number().int().min(1).max(1000).default(50),
 });
 
 const createScheduledPostSchema = z.object({
@@ -39,6 +39,24 @@ const createScheduledPostSchema = z.object({
 });
 
 const DEFAULT_COMMENT_FIRST_MIN_COMMENTS = 3;
+const MAX_DRAFT_IDS_FILTER = 1000;
+
+const scheduledPostSelect = {
+  id: true,
+  draftId: true,
+  redditAccountId: true,
+  subredditId: true,
+  scheduledAt: true,
+  timezone: true,
+  status: true,
+  attempts: true,
+  lastError: true,
+  idempotencyKey: true,
+  publishedAt: true,
+  publishedItemId: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
 function authError(err: unknown) {
   const code = err instanceof Error ? err.message : "UNAUTHORIZED";
@@ -85,6 +103,19 @@ function defaultIdempotencyKey(input: {
   return `sched_${createHash("sha256").update(raw).digest("hex").slice(0, 40)}`;
 }
 
+function parseDraftIdsParam(value: string | null) {
+  if (!value) return [];
+  const deduped = Array.from(
+    new Set(
+      value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  );
+  return deduped;
+}
+
 export async function GET(req: Request) {
   let session;
   try {
@@ -115,10 +146,35 @@ export async function GET(req: Request) {
   }
 
   const { projectId, redditAccountId, status, from, to, limit } = parsed.data;
-  const items = await prisma.scheduledPost.findMany({
+  const draftIds = parseDraftIdsParam(searchParams.get("draftIds"));
+  if (
+    draftIds.length > MAX_DRAFT_IDS_FILTER ||
+    draftIds.some((item) => item.length > 128)
+  ) {
+    return NextResponse.json(
+      {
+        error: "Invalid query params",
+        code: "VALIDATION_ERROR",
+        details: {
+          fieldErrors: {
+            draftIds: [
+              `draftIds must contain at most ${MAX_DRAFT_IDS_FILTER} ids and each id must be <=128 characters`,
+            ],
+          },
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  const effectiveLimit =
+    draftIds.length > 0 ? Math.max(limit, draftIds.length) : limit;
+
+  const rows = await prisma.scheduledPost.findMany({
     where: {
       workspaceId: session.workspaceId,
       ...(projectId ? { draft: { projectId } } : {}),
+      ...(draftIds.length > 0 ? { draftId: { in: draftIds } } : {}),
       ...(redditAccountId ? { redditAccountId } : {}),
       ...(status ? { status } : {}),
       ...(from || to
@@ -131,7 +187,7 @@ export async function GET(req: Request) {
         : {}),
     },
     orderBy: [{ scheduledAt: "asc" }, { id: "asc" }],
-    take: limit,
+    take: effectiveLimit + 1,
     select: {
       id: true,
       draftId: true,
@@ -169,8 +225,16 @@ export async function GET(req: Request) {
       },
     },
   });
+  const hasMore = rows.length > effectiveLimit;
+  const items = hasMore ? rows.slice(0, effectiveLimit) : rows;
 
-  return NextResponse.json({ items });
+  // Keep legacy key for compatibility with older clients/tests.
+  return NextResponse.json({
+    items,
+    scheduledPosts: items,
+    hasMore,
+    limit: effectiveLimit,
+  });
 }
 
 export async function POST(req: Request) {
@@ -306,7 +370,10 @@ export async function POST(req: Request) {
       orderBy: { capturedAt: "desc" },
       select: { healthScore: true, capturedAt: true },
     });
-    if (latestHealth && latestHealth.healthScore < healthThresholds.blockPublishing) {
+    if (
+      latestHealth &&
+      latestHealth.healthScore < healthThresholds.blockPublishing
+    ) {
       return NextResponse.json(
         {
           error:
@@ -431,22 +498,7 @@ export async function POST(req: Request) {
         status: "SCHEDULED",
         idempotencyKey,
       },
-      select: {
-        id: true,
-        draftId: true,
-        redditAccountId: true,
-        subredditId: true,
-        scheduledAt: true,
-        timezone: true,
-        status: true,
-        attempts: true,
-        lastError: true,
-        idempotencyKey: true,
-        publishedAt: true,
-        publishedItemId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: scheduledPostSelect,
     });
   } catch (err) {
     if (isUniqueViolationFor(err, "idempotencyKey")) {
@@ -496,16 +548,22 @@ export async function POST(req: Request) {
       { status: 201 },
     );
   } catch (err) {
-    await prisma.scheduledPost.update({
+    const failedScheduledPost = await prisma.scheduledPost.update({
       where: { id: created.id },
       data: {
         status: "FAILED_RETRYABLE",
         lastError:
           err instanceof Error ? `QUEUE_ENQUEUE_FAILED:${err.message}` : null,
       },
+      select: scheduledPostSelect,
     });
     return NextResponse.json(
-      { error: "Unable to enqueue publish job", code: "QUEUE_UNAVAILABLE" },
+      {
+        error:
+          "Scheduled post was created but publish queue is unavailable. Retry from queue after worker recovers.",
+        code: "QUEUE_UNAVAILABLE",
+        scheduledPost: failedScheduledPost,
+      },
       { status: 503 },
     );
   }

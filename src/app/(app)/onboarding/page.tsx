@@ -1,46 +1,134 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { RoadmapStatus } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import {
+  buildOnboardingProgress,
+  type OnboardingStepStatus,
+} from "@/lib/onboardingProgress";
+import { requireSession } from "@/lib/server/auth-guards";
+import { RefreshNextActionButton } from "@/components/onboarding/RefreshNextActionButton";
+import { AnalyticsBeacon } from "@/components/analytics/AnalyticsBeacon";
 
-const steps = [
-  {
-    title: "Create your first project",
-    description: "Define your product, goals, and initial constraints.",
-    href: "/onboarding/create-project",
-    action: "Create project",
-  },
-  {
-    title: "Connect Reddit account",
-    description:
-      "Secure OAuth connection with rate limits and token encryption.",
-    href: "/onboarding/connect-reddit",
-    action: "Connect account",
-  },
-  {
-    title: "Generate your roadmap",
-    description:
-      "This will be available once projects and Reddit are connected.",
-    href: "/roadmaps",
-    action: "View roadmaps",
-  },
-];
+const LOGIN_REDIRECT_ERRORS = new Set([
+  "SUPABASE_NOT_CONFIGURED",
+  "UNAUTHORIZED",
+  "USER_NOT_SYNCED",
+]);
 
-export default function OnboardingPage() {
+const statusTone: Record<OnboardingStepStatus, string> = {
+  complete: "border-emerald-300 bg-emerald-50 text-emerald-700",
+  current: "border-blue-300 bg-blue-50 text-blue-700",
+  blocked: "border-slate-300 bg-slate-50 text-slate-700",
+};
+
+async function loadOnboardingProgress() {
+  let session;
+  try {
+    session = await requireSession();
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "";
+    if (LOGIN_REDIRECT_ERRORS.has(code)) {
+      redirect("/login");
+    }
+    throw error;
+  }
+
+  const membership = await prisma.workspaceMember.findFirst({
+    where: { userId: session.user.id },
+    orderBy: { createdAt: "asc" },
+    select: { workspaceId: true },
+  });
+
+  if (!membership) {
+    return buildOnboardingProgress({
+      hasWorkspace: false,
+      projectCount: 0,
+      activeRedditAccountCount: 0,
+      activeRoadmapCount: 0,
+      latestProjectId: null,
+    });
+  }
+
+  const workspaceId = membership.workspaceId;
+  const [projectCount, accountCount, roadmapCount, latestProject] =
+    await Promise.all([
+      prisma.project.count({
+        where: { workspaceId, status: { not: "ARCHIVED" } },
+      }),
+      prisma.redditAccount.count({
+        where: { workspaceId, isActive: true },
+      }),
+      prisma.roadmap.count({
+        where: { workspaceId, status: RoadmapStatus.ACTIVE },
+      }),
+      prisma.project.findFirst({
+        where: { workspaceId, status: { not: "ARCHIVED" } },
+        orderBy: { createdAt: "desc" },
+        select: { id: true },
+      }),
+    ]);
+
+  return buildOnboardingProgress({
+    hasWorkspace: true,
+    projectCount,
+    activeRedditAccountCount: accountCount,
+    activeRoadmapCount: roadmapCount,
+    latestProjectId: latestProject?.id ?? null,
+  });
+}
+
+export default async function OnboardingPage() {
+  const progress = await loadOnboardingProgress();
   return (
     <div className="space-y-8">
+      <AnalyticsBeacon
+        eventName="onboarding_step_hub_viewed"
+        onceKey="onboarding_step_hub_viewed"
+      />
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Onboarding
+          Activation hub
         </p>
         <h1 className="mt-3 text-3xl font-semibold">Set up your workspace</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Complete these steps to unlock scheduling and analytics.
+          Follow this 3-step flow to unlock scheduling and analytics.
         </p>
       </div>
 
+      <div className="rounded-[24px] border border-border bg-card/80 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold">{progress.nextAction.title}</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {progress.completedCount} of {progress.totalCount} steps complete.
+            </p>
+          </div>
+          {progress.nextAction.kind === "refresh" ? (
+            <RefreshNextActionButton
+              label={progress.nextAction.action}
+              className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
+            />
+          ) : (
+            <Link
+              href={progress.nextAction.href}
+              className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
+            >
+              {progress.nextAction.action}
+            </Link>
+          )}
+        </div>
+      </div>
+
       <div className="grid gap-4">
-        {steps.map((step, index) => (
+        {progress.steps.map((step, index) => (
           <div
-            key={step.title}
-            className="rounded-[24px] border border-border bg-card/80 p-6"
+            key={step.id}
+            className={`rounded-[24px] border p-6 ${
+              step.status === "current"
+                ? "border-primary/50 bg-primary/5"
+                : "border-border bg-card/80"
+            }`}
           >
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
@@ -51,13 +139,29 @@ export default function OnboardingPage() {
                 <p className="mt-2 text-sm text-muted-foreground">
                   {step.description}
                 </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {step.detail}
+                </p>
               </div>
-              <Link
-                href={step.href}
-                className="rounded-full border border-border px-4 py-2 text-sm font-semibold transition hover:border-foreground/40"
-              >
-                {step.action}
-              </Link>
+              <div className="flex items-center gap-3">
+                <span
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusTone[step.status]}`}
+                >
+                  {step.status}
+                </span>
+                {step.status === "blocked" ? (
+                  <span className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-muted-foreground">
+                    {step.action}
+                  </span>
+                ) : (
+                  <Link
+                    href={step.href}
+                    className="rounded-full border border-border px-4 py-2 text-sm font-semibold transition hover:border-foreground/40"
+                  >
+                    {step.action}
+                  </Link>
+                )}
+              </div>
             </div>
           </div>
         ))}

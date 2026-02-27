@@ -5,7 +5,12 @@ import { enforcePublicToolRateLimit } from "@/lib/rateLimit/publicTools";
 import { requireSession } from "@/lib/server/auth-guards";
 
 const schema = z.object({
-  username: z.string().min(2).max(80),
+  username: z
+    .string()
+    .trim()
+    .min(2)
+    .max(80)
+    .regex(/^(u\/)?[A-Za-z0-9_-]+$/, "Invalid username format"),
 });
 
 export async function POST(req: Request) {
@@ -46,12 +51,17 @@ export async function POST(req: Request) {
   }
 
   const username = parsed.data.username.replace(/^u\//i, "");
+  const usernameLookup = username.toLowerCase();
   let profileOk = false;
   let profileStatus: number | null = null;
+  let profileTimedOut = false;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8_000);
   try {
     const res = await fetch(
       `https://www.reddit.com/user/${encodeURIComponent(username)}/about.json`,
       {
+        signal: controller.signal,
         headers: {
           "User-Agent": process.env.REDDIT_USER_AGENT ?? "ReditFast/0.1",
         },
@@ -59,14 +69,24 @@ export async function POST(req: Request) {
     );
     profileStatus = res.status;
     profileOk = res.ok;
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      profileTimedOut = true;
+    }
     profileStatus = null;
     profileOk = false;
+  } finally {
+    clearTimeout(timeout);
   }
 
   const internalSignals = await prisma.visibilityCheck.findMany({
     where: {
-      redditAccount: { redditUsername: username },
+      redditAccount: {
+        redditUsername: {
+          equals: usernameLookup,
+          mode: "insensitive",
+        },
+      },
     },
     orderBy: { checkedAt: "desc" },
     take: 10,
@@ -88,9 +108,14 @@ export async function POST(req: Request) {
     checks: {
       redditProfileReachable: profileOk,
       redditProfileStatus: profileStatus,
+      redditProfileTimedOut: profileTimedOut,
       internalSampleSize: internalSignals.length,
       internalSuspiciousRate: Number(internalRisk.toFixed(3)),
     },
-    meta: { limit: rl.limit, remaining: rl.remaining },
+    meta: {
+      limit: rl.limit,
+      remaining: rl.remaining,
+      resetAfterSeconds: rl.resetAfterSeconds,
+    },
   });
 }

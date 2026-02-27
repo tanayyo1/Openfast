@@ -1,24 +1,51 @@
 import Link from "next/link";
+import { getWorkspaceEntitlements } from "@/lib/billing/quota";
+import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/server/auth-guards";
+import {
+  appQuickLinks,
+  navSectionsForEntitlements,
+} from "@/components/app/navConfig";
 
-const navItems = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Projects", href: "/projects" },
-  { label: "Onboarding", href: "/onboarding" },
-  { label: "Roadmaps", href: "/roadmaps" },
-  { label: "Content", href: "/content" },
-  { label: "Approvals", href: "/approvals" },
-  { label: "Scheduling", href: "/scheduling" },
-  { label: "Analytics", href: "/analytics" },
-  { label: "Opportunities", href: "/opportunities" },
-  { label: "Account health", href: "/health" },
-];
+const RECOVERABLE_SESSION_ERRORS = new Set([
+  "SUPABASE_NOT_CONFIGURED",
+  "UNAUTHORIZED",
+  "USER_NOT_SYNCED",
+]);
 
-const quickLinks = [
-  { label: "Support", href: "/seo/guides/support" },
-  { label: "Roadmap", href: "/seo/guides/reddit-marketing" },
-];
+function isRecoverableSessionError(err: unknown) {
+  const code = err instanceof Error ? err.message : "";
+  return RECOVERABLE_SESSION_ERRORS.has(code);
+}
 
-export function AppSidebar() {
+export async function AppSidebar() {
+  let entitlements: Awaited<
+    ReturnType<typeof getWorkspaceEntitlements>
+  > | null = null;
+
+  try {
+    const session = await requireSession();
+    const membership = await prisma.workspaceMember.findFirst({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "asc" },
+      select: { workspaceId: true },
+    });
+    if (membership?.workspaceId) {
+      entitlements = await getWorkspaceEntitlements(membership.workspaceId);
+    }
+  } catch (err) {
+    if (!isRecoverableSessionError(err)) {
+      throw err;
+    }
+  }
+
+  const navItems = [
+    ...navSectionsForEntitlements({
+      hasAdvancedAnalytics: entitlements?.hasAdvancedAnalytics ?? false,
+      hasSmartFinder: entitlements?.hasSmartFinder ?? false,
+    }).flatMap((section) => section.items),
+  ];
+
   return (
     <aside className="border-r border-border bg-card/60 px-6 pb-8 pt-6">
       <Link href="/dashboard" className="flex items-center gap-3">
@@ -27,7 +54,7 @@ export function AppSidebar() {
         </div>
         <div>
           <p className="text-base font-semibold">ReditFast</p>
-          <p className="text-xs text-muted-foreground">Workspace overview</p>
+          <p className="text-xs text-muted-foreground">Workspace hub</p>
         </div>
       </Link>
 
@@ -49,7 +76,7 @@ export function AppSidebar() {
           Quick links
         </p>
         <div className="mt-3 space-y-2">
-          {quickLinks.map((item) => (
+          {appQuickLinks.map((item) => (
             <Link
               key={item.href}
               href={item.href}

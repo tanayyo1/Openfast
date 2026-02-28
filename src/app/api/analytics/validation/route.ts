@@ -6,11 +6,7 @@ import { validateAnalyticsPipeline } from "@/lib/analytics/validation";
 function authError(err: unknown) {
   const code = err instanceof Error ? err.message : "UNAUTHORIZED";
   const status =
-    code === "WORKSPACE_REQUIRED"
-      ? 400
-      : code === "FORBIDDEN"
-        ? 403
-        : 401;
+    code === "WORKSPACE_REQUIRED" ? 400 : code === "FORBIDDEN" ? 403 : 401;
   return NextResponse.json({ error: "Unauthorized", code }, { status });
 }
 

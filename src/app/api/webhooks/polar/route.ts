@@ -144,7 +144,6 @@ export async function POST(req: Request) {
         providerCustomerId: (data.customerId as string) ?? null,
         providerSubscriptionId: (data.subscriptionId as string) ?? null,
         providerPriceId: null,
-        stripeCustomerId: null,
         status: "ACTIVE",
         currentPeriodStart: new Date(),
         currentPeriodEnd: periodEnd,
@@ -156,7 +155,6 @@ export async function POST(req: Request) {
         providerCustomerId: (data.customerId as string) ?? null,
         providerSubscriptionId: (data.subscriptionId as string) ?? null,
         providerPriceId: null,
-        stripeCustomerId: null,
         status: "ACTIVE",
         currentPeriodStart: new Date(),
         currentPeriodEnd: periodEnd,
@@ -208,7 +206,6 @@ export async function POST(req: Request) {
       create: {
         workspaceId,
         ...subscriptionData,
-        stripeCustomerId: null,
       },
     });
 

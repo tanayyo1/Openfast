@@ -127,7 +127,6 @@ describe("polar webhook route", () => {
           providerCustomerId: "polar_cus_1",
           providerSubscriptionId: "polar_sub_1",
           status: "ACTIVE",
-          stripeCustomerId: null,
         }),
         create: expect.objectContaining({
           workspaceId: "ws_1",

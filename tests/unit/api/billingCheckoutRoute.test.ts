@@ -79,11 +79,9 @@ describe("billing checkout route", () => {
     expect(res.status).toBe(200);
     const json = (await readJson(res)) as {
       checkoutId: string;
-      checkoutSessionId: string;
       checkoutUrl: string;
     };
     expect(json.checkoutId).toBe("polar_ch_1");
-    expect(json.checkoutSessionId).toBe("polar_ch_1");
     expect(json.checkoutUrl).toContain("checkout.polar.sh");
 
     expect(polarMock.checkouts.create).toHaveBeenCalledWith(
@@ -99,23 +97,6 @@ describe("billing checkout route", () => {
         }),
       }),
     );
-  });
-
-  test("returns both checkoutId and checkoutSessionId for backward compat", async () => {
-    const res = await checkout(
-      new Request("http://test.local/api/billing/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: "PRO" }),
-      }),
-    );
-
-    expect(res.status).toBe(200);
-    const json = (await readJson(res)) as {
-      checkoutId: string;
-      checkoutSessionId: string;
-    };
-    expect(json.checkoutId).toBe(json.checkoutSessionId);
   });
 
   test("returns 500 when POLAR_PRODUCT_PRO is not configured", async () => {

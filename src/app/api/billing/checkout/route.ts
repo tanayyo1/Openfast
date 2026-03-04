@@ -184,6 +184,5 @@ export async function POST(req: Request) {
   return NextResponse.json({
     checkoutUrl: checkout.url,
     checkoutId: checkout.id,
-    checkoutSessionId: checkout.id,
   });
 }

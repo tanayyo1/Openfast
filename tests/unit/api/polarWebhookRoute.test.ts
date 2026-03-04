@@ -393,6 +393,47 @@ describe("polar webhook route", () => {
     expect(mockedPrisma.subscription.upsert).not.toHaveBeenCalled();
   });
 
+  test("returns 200 when workspace was deleted (applyWorkspacePlan fails)", async () => {
+    mockedPlanFromProduct.mockReturnValue("PRO");
+    mockedPrisma.$transaction.mockRejectedValue(
+      new Error("Record to update not found"),
+    );
+    mockedValidateEvent.mockReturnValue({
+      type: "checkout.updated",
+      data: {
+        status: "succeeded",
+        customerId: "polar_cus_1",
+        subscriptionId: "polar_sub_1",
+        productId: "product_pro_uuid",
+        metadata: { workspaceId: "ws_deleted" },
+      },
+    });
+
+    const res = await webhook(makeRequest());
+    expect(res.status).toBe(200);
+    expect(mockedPrisma.subscription.upsert).toHaveBeenCalled();
+  });
+
+  test("returns 200 when canceled workspace was deleted", async () => {
+    mockedPrisma.$transaction.mockRejectedValue(
+      new Error("Record to update not found"),
+    );
+    mockedValidateEvent.mockReturnValue({
+      type: "subscription.canceled",
+      data: {
+        id: "polar_sub_1",
+        status: "canceled",
+        customerId: "polar_cus_1",
+        productId: "product_pro_uuid",
+        metadata: { workspaceId: "ws_deleted" },
+      },
+    });
+
+    const res = await webhook(makeRequest());
+    expect(res.status).toBe(200);
+    expect(mockedPrisma.subscription.updateMany).toHaveBeenCalled();
+  });
+
   test("handles mixed-case status values from Polar", async () => {
     mockedPlanFromProduct.mockReturnValue("PRO");
     mockedValidateEvent.mockReturnValue({

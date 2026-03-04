@@ -86,6 +86,23 @@ function resolvePlan(
   return null;
 }
 
+async function safeApplyPlan(
+  workspaceId: string,
+  plan: Plan,
+): Promise<boolean> {
+  try {
+    await applyWorkspacePlan(workspaceId, plan);
+    return true;
+  } catch (err) {
+    console.error("[polar-webhook] applyWorkspacePlan failed", {
+      workspaceId,
+      plan,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return false;
+  }
+}
+
 export async function POST(req: Request) {
   const secret = process.env.POLAR_WEBHOOK_SECRET;
   if (!secret) {
@@ -144,7 +161,6 @@ export async function POST(req: Request) {
         providerCustomerId: (data.customerId as string) ?? null,
         providerSubscriptionId: (data.subscriptionId as string) ?? null,
         providerPriceId: null,
-        stripeCustomerId: null,
         status: "ACTIVE",
         currentPeriodStart: new Date(),
         currentPeriodEnd: periodEnd,
@@ -156,7 +172,6 @@ export async function POST(req: Request) {
         providerCustomerId: (data.customerId as string) ?? null,
         providerSubscriptionId: (data.subscriptionId as string) ?? null,
         providerPriceId: null,
-        stripeCustomerId: null,
         status: "ACTIVE",
         currentPeriodStart: new Date(),
         currentPeriodEnd: periodEnd,
@@ -165,7 +180,7 @@ export async function POST(req: Request) {
     });
 
     if (plan) {
-      await applyWorkspacePlan(workspaceId, plan);
+      await safeApplyPlan(workspaceId, plan);
     }
     return NextResponse.json({ ok: true });
   }
@@ -208,17 +223,16 @@ export async function POST(req: Request) {
       create: {
         workspaceId,
         ...subscriptionData,
-        stripeCustomerId: null,
       },
     });
 
     if (nextStatus === "ACTIVE" || nextStatus === "TRIALING") {
       const plan = resolvePlan(data.productId as string | null, metadata);
       if (plan) {
-        await applyWorkspacePlan(workspaceId, plan);
+        await safeApplyPlan(workspaceId, plan);
       }
     } else if (isTerminalStatus(nextStatus)) {
-      await applyWorkspacePlan(workspaceId, "FREE");
+      await safeApplyPlan(workspaceId, "FREE");
     }
 
     return NextResponse.json({ ok: true });
@@ -245,7 +259,7 @@ export async function POST(req: Request) {
       },
     });
 
-    await applyWorkspacePlan(workspaceId, "FREE");
+    await safeApplyPlan(workspaceId, "FREE");
     return NextResponse.json({ ok: true });
   }
 

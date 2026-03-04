@@ -5,6 +5,10 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { DraftEditor } from "@/components/app/editor/DraftEditor";
 import {
+  parseDraftComplianceSnapshot,
+  parseDraftVariants,
+} from "@/lib/content/draftVariants";
+import {
   RewriteDialog,
   type RewriteOptions,
 } from "@/components/app/editor/RewriteDialog";
@@ -19,6 +23,7 @@ type DraftDetail = {
   title: string | null;
   body: string;
   variants: unknown;
+  generationParams: unknown;
   status: DraftStatus;
   riskScore: number;
   riskReasons: string[];
@@ -30,13 +35,6 @@ type TaskDetail = {
   dayIndex: number;
   type: string;
   subredditId: string | null;
-};
-
-type VariantView = {
-  title: string;
-  body: string;
-  riskScore: number;
-  notes: string[];
 };
 
 function formatTaskType(value: string) {
@@ -58,52 +56,6 @@ function statusLabel(status: DraftStatus) {
     default:
       return status;
   }
-}
-
-function parseVariants(
-  raw: unknown,
-  fallbackRisk: number,
-  notes: string[],
-): VariantView[] {
-  if (!Array.isArray(raw)) {
-    return [];
-  }
-
-  const list: VariantView[] = [];
-  for (const item of raw) {
-    if (!item || typeof item !== "object") continue;
-    const candidate = item as {
-      title?: unknown;
-      body?: unknown;
-      score?: unknown;
-      notes?: unknown;
-    };
-    if (typeof candidate.body !== "string") continue;
-
-    let riskScore = fallbackRisk;
-    if (typeof candidate.score === "number") {
-      if (candidate.score >= 0 && candidate.score <= 1) {
-        riskScore = Math.round((1 - candidate.score) * 100);
-      } else if (candidate.score >= 0 && candidate.score <= 100) {
-        riskScore = Math.round(candidate.score);
-      }
-    }
-
-    const variantNotes = Array.isArray(candidate.notes)
-      ? candidate.notes.filter(
-          (entry): entry is string => typeof entry === "string",
-        )
-      : notes;
-
-    list.push({
-      title: typeof candidate.title === "string" ? candidate.title : "",
-      body: candidate.body,
-      riskScore,
-      notes: variantNotes.length > 0 ? variantNotes : notes,
-    });
-  }
-
-  return list;
 }
 
 export default function DraftPage() {
@@ -196,7 +148,16 @@ export default function DraftPage() {
       draft.riskReasons.length > 0
         ? draft.riskReasons
         : ["Review for subreddit fit before publishing."];
-    const parsed = parseVariants(draft.variants, draft.riskScore, notes);
+    const compliance = parseDraftComplianceSnapshot(draft.generationParams);
+    const parsed = parseDraftVariants({
+      variants: draft.variants,
+      fallbackRiskScore: draft.riskScore,
+      fallbackNotes: notes,
+      compliance,
+      selectedTitle: draft.title,
+      selectedBody: draft.body,
+      selectedRiskScore: draft.riskScore,
+    });
     if (parsed.length > 0) {
       return parsed;
     }
@@ -207,6 +168,11 @@ export default function DraftPage() {
         body: draft.body,
         riskScore: draft.riskScore,
         notes,
+        complianceScore: compliance?.selectedComplianceScore ?? null,
+        valueScore: compliance?.selectedValueScore ?? null,
+        antiPatternFlags: compliance?.selectedAntiPatternFlags ?? [],
+        expectedTone: compliance?.selectedExpectedTone ?? null,
+        detectedTone: compliance?.selectedDetectedTone ?? null,
       },
     ];
   }, [draft]);

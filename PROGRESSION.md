@@ -1,6 +1,6 @@
 # PROGRESSION.md - MediaFast Clone MVP Tracker
 
-> **Last Updated**: 2026-02-23
+> **Last Updated**: 2026-03-04
 > **Target**: `mediafast_clone_system_design_report.md`
 > **Current Estimate**: ~99% of overall parity complete (MVP complete; Tier 2 complete; Tier 3 complete for planned scope; Tier 4 planned items shipped; remaining work is optional hardening/polish)
 
@@ -224,6 +224,12 @@
 - [x] Enforced workspace-scoped DB writes for project PATCH/DELETE by switching to workspace-filtered write guards.
 - [x] Hardened project creation quota checks against concurrent request races via per-workspace transactional locking.
 - [x] Added integration coverage for cross-workspace write rejection and concurrent create quota behavior.
+
+### Recent Draft Value-Check Visibility Hardening (RED-48, 2026-03-04)
+
+- [x] Added shared draft-variant parsing (`src/lib/content/draftVariants.ts`) so worker-produced compliance metadata (`riskScore`, `riskReasons`, `valueScore`, `complianceScore`, anti-pattern flags, tone fields) is reliably consumed by the draft detail page.
+- [x] Updated draft detail UI (`/content/drafts/:id`) to surface compliance/value metrics and anti-pattern flags per variant instead of relying only on legacy variant `score`.
+- [x] Added unit coverage for parser behavior and compliance/value rendering in `DraftEditor` (`tests/unit/lib/draftVariants.test.ts`, `tests/unit/components/DraftEditor.test.tsx`).
 
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 

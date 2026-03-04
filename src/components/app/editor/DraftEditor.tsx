@@ -9,6 +9,11 @@ type Variant = {
   body: string;
   riskScore: number;
   notes: string[];
+  complianceScore?: number | null;
+  valueScore?: number | null;
+  antiPatternFlags?: string[];
+  expectedTone?: string | null;
+  detectedTone?: string | null;
 };
 
 type DraftEditorProps = {
@@ -31,6 +36,7 @@ const FALLBACK_VARIANT: Variant = {
   body: "",
   riskScore: 0,
   notes: ["No generated variants yet. Add or rewrite content to continue."],
+  antiPatternFlags: [],
 };
 
 function clampVariantIndex(index: number, totalVariants: number) {
@@ -112,6 +118,21 @@ export function DraftEditor({
                       : "High"}
                   )
                 </p>
+                {typeof variant.complianceScore === "number" ||
+                typeof variant.valueScore === "number" ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {typeof variant.complianceScore === "number"
+                      ? `Compliance ${variant.complianceScore}`
+                      : ""}
+                    {typeof variant.complianceScore === "number" &&
+                    typeof variant.valueScore === "number"
+                      ? " • "
+                      : ""}
+                    {typeof variant.valueScore === "number"
+                      ? `Value ${variant.valueScore}`
+                      : ""}
+                  </p>
+                ) : null}
               </button>
             ))}
           </div>
@@ -126,6 +147,31 @@ export function DraftEditor({
             Compliance notes
           </p>
           <p className="mt-2 text-sm font-semibold">Risk: {riskTone}</p>
+          {typeof selected.complianceScore === "number" ||
+          typeof selected.valueScore === "number" ||
+          (selected.antiPatternFlags?.length ?? 0) > 0 ? (
+            <p className="mt-2 text-xs text-muted-foreground">
+              {typeof selected.complianceScore === "number"
+                ? `Compliance ${selected.complianceScore}`
+                : ""}
+              {typeof selected.complianceScore === "number" &&
+              typeof selected.valueScore === "number"
+                ? " • "
+                : ""}
+              {typeof selected.valueScore === "number"
+                ? `Value ${selected.valueScore}`
+                : ""}
+              {(selected.antiPatternFlags?.length ?? 0) > 0
+                ? ` • Flags: ${(selected.antiPatternFlags ?? []).join(", ")}`
+                : ""}
+            </p>
+          ) : null}
+          {selected.expectedTone || selected.detectedTone ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Tone: expected {selected.expectedTone ?? "n/a"}, detected{" "}
+              {selected.detectedTone ?? "n/a"}
+            </p>
+          ) : null}
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
             {selected.notes.map((note) => (
               <li key={note}>{note}</li>

@@ -62,7 +62,10 @@ function authError(err: unknown) {
   return NextResponse.json({ error: "Unauthorized", code }, { status });
 }
 
-async function findProjectOr404(input: { workspaceId: string; projectId: string }) {
+async function findProjectOr404(input: {
+  workspaceId: string;
+  projectId: string;
+}) {
   const project = await prisma.project.findFirst({
     where: {
       id: input.projectId,
@@ -195,7 +198,8 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
     tone: parsed.data.tone ?? "clear and practical",
     offer:
       parsed.data.offer ??
-      (project.description.trim().slice(0, 200) || "Practical strategy support"),
+      (project.description.trim().slice(0, 200) ||
+        "Practical strategy support"),
     ctaText: parsed.data.ctaText ?? "Get started",
   });
 

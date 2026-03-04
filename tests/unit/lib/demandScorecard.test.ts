@@ -1,6 +1,10 @@
 import { buildDemandScorecard } from "@/lib/recommendations/demandScorecard";
 
-function rec(overrides: Partial<Parameters<typeof buildDemandScorecard>[0]["recommendations"][number]> = {}) {
+function rec(
+  overrides: Partial<
+    Parameters<typeof buildDemandScorecard>[0]["recommendations"][number]
+  > = {},
+) {
   return {
     fitScore: 0.8,
     riskScore: 0.2,
@@ -30,8 +34,24 @@ describe("buildDemandScorecard", () => {
   test("prefers selected recommendations over candidate fallback", () => {
     const scorecard = buildDemandScorecard({
       recommendations: [
-        rec({ status: "SELECTED", fitScore: 0.2, subreddit: { subscribers: 50000, activeUsers: 500, avgCommentsPerPost: 3 } }),
-        rec({ status: "CANDIDATE", fitScore: 1, subreddit: { subscribers: 500000, activeUsers: 5000, avgCommentsPerPost: 20 } }),
+        rec({
+          status: "SELECTED",
+          fitScore: 0.2,
+          subreddit: {
+            subscribers: 50000,
+            activeUsers: 500,
+            avgCommentsPerPost: 3,
+          },
+        }),
+        rec({
+          status: "CANDIDATE",
+          fitScore: 1,
+          subreddit: {
+            subscribers: 500000,
+            activeUsers: 5000,
+            avgCommentsPerPost: 20,
+          },
+        }),
       ],
       painPoints: [{ severityScore: 0.1, confidenceScore: 0.1, frequency: 1 }],
     });
@@ -75,7 +95,11 @@ describe("buildDemandScorecard", () => {
           fitScore: 0.8,
           riskScore: 0.3,
           timeWindowScore: 0.6,
-          subreddit: { subscribers: 250000, activeUsers: 2500, avgCommentsPerPost: 10 },
+          subreddit: {
+            subscribers: 250000,
+            activeUsers: 2500,
+            avgCommentsPerPost: 10,
+          },
         }),
       ],
       painPoints: [{ severityScore: 0.7, confidenceScore: 0.7, frequency: 4 }],
@@ -87,7 +111,11 @@ describe("buildDemandScorecard", () => {
           fitScore: 0.2,
           riskScore: 0.8,
           timeWindowScore: 0.2,
-          subreddit: { subscribers: 20000, activeUsers: 100, avgCommentsPerPost: 2 },
+          subreddit: {
+            subscribers: 20000,
+            activeUsers: 100,
+            avgCommentsPerPost: 2,
+          },
         }),
       ],
       painPoints: [{ severityScore: 0.2, confidenceScore: 0.2, frequency: 1 }],
@@ -100,7 +128,9 @@ describe("buildDemandScorecard", () => {
 
   test("does not saturate pain frequency when data has high outliers", () => {
     const scorecard = buildDemandScorecard({
-      recommendations: [rec({ fitScore: 0.7, riskScore: 0.2, timeWindowScore: 0.6 })],
+      recommendations: [
+        rec({ fitScore: 0.7, riskScore: 0.2, timeWindowScore: 0.6 }),
+      ],
       painPoints: [
         { severityScore: 1, confidenceScore: 1, frequency: 4 },
         { severityScore: 1, confidenceScore: 1, frequency: 20 },

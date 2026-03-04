@@ -28,7 +28,9 @@ describe("profile checklist", () => {
     const combinedKarma = out.items.find((i) => i.key === "combined_karma");
     const commentKarma = out.items.find((i) => i.key === "comment_karma");
     const accountAge = out.items.find((i) => i.key === "account_age");
-    const commentFirst = out.items.find((i) => i.key === "comment_first_progress");
+    const commentFirst = out.items.find(
+      (i) => i.key === "comment_first_progress",
+    );
 
     expect(accountAge?.detail).toContain("Account age is 0 days");
     expect(combinedKarma?.detail).toContain("Combined karma is 0");
@@ -50,7 +52,9 @@ describe("profile checklist", () => {
       commentFirstMinComments: 0,
     });
 
-    const commentFirst = out.items.find((i) => i.key === "comment_first_progress");
+    const commentFirst = out.items.find(
+      (i) => i.key === "comment_first_progress",
+    );
     expect(commentFirst?.status).toBe("PASS");
     expect(commentFirst?.detail).toContain("Published comments: 0/0");
   });
@@ -102,7 +106,9 @@ describe("profile checklist", () => {
       commentFirstMinComments: 3,
     });
 
-    const requiredScopes = out.items.find((item) => item.key === "required_scopes");
+    const requiredScopes = out.items.find(
+      (item) => item.key === "required_scopes",
+    );
     expect(requiredScopes?.status).toBe("PASS");
   });
 });

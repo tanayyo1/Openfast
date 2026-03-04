@@ -92,16 +92,17 @@ export async function computeProjectAnalyticsSnapshot(
   });
   if (!project) return null;
 
-  const [scheduledStatusCounts, summaryRows, publishedItems, trend] = await Promise.all([
-    prisma.scheduledPost.groupBy({
-      by: ["status"],
-      where: {
-        workspaceId,
-        draft: { projectId },
-      },
-      _count: { _all: true },
-    }),
-    prisma.$queryRaw<ProjectAnalyticsSummaryRow[]>(Prisma.sql`
+  const [scheduledStatusCounts, summaryRows, publishedItems, trend] =
+    await Promise.all([
+      prisma.scheduledPost.groupBy({
+        by: ["status"],
+        where: {
+          workspaceId,
+          draft: { projectId },
+        },
+        _count: { _all: true },
+      }),
+      prisma.$queryRaw<ProjectAnalyticsSummaryRow[]>(Prisma.sql`
       SELECT
         COUNT(pi.id)::int AS published_count,
         COALESCE(SUM(ls.score), 0)::int AS total_score,
@@ -127,46 +128,46 @@ export async function computeProjectAnalyticsSnapshot(
       WHERE pi.workspace_id = ${workspaceId}
         AND d.project_id = ${projectId}
     `),
-    prisma.publishedItem.findMany({
-      where: {
-        workspaceId,
-        scheduledPost: { draft: { projectId } },
-      },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: itemLimit + 1,
-      ...(cursor
-        ? {
-            cursor: { id: cursor },
-            skip: 1,
-          }
-        : {}),
-      select: {
-        id: true,
-        type: true,
-        permalink: true,
-        createdAt: true,
-        subreddit: { select: { id: true, name: true, title: true } },
-        snapshots: {
-          orderBy: [{ capturedAt: "desc" }, { id: "desc" }],
-          take: 1,
-          select: {
-            score: true,
-            upvotes: true,
-            downvotes: true,
-            upvoteRatio: true,
-            numComments: true,
-            isRemoved: true,
-            removalReason: true,
-            capturedAt: true,
+      prisma.publishedItem.findMany({
+        where: {
+          workspaceId,
+          scheduledPost: { draft: { projectId } },
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: itemLimit + 1,
+        ...(cursor
+          ? {
+              cursor: { id: cursor },
+              skip: 1,
+            }
+          : {}),
+        select: {
+          id: true,
+          type: true,
+          permalink: true,
+          createdAt: true,
+          subreddit: { select: { id: true, name: true, title: true } },
+          snapshots: {
+            orderBy: [{ capturedAt: "desc" }, { id: "desc" }],
+            take: 1,
+            select: {
+              score: true,
+              upvotes: true,
+              downvotes: true,
+              upvoteRatio: true,
+              numComments: true,
+              isRemoved: true,
+              removalReason: true,
+              capturedAt: true,
+            },
           },
         },
-      },
-    }),
-    getProjectDailyPerformanceTrend(workspaceId, projectId, {
-      days: trendDays,
-      now: trendNow,
-    }),
-  ]);
+      }),
+      getProjectDailyPerformanceTrend(workspaceId, projectId, {
+        days: trendDays,
+        now: trendNow,
+      }),
+    ]);
 
   const statusCounts = scheduledStatusCounts.reduce<Record<string, number>>(
     (acc, row) => {
@@ -185,7 +186,9 @@ export async function computeProjectAnalyticsSnapshot(
   };
 
   const hasMore = publishedItems.length > itemLimit;
-  const visibleItems = hasMore ? publishedItems.slice(0, itemLimit) : publishedItems;
+  const visibleItems = hasMore
+    ? publishedItems.slice(0, itemLimit)
+    : publishedItems;
 
   const items = visibleItems.map((item) => {
     const latest = item.snapshots[0] ?? null;
@@ -201,7 +204,7 @@ export async function computeProjectAnalyticsSnapshot(
 
   const publishedCount = summaryRow.published_count;
   const nextCursor = hasMore
-    ? visibleItems[visibleItems.length - 1]?.id ?? null
+    ? (visibleItems[visibleItems.length - 1]?.id ?? null)
     : null;
 
   return {
@@ -219,7 +222,9 @@ export async function computeProjectAnalyticsSnapshot(
       totalScore: summaryRow.total_score,
       avgScore: publishedCount ? summaryRow.total_score / publishedCount : 0,
       totalComments: summaryRow.total_comments,
-      avgComments: publishedCount ? summaryRow.total_comments / publishedCount : 0,
+      avgComments: publishedCount
+        ? summaryRow.total_comments / publishedCount
+        : 0,
       latestCapturedAt: summaryRow.latest_captured_at,
     },
     items,

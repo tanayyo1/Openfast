@@ -88,7 +88,7 @@ function extractJsonObject(input: string) {
       escaped = true;
       continue;
     }
-    if (ch === "\"") {
+    if (ch === '"') {
       inString = !inString;
       continue;
     }
@@ -103,7 +103,9 @@ function extractJsonObject(input: string) {
   return null;
 }
 
-function buildFallbackLandingPage(input: GenerateLandingPageInput): GeneratedLandingPage {
+function buildFallbackLandingPage(
+  input: GenerateLandingPageInput,
+): GeneratedLandingPage {
   const keyword = compactText(input.primaryKeyword, 80);
   const headline = `Turn ${keyword} into consistent growth for ${input.audience}`;
   const subheadline = `${input.projectName} helps ${input.audience} solve ${input.projectNiche} challenges with a ${input.tone} workflow focused on practical outcomes.`;
@@ -179,7 +181,9 @@ function normalizeAiLandingPage(input: {
     sections: {
       valueProps: parsed.valueProps.map((item) => compactText(item, 220)),
       painPoints: parsed.painPoints.map((item) => compactText(item, 220)),
-      featureBullets: parsed.featureBullets.map((item) => compactText(item, 220)),
+      featureBullets: parsed.featureBullets.map((item) =>
+        compactText(item, 220),
+      ),
       socialProof: parsed.socialProof.map((item) => compactText(item, 220)),
       faqs: parsed.faqs.map((item) => ({
         question: compactText(item.question, 220),
@@ -191,7 +195,10 @@ function normalizeAiLandingPage(input: {
       parsed.metaTitle ?? `${base.primaryKeyword} | ${base.name}`,
       65,
     ),
-    metaDescription: compactText(parsed.metaDescription ?? base.metaDescription, 170),
+    metaDescription: compactText(
+      parsed.metaDescription ?? base.metaDescription,
+      170,
+    ),
     source: "openai" as const,
   };
 }

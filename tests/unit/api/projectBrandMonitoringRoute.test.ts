@@ -81,12 +81,16 @@ describe("project brand monitoring route (RED-61)", () => {
     expect(res.status).toBe(403);
     const json = (await readJson(res)) as { code: string };
     expect(json.code).toBe("SMART_FINDER_REQUIRED");
-    expect(mockedMonitor.buildProjectBrandMonitoringSnapshot).not.toHaveBeenCalled();
+    expect(
+      mockedMonitor.buildProjectBrandMonitoringSnapshot,
+    ).not.toHaveBeenCalled();
   });
 
   test("returns 400 for invalid query params", async () => {
     const res = await getProjectBrandMonitoring(
-      new Request("http://test.local/api/projects/p_1/brand-monitoring?limit=0"),
+      new Request(
+        "http://test.local/api/projects/p_1/brand-monitoring?limit=0",
+      ),
       { params: { id: "p_1" } },
     );
 
@@ -96,7 +100,9 @@ describe("project brand monitoring route (RED-61)", () => {
   });
 
   test("returns 404 when project does not exist in workspace", async () => {
-    mockedMonitor.buildProjectBrandMonitoringSnapshot.mockResolvedValueOnce(null);
+    mockedMonitor.buildProjectBrandMonitoringSnapshot.mockResolvedValueOnce(
+      null,
+    );
 
     const res = await getProjectBrandMonitoring(
       new Request("http://test.local/api/projects/p_missing/brand-monitoring"),
@@ -165,7 +171,9 @@ describe("project brand monitoring route (RED-61)", () => {
     expect(json.items[0]?.urgency).toBe("HIGH");
     expect(json.items[0]?.sentiment).toBe("NEGATIVE");
     expect(typeof json.generatedAt).toBe("string");
-    expect(mockedMonitor.buildProjectBrandMonitoringSnapshot).toHaveBeenCalledWith(
+    expect(
+      mockedMonitor.buildProjectBrandMonitoringSnapshot,
+    ).toHaveBeenCalledWith(
       expect.objectContaining({
         workspaceId: "ws_1",
         projectId: "p_1",

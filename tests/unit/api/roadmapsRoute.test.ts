@@ -20,7 +20,10 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 
-import { GET as listRoadmaps, POST as createRoadmap } from "@/app/api/roadmaps/route";
+import {
+  GET as listRoadmaps,
+  POST as createRoadmap,
+} from "@/app/api/roadmaps/route";
 
 const mockedGuards = jest.requireMock("@/lib/server/auth-guards") as {
   requireWorkspaceSession: jest.Mock;
@@ -66,7 +69,9 @@ describe("roadmaps route", () => {
     mockedPrisma.project.findFirst.mockResolvedValue({ id: "p_1" });
     mockedPrisma.projectSubredditRecommendation.findMany.mockResolvedValue([]);
     mockedPrisma.projectPainPoint.findMany.mockResolvedValue([]);
-    mockedRecommendations.generateProjectRecommendations.mockResolvedValue(undefined);
+    mockedRecommendations.generateProjectRecommendations.mockResolvedValue(
+      undefined,
+    );
   });
 
   test("returns 400 for cursor with invalid createdAt value", async () => {

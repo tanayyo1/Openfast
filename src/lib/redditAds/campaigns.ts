@@ -75,7 +75,8 @@ export function validateBudgetWindow(opts: {
   ) {
     return {
       ok: false as const,
-      error: "lifetimeBudgetCents must be greater than or equal to dailyBudgetCents",
+      error:
+        "lifetimeBudgetCents must be greater than or equal to dailyBudgetCents",
     };
   }
 

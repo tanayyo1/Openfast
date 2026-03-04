@@ -89,7 +89,9 @@ export default async function AnalyticsPage() {
     };
   });
   const scoreTrendPoints = dashboard.trend.map((point) => point.totalScore);
-  const commentTrendPoints = dashboard.trend.map((point) => point.totalComments);
+  const commentTrendPoints = dashboard.trend.map(
+    (point) => point.totalComments,
+  );
   const removalTrendPoints = dashboard.trend.map((point) => point.removedCount);
   const trendWindowLabel =
     dashboard.trend.length > 0
@@ -205,7 +207,9 @@ export default async function AnalyticsPage() {
           {[
             {
               label: "Daily score",
-              value: formatNumber(scoreTrendPoints[scoreTrendPoints.length - 1] ?? 0),
+              value: formatNumber(
+                scoreTrendPoints[scoreTrendPoints.length - 1] ?? 0,
+              ),
               detail: `${formatNumber(trendDelta(scoreTrendPoints))} net change`,
               points: scoreTrendPoints,
             },
@@ -236,9 +240,14 @@ export default async function AnalyticsPage() {
               <div className="mt-3 flex items-center justify-between gap-4">
                 <div>
                   <p className="text-2xl font-semibold">{metric.value}</p>
-                  <p className="text-xs text-muted-foreground">{metric.detail}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {metric.detail}
+                  </p>
                 </div>
-                <Sparkline points={metric.points} className="h-10 w-28 text-primary" />
+                <Sparkline
+                  points={metric.points}
+                  className="h-10 w-28 text-primary"
+                />
               </div>
             </div>
           ))}

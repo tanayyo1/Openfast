@@ -54,9 +54,11 @@ export function MobilePreviewCard({
           )}
 
           <div className="mt-3 space-y-2 text-sm leading-relaxed text-foreground/90">
-            {(lines.length > 0 ? lines : ["Body preview"]).slice(0, 4).map((line, index) => (
-              <p key={`${line}-${index}`}>{line}</p>
-            ))}
+            {(lines.length > 0 ? lines : ["Body preview"])
+              .slice(0, 4)
+              .map((line, index) => (
+                <p key={`${line}-${index}`}>{line}</p>
+              ))}
           </div>
 
           <div className="mt-4 flex gap-2 text-xs text-muted-foreground">

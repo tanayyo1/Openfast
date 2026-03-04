@@ -153,7 +153,9 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
   });
 
   const foundNames = new Set(
-    discovered.map((sub) => normalizeSubredditName(sub.name) ?? sub.name.toLowerCase()),
+    discovered.map(
+      (sub) => normalizeSubredditName(sub.name) ?? sub.name.toLowerCase(),
+    ),
   );
   const missingInCatalogNames = candidateNames.filter(
     (name) => !foundNames.has(name),

@@ -111,7 +111,9 @@ export function buildRedditProfileChecklist(input: ProfileChecklistInput) {
   );
   const syncAgeDays = Math.max(
     0,
-    Math.floor((Date.now() - input.lastSyncAt.getTime()) / (1000 * 60 * 60 * 24)),
+    Math.floor(
+      (Date.now() - input.lastSyncAt.getTime()) / (1000 * 60 * 60 * 24),
+    ),
   );
 
   const items: ProfileChecklistItem[] = [];
@@ -121,7 +123,11 @@ export function buildRedditProfileChecklist(input: ProfileChecklistInput) {
   );
   if (missingScopes.length === 0) {
     items.push(
-      pass("required_scopes", "Required scopes", "All core Reddit scopes are connected."),
+      pass(
+        "required_scopes",
+        "Required scopes",
+        "All core Reddit scopes are connected.",
+      ),
     );
   } else {
     items.push(

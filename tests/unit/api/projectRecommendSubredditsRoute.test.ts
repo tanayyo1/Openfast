@@ -84,7 +84,9 @@ describe("recommend subreddits route", () => {
       hasSmartFinder: true,
       hasTeamFeatures: false,
     });
-    mockedQueue.enqueueSubredditIngestJob.mockResolvedValue({ id: "job_ing_1" });
+    mockedQueue.enqueueSubredditIngestJob.mockResolvedValue({
+      id: "job_ing_1",
+    });
     mockedQueue.enqueueSubredditComputeTimeWindowsJob.mockResolvedValue({
       id: "job_slot_1",
     });
@@ -153,7 +155,9 @@ describe("recommend subreddits route", () => {
 
     expect(res.status).toBe(200);
     expect(mockedQueue.enqueueSubredditIngestJob).toHaveBeenCalled();
-    expect(mockedQueue.enqueueSubredditComputeTimeWindowsJob).toHaveBeenCalled();
+    expect(
+      mockedQueue.enqueueSubredditComputeTimeWindowsJob,
+    ).toHaveBeenCalled();
     expect(tx.projectSubredditRecommendation.createMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: [
@@ -175,12 +179,15 @@ describe("recommend subreddits route", () => {
         }),
       }),
     );
-    const createManyArg = tx.projectSubredditRecommendation.createMany.mock.calls[0]?.[0];
+    const createManyArg =
+      tx.projectSubredditRecommendation.createMany.mock.calls[0]?.[0];
     const first = createManyArg?.data?.[0] as Record<string, unknown>;
     expect(first).toBeDefined();
     expect(Object.prototype.hasOwnProperty.call(first, "rank")).toBe(false);
     expect(createManyArg?.skipDuplicates).toBe(true);
-    expect(mockedPrisma.projectSubredditRecommendation.findMany).toHaveBeenNthCalledWith(
+    expect(
+      mockedPrisma.projectSubredditRecommendation.findMany,
+    ).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
         where: expect.objectContaining({
@@ -405,7 +412,8 @@ describe("recommend subreddits route", () => {
     );
 
     expect(res.status).toBe(200);
-    const createManyArg = tx.projectSubredditRecommendation.createMany.mock.calls[0]?.[0];
+    const createManyArg =
+      tx.projectSubredditRecommendation.createMany.mock.calls[0]?.[0];
     expect(createManyArg?.data).toHaveLength(1);
     expect(createManyArg?.skipDuplicates).toBe(true);
     const json = (await readJson(res)) as { count: number };

@@ -3,7 +3,13 @@
  */
 import React from "react";
 import "@testing-library/jest-dom";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import OpportunitiesPage from "@/app/(app)/opportunities/page";
 
 jest.mock("next/link", () => ({
@@ -114,12 +120,14 @@ describe("OpportunitiesPage", () => {
           ],
         }),
       )
-      .mockImplementationOnce(async (_input: RequestInfo | URL, init?: RequestInit) => {
-        if (init?.method === "POST") {
-          return (await createPromise) as ReturnType<typeof mockJsonResponse>;
-        }
-        throw new Error("Unexpected non-POST third call");
-      })
+      .mockImplementationOnce(
+        async (_input: RequestInfo | URL, init?: RequestInit) => {
+          if (init?.method === "POST") {
+            return (await createPromise) as ReturnType<typeof mockJsonResponse>;
+          }
+          throw new Error("Unexpected non-POST third call");
+        },
+      )
       .mockImplementationOnce(async () =>
         mockJsonResponse(200, { count: 0, items: [] }),
       );
@@ -134,7 +142,9 @@ describe("OpportunitiesPage", () => {
       ).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Create comment draft" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Create comment draft" }),
+    );
 
     const scopeSelect = screen.getByRole("combobox") as HTMLSelectElement;
     expect(scopeSelect.disabled).toBe(true);
@@ -201,15 +211,17 @@ describe("OpportunitiesPage", () => {
         }),
       )
       .mockImplementationOnce(async () => refreshPromise)
-      .mockImplementationOnce(async (_input: RequestInfo | URL, init?: RequestInit) => {
-        if (init?.method !== "POST") {
-          throw new Error("Expected POST request for create flow");
-        }
-        return mockJsonResponse(409, {
-          error: "No active roadmap found for this project",
-          code: "ACTIVE_ROADMAP_REQUIRED",
-        });
-      });
+      .mockImplementationOnce(
+        async (_input: RequestInfo | URL, init?: RequestInit) => {
+          if (init?.method !== "POST") {
+            throw new Error("Expected POST request for create flow");
+          }
+          return mockJsonResponse(409, {
+            error: "No active roadmap found for this project",
+            code: "ACTIVE_ROADMAP_REQUIRED",
+          });
+        },
+      );
     (global as { fetch?: typeof fetch }).fetch =
       fetchMock as unknown as typeof fetch;
 
@@ -222,7 +234,9 @@ describe("OpportunitiesPage", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Refresh feed" }));
-    fireEvent.click(screen.getByRole("button", { name: "Create comment draft" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Create comment draft" }),
+    );
 
     await waitFor(() => {
       expect(

@@ -64,7 +64,10 @@ export async function POST(req: Request) {
 
   const passwordHash = await hashPassword(password);
 
-  let created: { user: { id: string; email: string; name: string | null }; workspace: { id: string; name: string } };
+  let created: {
+    user: { id: string; email: string; name: string | null };
+    workspace: { id: string; name: string };
+  };
   try {
     created = await prisma.$transaction(
       async (tx: Prisma.TransactionClient) => {

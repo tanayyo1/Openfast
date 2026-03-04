@@ -76,9 +76,9 @@ describe("brand monitoring helpers", () => {
   });
 
   test("does not classify substring false positives as negative", () => {
-    expect(detectMentionSentiment("We audited tissue samples for research")).toBe(
-      "NEUTRAL",
-    );
+    expect(
+      detectMentionSentiment("We audited tissue samples for research"),
+    ).toBe("NEUTRAL");
   });
 
   test("precision gate requires anchor or multiple context matches", () => {

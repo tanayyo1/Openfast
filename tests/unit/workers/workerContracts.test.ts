@@ -81,7 +81,8 @@ describe("worker contracts", () => {
 
   afterEach(() => {
     if (typeof originalCommunityThreshold === "string") {
-      process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS = originalCommunityThreshold;
+      process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS =
+        originalCommunityThreshold;
       return;
     }
     delete process.env.COMMUNITY_ENGAGEMENT_MIN_COMMENTS;

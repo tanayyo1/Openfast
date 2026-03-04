@@ -126,14 +126,16 @@ export async function generateProjectRecommendations(input: {
 
   const keywords = extractProjectKeywords(project);
   const primaryKeyword = keywords[0];
-  const existingSelected = await prisma.projectSubredditRecommendation.findMany({
-    where: {
-      workspaceId: input.workspaceId,
-      projectId: input.projectId,
-      status: "SELECTED",
+  const existingSelected = await prisma.projectSubredditRecommendation.findMany(
+    {
+      where: {
+        workspaceId: input.workspaceId,
+        projectId: input.projectId,
+        status: "SELECTED",
+      },
+      select: { subredditId: true },
     },
-    select: { subredditId: true },
-  });
+  );
   const selectedSubredditIds = new Set(
     existingSelected.map((item) => item.subredditId),
   );
@@ -265,9 +267,9 @@ export async function generateProjectRecommendations(input: {
     0,
     MAX_RECOMMENDATIONS - selectedSubredditIds.size,
   );
-  const candidateRanked = ranked.filter(
-    (item) => !selectedSubredditIds.has(item.subredditId),
-  ).slice(0, candidateLimit);
+  const candidateRanked = ranked
+    .filter((item) => !selectedSubredditIds.has(item.subredditId))
+    .slice(0, candidateLimit);
 
   await prisma.$transaction(async (tx) => {
     await tx.projectSubredditRecommendation.deleteMany({

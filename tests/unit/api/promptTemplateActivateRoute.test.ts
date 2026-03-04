@@ -34,9 +34,12 @@ describe("prompt template activate route", () => {
     mockedTemplates.findPromptTemplateById.mockResolvedValue(null);
 
     const res = await activatePromptTemplateRoute(
-      new Request("http://test.local/api/internal/admin/prompt-templates/pt_1/activate", {
-        method: "POST",
-      }),
+      new Request(
+        "http://test.local/api/internal/admin/prompt-templates/pt_1/activate",
+        {
+          method: "POST",
+        },
+      ),
       { params: { id: "pt_1" } },
     );
 
@@ -54,9 +57,12 @@ describe("prompt template activate route", () => {
     mockedTemplates.activatePromptTemplate.mockResolvedValue(null);
 
     const res = await activatePromptTemplateRoute(
-      new Request("http://test.local/api/internal/admin/prompt-templates/pt_1/activate", {
-        method: "POST",
-      }),
+      new Request(
+        "http://test.local/api/internal/admin/prompt-templates/pt_1/activate",
+        {
+          method: "POST",
+        },
+      ),
       { params: { id: "pt_1" } },
     );
 

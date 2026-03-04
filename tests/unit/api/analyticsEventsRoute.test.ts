@@ -124,7 +124,9 @@ describe("analytics events ingest route (RED-79A)", () => {
 
     const body = await readJson<{ violations: Array<{ reason: string }> }>(res);
     expect(res.status).toBe(400);
-    expect(body.violations[0]?.reason).toMatch(/anonymoussessionid is required/i);
+    expect(body.violations[0]?.reason).toMatch(
+      /anonymoussessionid is required/i,
+    );
     expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
   });
 
@@ -196,7 +198,9 @@ describe("analytics events ingest route (RED-79A)", () => {
       workspaceId: "ws_1",
       user: { id: "user_1" },
     });
-    const prismaErr = new Error("fk fail") as Prisma.PrismaClientKnownRequestError;
+    const prismaErr = new Error(
+      "fk fail",
+    ) as Prisma.PrismaClientKnownRequestError;
     Object.setPrototypeOf(
       prismaErr,
       Prisma.PrismaClientKnownRequestError.prototype,

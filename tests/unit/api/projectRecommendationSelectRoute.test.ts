@@ -70,7 +70,9 @@ describe("project recommendation select route", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(tx.projectSubredditRecommendation.updateMany).toHaveBeenNthCalledWith(
+    expect(
+      tx.projectSubredditRecommendation.updateMany,
+    ).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
         data: expect.objectContaining({
@@ -80,7 +82,9 @@ describe("project recommendation select route", () => {
         }),
       }),
     );
-    expect(tx.projectSubredditRecommendation.updateMany).toHaveBeenNthCalledWith(
+    expect(
+      tx.projectSubredditRecommendation.updateMany,
+    ).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
         data: expect.objectContaining({

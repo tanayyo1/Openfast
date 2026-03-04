@@ -66,15 +66,13 @@ describe("HealthAccountActions", () => {
   });
 
   test("runs health refresh action and shows queued notice", async () => {
-    const fetchMock = jest
-      .fn()
-      .mockResolvedValueOnce(
-        jsonResponse(200, {
-          refreshQueued: true,
-          latestSnapshot: null,
-          warnings: [],
-        }),
-      );
+    const fetchMock = jest.fn().mockResolvedValueOnce(
+      jsonResponse(200, {
+        refreshQueued: true,
+        latestSnapshot: null,
+        warnings: [],
+      }),
+    );
     (global as { fetch?: typeof fetch }).fetch =
       fetchMock as unknown as typeof fetch;
 
@@ -92,13 +90,18 @@ describe("HealthAccountActions", () => {
     );
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/reddit/accounts/ra_1/health", {
-        cache: "no-store",
-      });
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/reddit/accounts/ra_1/health",
+        {
+          cache: "no-store",
+        },
+      );
     });
     await waitFor(() => {
       expect(
-        screen.getByText("Health snapshot refresh queued. Check back in a minute."),
+        screen.getByText(
+          "Health snapshot refresh queued. Check back in a minute.",
+        ),
       ).toBeInTheDocument();
     });
     await waitFor(() => {
@@ -108,7 +111,9 @@ describe("HealthAccountActions", () => {
 
   test("locks visibility action while health refresh is in flight", async () => {
     const pendingRefresh = deferredResponse();
-    const fetchMock = jest.fn().mockImplementation(() => pendingRefresh.promise);
+    const fetchMock = jest
+      .fn()
+      .mockImplementation(() => pendingRefresh.promise);
     (global as { fetch?: typeof fetch }).fetch =
       fetchMock as unknown as typeof fetch;
 
@@ -125,7 +130,9 @@ describe("HealthAccountActions", () => {
       screen.getByRole("button", { name: "Refresh health snapshot" }),
     );
 
-    expect(screen.getByRole("button", { name: "Refreshing..." })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Refreshing..." }),
+    ).toBeDisabled();
     expect(
       screen.getByRole("button", { name: "Run visibility check" }),
     ).toBeDisabled();
@@ -139,15 +146,15 @@ describe("HealthAccountActions", () => {
     );
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Latest health score: 61."),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Latest health score: 61.")).toBeInTheDocument();
     });
   });
 
   test("prevents duplicate refresh requests on rapid repeated clicks", async () => {
     const pendingRefresh = deferredResponse();
-    const fetchMock = jest.fn().mockImplementation(() => pendingRefresh.promise);
+    const fetchMock = jest
+      .fn()
+      .mockImplementation(() => pendingRefresh.promise);
     (global as { fetch?: typeof fetch }).fetch =
       fetchMock as unknown as typeof fetch;
 
@@ -163,9 +170,7 @@ describe("HealthAccountActions", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Refresh health snapshot" }),
     );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Refreshing..." }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Refreshing..." }));
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
@@ -183,13 +188,11 @@ describe("HealthAccountActions", () => {
   });
 
   test("runs visibility check and refreshes server data", async () => {
-    const fetchMock = jest
-      .fn()
-      .mockResolvedValueOnce(
-        jsonResponse(200, {
-          check: { result: "OK" },
-        }),
-      );
+    const fetchMock = jest.fn().mockResolvedValueOnce(
+      jsonResponse(200, {
+        check: { result: "OK" },
+      }),
+    );
     (global as { fetch?: typeof fetch }).fetch =
       fetchMock as unknown as typeof fetch;
 
@@ -202,7 +205,9 @@ describe("HealthAccountActions", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Run visibility check" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Run visibility check" }),
+    );
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -243,7 +248,9 @@ describe("HealthAccountActions", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Run visibility check" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Run visibility check" }),
+    );
 
     await waitFor(() => {
       expect(

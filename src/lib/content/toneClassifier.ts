@@ -62,8 +62,7 @@ const TONE_PATTERNS: Record<ToneLabel, TonePattern[]> = {
       weight: 1.2,
     },
     {
-      pattern:
-        /\bnext(?:\s+(?:do|step|identify|define|focus|try)|\s*[,:\-])/g,
+      pattern: /\bnext(?:\s+(?:do|step|identify|define|focus|try)|\s*[,:\-])/g,
       weight: 1.2,
     },
     { pattern: /\bavoid\b/g, weight: 0.9 },

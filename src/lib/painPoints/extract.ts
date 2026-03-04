@@ -105,7 +105,11 @@ function isLikelyNoise(normalized: string) {
   return contentTokens.length < 2;
 }
 
-function scoreSeverity(input: { title: string; score: number; relevance: number }) {
+function scoreSeverity(input: {
+  title: string;
+  score: number;
+  relevance: number;
+}) {
   const text = input.title.toLowerCase();
   const strongSignals = [
     "struggling",
@@ -120,11 +124,17 @@ function scoreSeverity(input: { title: string; score: number; relevance: number 
     "stuck",
   ];
   const intensity =
-    strongSignals.reduce((acc, signal) => acc + (text.includes(signal) ? 1 : 0), 0) /
-    strongSignals.length;
+    strongSignals.reduce(
+      (acc, signal) => acc + (text.includes(signal) ? 1 : 0),
+      0,
+    ) / strongSignals.length;
   const voteBoost = clamp(input.score, 0, 1);
   const relevanceBoost = clamp(input.relevance, 0, 1);
-  return clamp(0.35 + intensity * 0.4 + voteBoost * 0.15 + relevanceBoost * 0.1, 0, 1);
+  return clamp(
+    0.35 + intensity * 0.4 + voteBoost * 0.15 + relevanceBoost * 0.1,
+    0,
+    1,
+  );
 }
 
 export function extractPainPointCandidates(threads: SourceThread[]) {
@@ -182,30 +192,35 @@ export function extractPainPointCandidates(threads: SourceThread[]) {
       existing.confidenceSamples.push(confidence);
       existing.frequency += 1;
       if (existing.titles.length < 3) existing.titles.push(title);
-      if (existing.threadIds.length < 5) existing.threadIds.push(thread.redditId);
+      if (existing.threadIds.length < 5)
+        existing.threadIds.push(thread.redditId);
     }
   }
 
-  const candidates: PainPointCandidate[] = [...grouped.values()].map((entry) => {
-    const severityScore =
-      entry.severitySamples.reduce((a, b) => a + b, 0) / entry.severitySamples.length;
-    const confidenceScore =
-      entry.confidenceSamples.reduce((a, b) => a + b, 0) /
-      entry.confidenceSamples.length;
-    return {
-      phrase: entry.phrase,
-      normalizedPhrase: entry.normalizedPhrase,
-      severityScore: Number(severityScore.toFixed(3)),
-      confidenceScore: Number(confidenceScore.toFixed(3)),
-      frequency: entry.frequency,
-      sampleTitles: entry.titles,
-      sourceThreadIds: entry.threadIds,
-    };
-  });
+  const candidates: PainPointCandidate[] = [...grouped.values()].map(
+    (entry) => {
+      const severityScore =
+        entry.severitySamples.reduce((a, b) => a + b, 0) /
+        entry.severitySamples.length;
+      const confidenceScore =
+        entry.confidenceSamples.reduce((a, b) => a + b, 0) /
+        entry.confidenceSamples.length;
+      return {
+        phrase: entry.phrase,
+        normalizedPhrase: entry.normalizedPhrase,
+        severityScore: Number(severityScore.toFixed(3)),
+        confidenceScore: Number(confidenceScore.toFixed(3)),
+        frequency: entry.frequency,
+        sampleTitles: entry.titles,
+        sourceThreadIds: entry.threadIds,
+      };
+    },
+  );
 
   return candidates.sort((a, b) => {
     if (b.frequency !== a.frequency) return b.frequency - a.frequency;
-    if (b.severityScore !== a.severityScore) return b.severityScore - a.severityScore;
+    if (b.severityScore !== a.severityScore)
+      return b.severityScore - a.severityScore;
     return b.confidenceScore - a.confidenceScore;
   });
 }

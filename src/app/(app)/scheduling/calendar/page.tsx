@@ -461,8 +461,8 @@ export default function SchedulingCalendarPage() {
               const disabled = Boolean(scheduled);
               const scheduleCtaLabel = scheduled
                 ? scheduled.status === "SCHEDULED" ||
-                    scheduled.status === "PENDING_APPROVAL" ||
-                    scheduled.status === "PUBLISHING"
+                  scheduled.status === "PENDING_APPROVAL" ||
+                  scheduled.status === "PUBLISHING"
                   ? "Already scheduled"
                   : "Manage in queue"
                 : actingDraftId === draft.id

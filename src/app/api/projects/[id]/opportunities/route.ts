@@ -80,7 +80,9 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
     where: {
       workspaceId: session.workspaceId,
       projectId,
-      status: { in: [RecommendationStatus.SELECTED, RecommendationStatus.CANDIDATE] },
+      status: {
+        in: [RecommendationStatus.SELECTED, RecommendationStatus.CANDIDATE],
+      },
     },
     select: {
       subredditId: true,
@@ -124,7 +126,8 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
     projectName: project.name,
     count: opportunities.length,
     items: opportunities.map((item) => {
-      const recommendation = recommendationBySubreddit.get(item.subredditId) ?? null;
+      const recommendation =
+        recommendationBySubreddit.get(item.subredditId) ?? null;
       return {
         id: item.id,
         subredditId: item.subredditId,

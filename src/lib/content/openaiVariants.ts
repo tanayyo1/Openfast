@@ -60,7 +60,7 @@ function extractJsonObject(input: string) {
       escaped = true;
       continue;
     }
-    if (ch === "\"") {
+    if (ch === '"') {
       inString = !inString;
       continue;
     }

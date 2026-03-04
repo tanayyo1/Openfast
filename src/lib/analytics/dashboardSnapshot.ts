@@ -136,25 +136,31 @@ export async function computeWorkspaceDashboardSnapshot(
     }
   }
 
-  const byProject: WorkspaceDashboardProjectMetrics[] = projects.map((project) => {
-    const metrics = projectMetrics.get(project.id);
-    const safe = metrics ?? {
-      publishedCount: 0,
-      removedCount: 0,
-      totalScore: 0,
-      totalComments: 0,
-      scheduledCount: 0,
-      failedCount: 0,
-    };
-    return {
-      projectId: project.id,
-      projectName: project.name,
-      projectStatus: project.status,
-      ...safe,
-      avgScore: safe.publishedCount ? safe.totalScore / safe.publishedCount : 0,
-      avgComments: safe.publishedCount ? safe.totalComments / safe.publishedCount : 0,
-    };
-  });
+  const byProject: WorkspaceDashboardProjectMetrics[] = projects.map(
+    (project) => {
+      const metrics = projectMetrics.get(project.id);
+      const safe = metrics ?? {
+        publishedCount: 0,
+        removedCount: 0,
+        totalScore: 0,
+        totalComments: 0,
+        scheduledCount: 0,
+        failedCount: 0,
+      };
+      return {
+        projectId: project.id,
+        projectName: project.name,
+        projectStatus: project.status,
+        ...safe,
+        avgScore: safe.publishedCount
+          ? safe.totalScore / safe.publishedCount
+          : 0,
+        avgComments: safe.publishedCount
+          ? safe.totalComments / safe.publishedCount
+          : 0,
+      };
+    },
+  );
 
   return {
     summary: {

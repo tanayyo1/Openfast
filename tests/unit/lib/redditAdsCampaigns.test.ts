@@ -59,23 +59,19 @@ describe("reddit ads campaign helpers", () => {
     const now = new Date("2026-02-20T00:00:00.000Z");
     const tomorrow = new Date("2026-02-21T00:00:00.000Z");
 
-    expect(
-      validateScheduleWindow({ startAt: now, endAt: null }),
-    ).toEqual({
+    expect(validateScheduleWindow({ startAt: now, endAt: null })).toEqual({
       ok: false,
       error: "Both startAt and endAt must be provided together",
     });
 
-    expect(
-      validateScheduleWindow({ startAt: tomorrow, endAt: now }),
-    ).toEqual({
+    expect(validateScheduleWindow({ startAt: tomorrow, endAt: now })).toEqual({
       ok: false,
       error: "startAt must be earlier than endAt",
     });
 
-    expect(
-      validateScheduleWindow({ startAt: now, endAt: tomorrow }),
-    ).toEqual({ ok: true });
+    expect(validateScheduleWindow({ startAt: now, endAt: tomorrow })).toEqual({
+      ok: true,
+    });
   });
 
   test("campaign status transitions are guarded", () => {

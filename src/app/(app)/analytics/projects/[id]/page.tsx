@@ -166,7 +166,9 @@ export default async function AnalyticsProjectPage({
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Analytics
           </p>
-          <h1 className="mt-3 text-3xl font-semibold">{snapshot.project.name}</h1>
+          <h1 className="mt-3 text-3xl font-semibold">
+            {snapshot.project.name}
+          </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Live project metrics from latest published snapshot data.
           </p>
@@ -262,7 +264,9 @@ export default async function AnalyticsProjectPage({
           {[
             {
               label: "Score",
-              value: formatNumber(scoreTrendPoints[scoreTrendPoints.length - 1] ?? 0),
+              value: formatNumber(
+                scoreTrendPoints[scoreTrendPoints.length - 1] ?? 0,
+              ),
               detail: `${formatNumber(trendDelta(scoreTrendPoints))} net change`,
               points: scoreTrendPoints,
             },
@@ -293,9 +297,14 @@ export default async function AnalyticsProjectPage({
               <div className="mt-3 flex items-center justify-between gap-4">
                 <div>
                   <p className="text-2xl font-semibold">{metric.value}</p>
-                  <p className="text-xs text-muted-foreground">{metric.detail}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {metric.detail}
+                  </p>
                 </div>
-                <Sparkline points={metric.points} className="h-10 w-28 text-primary" />
+                <Sparkline
+                  points={metric.points}
+                  className="h-10 w-28 text-primary"
+                />
               </div>
             </div>
           ))}

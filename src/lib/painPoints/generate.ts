@@ -84,7 +84,9 @@ export async function generateProjectPainPoints(input: {
     };
   }
 
-  const subredditIds = activeRecommendationSubreddits.map((item) => item.subredditId);
+  const subredditIds = activeRecommendationSubreddits.map(
+    (item) => item.subredditId,
+  );
   const threadBuckets = await Promise.all(
     subredditIds.map(async (subredditId) => {
       const items = await prisma.threadCandidate.findMany({
@@ -106,9 +108,10 @@ export async function generateProjectPainPoints(input: {
       return [subredditId, items] as const;
     }),
   );
-  const bySubreddit = new Map<string, Array<(typeof threadBuckets)[number][1][number]>>(
-    threadBuckets,
-  );
+  const bySubreddit = new Map<
+    string,
+    Array<(typeof threadBuckets)[number][1][number]>
+  >(threadBuckets);
 
   const perSubredditLimit = cappedTake(input.perSubredditLimit, 6, 12);
   const flattened: Array<{
@@ -172,24 +175,25 @@ export async function generateProjectPainPoints(input: {
     });
   }
 
-  const items: GeneratedPainPointItem[] = await prisma.projectPainPoint.findMany({
-    where: {
-      workspaceId: input.workspaceId,
-      projectId: input.projectId,
-      status: CandidateStatus.ACTIVE,
-    },
-    include: {
-      subreddit: {
-        select: { id: true, name: true, title: true },
+  const items: GeneratedPainPointItem[] =
+    await prisma.projectPainPoint.findMany({
+      where: {
+        workspaceId: input.workspaceId,
+        projectId: input.projectId,
+        status: CandidateStatus.ACTIVE,
       },
-    },
-    orderBy: [
-      { frequency: "desc" },
-      { severityScore: "desc" },
-      { confidenceScore: "desc" },
-    ],
-    take: 50,
-  });
+      include: {
+        subreddit: {
+          select: { id: true, name: true, title: true },
+        },
+      },
+      orderBy: [
+        { frequency: "desc" },
+        { severityScore: "desc" },
+        { confidenceScore: "desc" },
+      ],
+      take: 50,
+    });
 
   return {
     project,

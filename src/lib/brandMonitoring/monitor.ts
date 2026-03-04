@@ -168,7 +168,10 @@ function buildKeywordGroups(input: {
   projectUrl: string | null;
   goals: unknown;
 }): KeywordGroups {
-  const anchorsRaw: string[] = [input.projectName, ...hostCandidates(input.projectUrl)];
+  const anchorsRaw: string[] = [
+    input.projectName,
+    ...hostCandidates(input.projectUrl),
+  ];
   const contextRaw: string[] = [];
   collectTextValues(input.goals, contextRaw);
 
@@ -180,7 +183,10 @@ function buildKeywordGroups(input: {
     const phrase = value.trim().toLowerCase().replace(/\s+/g, " ");
     const isSingleToken = !phrase.includes(" ");
     const allowSingleTokenPhrase =
-      !isSingleToken || phrase.length <= 30 || SHORT_ALLOWED.has(phrase) || phrase.includes(".");
+      !isSingleToken ||
+      phrase.length <= 30 ||
+      SHORT_ALLOWED.has(phrase) ||
+      phrase.includes(".");
     if (
       phrase.length >= 3 &&
       phrase.length <= 60 &&
@@ -193,7 +199,10 @@ function buildKeywordGroups(input: {
 
     for (const token of tokenize(value)) {
       if (STOPWORDS.has(token)) continue;
-      if ((token.length >= 3 || SHORT_ALLOWED.has(token)) && token.length <= 30) {
+      if (
+        (token.length >= 3 || SHORT_ALLOWED.has(token)) &&
+        token.length <= 30
+      ) {
         if (!seen.has(token)) {
           seen.add(token);
           anchors.push(token);
@@ -304,7 +313,9 @@ export function computeMentionUrgency(input: {
   return { urgency: "LOW", score };
 }
 
-function summaryFromItems(items: BrandMonitoringItem[]): BrandMonitoringSummary {
+function summaryFromItems(
+  items: BrandMonitoringItem[],
+): BrandMonitoringSummary {
   const summary: BrandMonitoringSummary = {
     high: 0,
     medium: 0,
@@ -365,16 +376,19 @@ export async function buildProjectBrandMonitoringSnapshot(input: {
     };
   }
 
-  const recommendationScope = await prisma.projectSubredditRecommendation.findMany({
-    where: {
-      workspaceId: input.workspaceId,
-      projectId: project.id,
-      status: { in: [RecommendationStatus.SELECTED, RecommendationStatus.CANDIDATE] },
-    },
-    select: { subredditId: true },
-    orderBy: [{ status: "asc" }, { compositeScore: "desc" }],
-    take: 20,
-  });
+  const recommendationScope =
+    await prisma.projectSubredditRecommendation.findMany({
+      where: {
+        workspaceId: input.workspaceId,
+        projectId: project.id,
+        status: {
+          in: [RecommendationStatus.SELECTED, RecommendationStatus.CANDIDATE],
+        },
+      },
+      select: { subredditId: true },
+      orderBy: [{ status: "asc" }, { compositeScore: "desc" }],
+      take: 20,
+    });
 
   if (recommendationScope.length === 0) {
     return {
@@ -392,7 +406,13 @@ export async function buildProjectBrandMonitoringSnapshot(input: {
   const candidates = await prisma.threadCandidate.findMany({
     where: {
       subredditId: { in: recommendationScope.map((item) => item.subredditId) },
-      status: { in: [CandidateStatus.ACTIVE, CandidateStatus.EXPIRED, CandidateStatus.USED] },
+      status: {
+        in: [
+          CandidateStatus.ACTIVE,
+          CandidateStatus.EXPIRED,
+          CandidateStatus.USED,
+        ],
+      },
       createdAt: { gte: since },
     },
     include: {

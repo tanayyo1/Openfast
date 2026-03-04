@@ -164,7 +164,9 @@ function collectStringValues(input: unknown, depth = 0): string[] {
   if (depth > 4) return [];
   if (typeof input === "string") return [input];
   if (Array.isArray(input)) {
-    return input.slice(0, 25).flatMap((item) => collectStringValues(item, depth + 1));
+    return input
+      .slice(0, 25)
+      .flatMap((item) => collectStringValues(item, depth + 1));
   }
   if (input && typeof input === "object") {
     return Object.values(input as Record<string, unknown>)
@@ -193,8 +195,7 @@ function extractConstraintSignals(constraints: unknown) {
     const negationPos = segment.search(NEGATION_PATTERN);
     const positivePos = segment.search(POSITIVE_CONSTRAINT_PATTERN);
     const isAvoided =
-      negationPos !== -1 &&
-      (positivePos === -1 || negationPos < positivePos);
+      negationPos !== -1 && (positivePos === -1 || negationPos < positivePos);
 
     if (isAvoided) {
       for (const token of tokens) avoidedTokens.add(token);
@@ -281,11 +282,25 @@ function detectGoalIntent(goals: unknown): GoalIntent {
   if (tokens.length === 0) {
     return { reach: false, engagement: false, conversion: false };
   }
-  const has = (...needles: string[]) => needles.some((needle) => tokens.includes(needle));
+  const has = (...needles: string[]) =>
+    needles.some((needle) => tokens.includes(needle));
   return {
     reach: has("traffic", "growth", "awareness", "reach", "distribution"),
-    engagement: has("community", "engagement", "discussion", "comments", "conversation"),
-    conversion: has("conversion", "conversions", "leads", "sales", "signup", "signups"),
+    engagement: has(
+      "community",
+      "engagement",
+      "discussion",
+      "comments",
+      "conversation",
+    ),
+    conversion: has(
+      "conversion",
+      "conversions",
+      "leads",
+      "sales",
+      "signup",
+      "signups",
+    ),
   };
 }
 
@@ -347,9 +362,16 @@ function computeFitBreakdown(project: ProjectInput, sub: SubredditInput) {
     riskProxy,
   });
   const goalFitCapped = semanticFit < 0.2 ? Math.min(goalFit, 0.45) : goalFit;
-  const constraintMismatchPenalty = clamp(overlap.matchedAvoidedCount * 0.08, 0, 0.24);
+  const constraintMismatchPenalty = clamp(
+    overlap.matchedAvoidedCount * 0.08,
+    0,
+    0.24,
+  );
   const fitScore = clamp(
-    semanticFit * 0.58 + goalFitCapped * 0.3 + cadenceFit * 0.12 - constraintMismatchPenalty,
+    semanticFit * 0.58 +
+      goalFitCapped * 0.3 +
+      cadenceFit * 0.12 -
+      constraintMismatchPenalty,
   );
   return {
     fitScore,
@@ -400,10 +422,7 @@ function computeBroadAudiencePenalty(input: {
 }) {
   const { sub, semanticFit } = input;
   let penalty = 0;
-  if (
-    semanticFit < 0.2 &&
-    BROAD_SUBREDDIT_NAMES.has(sub.name.toLowerCase())
-  ) {
+  if (semanticFit < 0.2 && BROAD_SUBREDDIT_NAMES.has(sub.name.toLowerCase())) {
     penalty += 0.08;
   }
   if (semanticFit < 0.18 && sub.activeUsers > 4_000) {
@@ -439,10 +458,14 @@ function buildReasons(input: {
     reasons.push("Supports engagement-focused goals via comment activity.");
   }
   if (input.fit.goalIntent.conversion) {
-    reasons.push("Conversion goal considered with moderation-risk sensitivity.");
+    reasons.push(
+      "Conversion goal considered with moderation-risk sensitivity.",
+    );
   }
   if (input.broadAudiencePenalty > 0) {
-    reasons.push("Applied broad-audience penalty due to weak niche specificity.");
+    reasons.push(
+      "Applied broad-audience penalty due to weak niche specificity.",
+    );
   }
   if (input.fit.matchedAvoidedCount > 0) {
     reasons.push(
@@ -452,7 +475,9 @@ function buildReasons(input: {
   if (input.sub.policy?.promoAllowed === "DISALLOWED") {
     reasons.push("Strict promo policy increases execution risk.");
   } else if (!input.sub.policy || input.sub.policy.promoAllowed === "UNKNOWN") {
-    reasons.push("Moderation policy data is incomplete; risk adjusted conservatively.");
+    reasons.push(
+      "Moderation policy data is incomplete; risk adjusted conservatively.",
+    );
   }
   if (input.sub.avgCommentsPerPost && input.sub.avgCommentsPerPost > 10) {
     reasons.push("Strong comment activity.");
@@ -476,9 +501,7 @@ export function rankSubreddits(
         semanticFit: fit.semanticFit,
       });
       const fitScore = fit.fitScore;
-      const riskScore = clamp(
-        computeBaseRiskScore(sub) + broadAudiencePenalty,
-      );
+      const riskScore = clamp(computeBaseRiskScore(sub) + broadAudiencePenalty);
       const timeScore = clamp(sub.bestTimeScore);
       const totalScore = clamp(
         fitScore * 0.55 + timeScore * 0.25 - riskScore * 0.2,

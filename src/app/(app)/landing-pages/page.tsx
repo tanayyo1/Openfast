@@ -52,8 +52,9 @@ export default async function LandingPagesPage() {
         </p>
         <h1 className="mt-3 text-3xl font-semibold">Landing page generator</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          RED-58 foundation: generate conversion-ready landing page copy from your
-          workspace projects with deterministic fallbacks when LLM is unavailable.
+          RED-58 foundation: generate conversion-ready landing page copy from
+          your workspace projects with deterministic fallbacks when LLM is
+          unavailable.
         </p>
       </div>
 

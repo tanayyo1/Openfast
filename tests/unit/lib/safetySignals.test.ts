@@ -25,8 +25,8 @@ describe("safety signals", () => {
     );
     expect(accountTierSafetySignal("unexpected_tier")).toEqual(
       expect.objectContaining({
-        level: "safe",
-        label: "Established",
+        level: "watch",
+        label: "Tier unknown",
       }),
     );
   });

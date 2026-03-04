@@ -46,10 +46,17 @@ export function accountTierSafetySignal(tier: string): SafetySignal {
       note: "Healthy posting cadence available with normal monitoring.",
     };
   }
+  if (typedTier === "ESTABLISHED") {
+    return {
+      level: "safe",
+      label: "Established",
+      note: "Balanced posting cadence available with standard guardrails.",
+    };
+  }
   return {
-    level: "safe",
-    label: "Established",
-    note: "Balanced posting cadence available with standard guardrails.",
+    level: "watch",
+    label: "Tier unknown",
+    note: "Account tier is unavailable. Use conservative pacing until refreshed.",
   };
 }
 

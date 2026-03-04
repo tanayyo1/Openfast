@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { OnboardingFlowHeader } from "@/components/onboarding/OnboardingFlowHeader";
 import { trackAnalyticsEvent } from "@/lib/analytics/client";
+import {
+  firstValidationErrorMessage,
+  readResponseJson,
+  withHttpStatusFallback,
+  type ValidationErrorDetails,
+} from "@/lib/onboarding/clientResponses";
 import { normalizeProjectUrlInput } from "@/lib/projects/url";
 import {
   buildProjectPrefillFromPostGenerator,
@@ -28,6 +34,7 @@ const goalOptions = [
 export default function CreateProjectPage() {
   const router = useRouter();
   const handoffLoadedRef = useRef(false);
+  const saveActionLockRef = useRef(false);
 
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
@@ -67,6 +74,7 @@ export default function CreateProjectPage() {
   }, []);
 
   async function saveProject() {
+    if (saveActionLockRef.current) return;
     setError(null);
 
     const cleanName = name.trim();
@@ -83,6 +91,7 @@ export default function CreateProjectPage() {
       return;
     }
 
+    saveActionLockRef.current = true;
     setIsSaving(true);
     try {
       const res = await fetch("/api/projects", {
@@ -106,43 +115,36 @@ export default function CreateProjectPage() {
         }),
       });
 
-      const json = (await res.json()) as {
+      const json = await readResponseJson<{
         project?: { id: string };
         error?: string;
         code?: string;
-        details?: {
-          fieldErrors?: Record<string, string[] | undefined>;
-          formErrors?: string[];
-        };
-      };
+        details?: ValidationErrorDetails;
+      }>(res);
 
-      if (!res.ok || !json.project) {
-        if (json.code === "VALIDATION_ERROR") {
-          const firstFieldError = json.details?.fieldErrors
-            ? (Object.values(json.details.fieldErrors)
-                .flatMap((messages) => messages ?? [])
-                .find(
-                  (message): message is string =>
-                    typeof message === "string" && message.trim().length > 0,
-                ) ?? null)
-            : null;
-          const firstFormError =
-            json.details?.formErrors?.find(
-              (message) =>
-                typeof message === "string" && message.trim().length > 0,
-            ) ?? null;
+      if (!res.ok) {
+        if (json?.code === "VALIDATION_ERROR") {
           setError(
-            firstFieldError ??
-              firstFormError ??
+            firstValidationErrorMessage(json.details) ??
               "Please check your inputs and try again.",
           );
-        } else if (json.code === "QUOTA_EXCEEDED_PROJECTS") {
+        } else if (json?.code === "QUOTA_EXCEEDED_PROJECTS") {
           setError("Project limit reached for your current plan.");
-        } else if (json.code === "UNAUTHORIZED") {
+        } else if (json?.code === "UNAUTHORIZED" || res.status === 401) {
           setError("Session expired. Please login again.");
         } else {
-          setError(json.error ?? "Failed to save project. Try again.");
+          setError(
+            withHttpStatusFallback(
+              json?.error,
+              res.status,
+              "Failed to save project. Try again.",
+            ),
+          );
         }
+        return;
+      }
+      if (!json?.project) {
+        setError("Unexpected project response. Try again.");
         return;
       }
 
@@ -161,6 +163,7 @@ export default function CreateProjectPage() {
     } catch {
       setError("Network issue while saving project. Try again.");
     } finally {
+      saveActionLockRef.current = false;
       setIsSaving(false);
     }
   }

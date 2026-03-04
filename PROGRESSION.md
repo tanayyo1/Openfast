@@ -236,6 +236,9 @@
 - [x] Hardened onboarding roadmap generation UX with explicit error mapping for `ROADMAP_HORIZON_LIMIT`, `PROJECT_NOT_FOUND`, auth expiry, and validation failures (`src/components/roadmaps/RoadmapGenerateForm.tsx`).
 - [x] Added client-side horizon clamping and empty-project CTA to reduce avoidable API failures in step-3 onboarding.
 - [x] Added RED-83 unit coverage for roadmap-generation edge cases (limit messaging, clamp behavior, missing-project recovery, and no-project CTA) in `tests/unit/components/RoadmapGenerateForm.test.tsx`.
+- [x] Hardened onboarding step-1/2 API handling for malformed/non-JSON responses with explicit HTTP fallback messaging (`src/app/(app)/onboarding/create-project/page.tsx`, `src/app/(app)/onboarding/connect-reddit/page.tsx`).
+- [x] Added duplicate-action and stale-request guards on onboarding step-1/2 actions to reduce racey UI state under repeated refresh/connect/save clicks.
+- [x] Added onboarding client-response helper coverage for parsing/validation/auth-edge behavior (`tests/unit/lib/onboardingClientResponses.test.ts`).
 
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 

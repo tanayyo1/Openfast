@@ -228,9 +228,7 @@ describe("project subreddit discovery route (RED-62)", () => {
           selfPromoAllowed: true,
           affiliateAllowed: true,
         },
-        timeSlots: [
-          { score: 0.61, dayOfWeek: 3, hourUtc: 16, sampleSize: 80 },
-        ],
+        timeSlots: [{ score: 0.61, dayOfWeek: 3, hourUtc: 16, sampleSize: 80 }],
       },
     ]);
 

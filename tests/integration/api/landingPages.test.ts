@@ -31,7 +31,8 @@ describe("landing pages API", () => {
       where: { email: "seed@reditfast.local" },
       select: { id: true },
     });
-    if (!seedUser) throw new Error("Seed user missing. Ensure prisma db seed ran.");
+    if (!seedUser)
+      throw new Error("Seed user missing. Ensure prisma db seed ran.");
     userId = seedUser.id;
 
     const ws = await prisma.workspace.create({
@@ -168,7 +169,9 @@ describe("landing pages API", () => {
     const listJson = (await readJson(listRes)) as {
       items: Array<{ id: string }>;
     };
-    expect(listJson.items.some((item) => item.id === otherDraft.id)).toBe(false);
+    expect(listJson.items.some((item) => item.id === otherDraft.id)).toBe(
+      false,
+    );
 
     await prisma.landingPageDraft.delete({ where: { id: otherDraft.id } });
     await prisma.project.delete({ where: { id: otherProject.id } });
@@ -211,7 +214,9 @@ describe("landing pages API", () => {
     const listJson = (await readJson(listRes)) as {
       items: Array<{ id: string }>;
     };
-    expect(listJson.items.some((item) => item.id === created.draft.id)).toBe(false);
+    expect(listJson.items.some((item) => item.id === created.draft.id)).toBe(
+      false,
+    );
 
     const archivedListRes = await listLandingPages(
       new Request(

@@ -36,7 +36,9 @@ describe("auth register route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedHashPassword.mockResolvedValue("hashed_pw");
-    mockedPrisma.$transaction.mockImplementation(async (fn: Function) => fn(tx));
+    mockedPrisma.$transaction.mockImplementation(async (fn: Function) =>
+      fn(tx),
+    );
     tx.user.create.mockResolvedValue({
       id: "u_1",
       email: "user@example.com",

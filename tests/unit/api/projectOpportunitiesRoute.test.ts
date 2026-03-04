@@ -129,7 +129,9 @@ describe("project opportunities route (RED-59)", () => {
       id: "p_1",
       name: "Acme",
     });
-    mockedPrisma.projectSubredditRecommendation.findMany.mockResolvedValueOnce([]);
+    mockedPrisma.projectSubredditRecommendation.findMany.mockResolvedValueOnce(
+      [],
+    );
 
     const res = await listProjectOpportunities(
       new Request("http://test.local/api/projects/p_1/opportunities?limit=5"),

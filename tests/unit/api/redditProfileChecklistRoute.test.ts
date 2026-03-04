@@ -44,7 +44,9 @@ describe("reddit profile checklist route (RED-54)", () => {
     mockedPrisma.redditAccount.findFirst.mockResolvedValue(null);
 
     const res = await getProfileChecklist(
-      new Request("http://test.local/api/reddit/accounts/missing/profile-checklist"),
+      new Request(
+        "http://test.local/api/reddit/accounts/missing/profile-checklist",
+      ),
       { params: { id: "missing" } },
     );
 
@@ -67,7 +69,9 @@ describe("reddit profile checklist route (RED-54)", () => {
     });
 
     const res = await getProfileChecklist(
-      new Request("http://test.local/api/reddit/accounts/ra_1/profile-checklist"),
+      new Request(
+        "http://test.local/api/reddit/accounts/ra_1/profile-checklist",
+      ),
       { params: { id: "ra_1" } },
     );
 
@@ -85,12 +89,11 @@ describe("reddit profile checklist route (RED-54)", () => {
     expect(json.account.redditUsername).toBe("founder_handle");
     expect(typeof json.checklist.score).toBe("number");
     expect(json.checklist.summary.total).toBeGreaterThan(0);
-    expect(json.checklist.items.some((item) => item.key === "required_scopes")).toBe(
-      true,
-    );
+    expect(
+      json.checklist.items.some((item) => item.key === "required_scopes"),
+    ).toBe(true);
     expect(["READY", "NEEDS_IMPROVEMENT", "NOT_READY"]).toContain(
       json.checklist.readiness,
     );
   });
 });
-

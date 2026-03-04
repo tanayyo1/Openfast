@@ -142,7 +142,7 @@ export async function PATCH(
         parsed.data.archived === undefined
           ? current.archivedAt
           : parsed.data.archived
-            ? current.archivedAt ?? new Date()
+            ? (current.archivedAt ?? new Date())
             : null,
     },
     select: draftSelect,

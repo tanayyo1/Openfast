@@ -29,36 +29,38 @@ describe("analytics rollups", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedPrisma.workspace.findMany.mockResolvedValue([]);
-    mockedDashboardSnapshot.computeWorkspaceDashboardSnapshot.mockResolvedValue({
-      summary: {
-        projectCount: 1,
-        publishedCount: 2,
-        removedCount: 0,
-        totalScore: 20,
-        avgScore: 10,
-        totalComments: 5,
-        avgComments: 2.5,
-        scheduledCount: 1,
-        publishingCount: 0,
-        failedCount: 0,
-        cancelledCount: 0,
-      },
-      byProject: [
-        {
-          projectId: "p_1",
-          projectName: "Acme",
-          projectStatus: "ACTIVE",
+    mockedDashboardSnapshot.computeWorkspaceDashboardSnapshot.mockResolvedValue(
+      {
+        summary: {
+          projectCount: 1,
           publishedCount: 2,
           removedCount: 0,
           totalScore: 20,
-          totalComments: 5,
-          scheduledCount: 1,
-          failedCount: 0,
           avgScore: 10,
+          totalComments: 5,
           avgComments: 2.5,
+          scheduledCount: 1,
+          publishingCount: 0,
+          failedCount: 0,
+          cancelledCount: 0,
         },
-      ],
-    });
+        byProject: [
+          {
+            projectId: "p_1",
+            projectName: "Acme",
+            projectStatus: "ACTIVE",
+            publishedCount: 2,
+            removedCount: 0,
+            totalScore: 20,
+            totalComments: 5,
+            scheduledCount: 1,
+            failedCount: 0,
+            avgScore: 10,
+            avgComments: 2.5,
+          },
+        ],
+      },
+    );
   });
 
   test("persists deterministic daily rollup event", async () => {
@@ -74,9 +76,9 @@ describe("analytics rollups", () => {
       now: new Date("2026-02-20T08:00:00.000Z"),
     });
 
-    expect(mockedDashboardSnapshot.computeWorkspaceDashboardSnapshot).toHaveBeenCalledWith(
-      "ws_1",
-    );
+    expect(
+      mockedDashboardSnapshot.computeWorkspaceDashboardSnapshot,
+    ).toHaveBeenCalledWith("ws_1");
     expect(mockedPrisma.analyticsEvent.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "rollup_ws_ws_1_2026-02-20" },
@@ -158,10 +160,7 @@ describe("analytics rollups", () => {
 
   test("paginates workspace scan when page size is small", async () => {
     mockedPrisma.workspace.findMany
-      .mockResolvedValueOnce([
-        { id: "ws_1" },
-        { id: "ws_2" },
-      ])
+      .mockResolvedValueOnce([{ id: "ws_1" }, { id: "ws_2" }])
       .mockResolvedValueOnce([{ id: "ws_3" }])
       .mockResolvedValueOnce([]);
     mockedPrisma.analyticsEvent.upsert

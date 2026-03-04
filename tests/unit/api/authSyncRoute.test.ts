@@ -68,9 +68,11 @@ describe("auth sync route", () => {
       workspace: { id: "ws_team", name: "Team Workspace" },
     });
 
-    const res = await syncUser(new Request("http://test.local/api/auth/sync", {
-      method: "POST",
-    }));
+    const res = await syncUser(
+      new Request("http://test.local/api/auth/sync", {
+        method: "POST",
+      }),
+    );
 
     expect(res.status).toBe(200);
     const json = (await readJson(res)) as {

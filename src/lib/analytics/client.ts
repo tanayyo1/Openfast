@@ -15,7 +15,10 @@ const ONCE_KEY_PREFIX = "rf_analytics_once";
 const pendingOnceKeys = new Set<string>();
 
 function createAnonymousSessionId() {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return crypto.randomUUID();
   }
   return `${Date.now()}_${Math.random().toString(16).slice(2)}`;

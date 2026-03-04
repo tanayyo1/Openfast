@@ -281,7 +281,8 @@ export function startCronScheduler() {
           await emitOpsAlert({
             type: "analytics.rollup_partial_failure",
             level: "warn",
-            message: "Daily analytics rollups completed with workspace failures",
+            message:
+              "Daily analytics rollups completed with workspace failures",
             details: {
               forDate: out.forDate,
               scannedWorkspaces: out.scannedWorkspaces,

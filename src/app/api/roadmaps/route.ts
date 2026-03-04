@@ -327,7 +327,8 @@ export async function POST(req: Request) {
         }
 
         const reasonSummary = summarizeRecommendationReason(rec.reasons);
-        const mappedPainPoints = painPointBySubreddit.get(rec.subredditId) ?? [];
+        const mappedPainPoints =
+          painPointBySubreddit.get(rec.subredditId) ?? [];
         const painPointHint =
           mappedPainPoints.length > 0
             ? ` Pain points seen here: ${mappedPainPoints.map((item) => item.phrase).join("; ")}.`

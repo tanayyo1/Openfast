@@ -81,25 +81,23 @@ function templateMatchesHref(template: string, href: string) {
 
 describe("left-nav route coverage", () => {
   const appDir = path.join(process.cwd(), "src", "app");
-  const routeTemplates = Array.from(
-    new Set(collectPageRouteTemplates(appDir)),
-  );
+  const routeTemplates = Array.from(new Set(collectPageRouteTemplates(appDir)));
   const leftNavHrefs = [...appNavItems, ...appQuickLinks].map(
     (item) => item.href,
   );
 
   test("template matcher handles dynamic and catch-all segments safely", () => {
-    expect(templateMatchesHref("/seo/[type]/[slug]", "/seo/guides/support")).toBe(
-      true,
-    );
+    expect(
+      templateMatchesHref("/seo/[type]/[slug]", "/seo/guides/support"),
+    ).toBe(true);
     expect(templateMatchesHref("/seo/[type]/[slug]", "/seo/guides")).toBe(
       false,
     );
 
     expect(templateMatchesHref("/docs/[...slug]", "/docs")).toBe(false);
-    expect(templateMatchesHref("/docs/[...slug]", "/docs/getting-started")).toBe(
-      true,
-    );
+    expect(
+      templateMatchesHref("/docs/[...slug]", "/docs/getting-started"),
+    ).toBe(true);
 
     expect(templateMatchesHref("/docs/[[...slug]]", "/docs")).toBe(true);
     expect(templateMatchesHref("/docs/[[...slug]]", "/docs/a/b")).toBe(true);

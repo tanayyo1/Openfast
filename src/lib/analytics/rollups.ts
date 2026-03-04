@@ -5,8 +5,7 @@ import {
 } from "@/lib/analytics/dashboardSnapshot";
 import { prisma } from "@/lib/prisma";
 
-export const WORKSPACE_DAILY_ROLLUP_EVENT =
-  "analytics.rollup.workspace.daily";
+export const WORKSPACE_DAILY_ROLLUP_EVENT = "analytics.rollup.workspace.daily";
 const ROLLUP_SOURCE = "system.rollup";
 
 export type WorkspaceDailyRollupPayload = WorkspaceDashboardSnapshot & {

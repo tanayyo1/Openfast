@@ -354,14 +354,12 @@ export const useDemoStore = create<DemoState>()(
         const newId = makeId("draft");
         const pool = seedVariants(source.subreddit);
         // Repeat pool entries to fill requested count (pool has 3 items)
-        const variants = Array.from(
-          { length: variantCount },
-          (_, i) =>
-            rewriteVariant(
-              pool[i % pool.length],
-              { mode, tone: normalizedTone, length },
-              i,
-            ),
+        const variants = Array.from({ length: variantCount }, (_, i) =>
+          rewriteVariant(
+            pool[i % pool.length],
+            { mode, tone: normalizedTone, length },
+            i,
+          ),
         );
         const selected = variants[0];
 

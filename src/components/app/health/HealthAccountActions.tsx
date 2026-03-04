@@ -104,7 +104,8 @@ export function HealthAccountActions({
 
       if (!res.ok) {
         setError(
-          json?.error ?? `Failed to refresh account health (HTTP ${res.status}).`,
+          json?.error ??
+            `Failed to refresh account health (HTTP ${res.status}).`,
         );
         return;
       }

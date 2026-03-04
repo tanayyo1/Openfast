@@ -12,7 +12,9 @@ function authError(err: unknown) {
 export async function GET(req: Request) {
   const rawDays = new URL(req.url).searchParams.get("days");
   const parsedDays =
-    rawDays == null || rawDays.trim().length === 0 ? undefined : Number(rawDays);
+    rawDays == null || rawDays.trim().length === 0
+      ? undefined
+      : Number(rawDays);
 
   let session;
   try {

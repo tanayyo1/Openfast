@@ -22,8 +22,12 @@ describe("validateAnalyticsPipeline", () => {
       .mockResolvedValueOnce([{ count: BigInt(10) }]) // homepage unique count
       .mockResolvedValueOnce([{ count: BigInt(1) }]) // ordered full funnel
       .mockResolvedValueOnce([{ count: BigInt(0) }]) // malformed events
-      .mockResolvedValueOnce([{ event_name: "homepage_view", count: BigInt(10) }]) // perf query
-      .mockResolvedValueOnce([{ event_name: "homepage_view", count: BigInt(10) }]) // event distribution
+      .mockResolvedValueOnce([
+        { event_name: "homepage_view", count: BigInt(10) },
+      ]) // perf query
+      .mockResolvedValueOnce([
+        { event_name: "homepage_view", count: BigInt(10) },
+      ]) // event distribution
       .mockResolvedValueOnce([{ count: BigInt(5) }]); // recent events
   });
 
@@ -42,9 +46,7 @@ describe("validateAnalyticsPipeline", () => {
     expect(fullFunnelSql).toContain("signup_started");
     expect(fullFunnelSql).toContain("signup_completed");
     expect(fullFunnelSql).toContain("homepage_ts <= signup_started_ts");
-    expect(fullFunnelSql).toContain(
-      "signup_started_ts <= signup_completed_ts",
-    );
+    expect(fullFunnelSql).toContain("signup_started_ts <= signup_completed_ts");
     expect(fullFunnelSql).toContain(
       "onboarding_completed_ts <= plan_activated_ts",
     );

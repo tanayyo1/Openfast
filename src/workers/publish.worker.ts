@@ -334,7 +334,10 @@ export async function processPublishJob(job: Job<PublishJobData>) {
               select: { healthScore: true },
             })
           : null;
-      if (latestHealth && latestHealth.healthScore < healthThresholds.blockPublishing) {
+      if (
+        latestHealth &&
+        latestHealth.healthScore < healthThresholds.blockPublishing
+      ) {
         throw permanentWorkerError(
           "ACCOUNT_HEALTH_BLOCKED",
           "Account health score is below safe publish threshold",

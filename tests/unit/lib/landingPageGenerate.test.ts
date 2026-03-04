@@ -42,17 +42,31 @@ describe("landing page generator", () => {
         headline: "Scale your Reddit pipeline with confidence",
         subheadline:
           "A practical framework that helps teams build demand through repeatable community workflows.",
-        valueProps: ["Signal quality framework", "Execution checklists", "Conversion tracking"],
+        valueProps: [
+          "Signal quality framework",
+          "Execution checklists",
+          "Conversion tracking",
+        ],
         painPoints: [
           "Hard to prioritize experiments",
           "Inconsistent messaging",
           "No feedback loop",
         ],
-        featureBullets: ["Planning board", "Draft copilot", "Analytics snapshots"],
+        featureBullets: [
+          "Planning board",
+          "Draft copilot",
+          "Analytics snapshots",
+        ],
         socialProof: ["Used by growth teams", "Built for practical execution"],
         faqs: [
-          { question: "Who is it for?", answer: "Growth teams running Reddit as a channel." },
-          { question: "How fast to launch?", answer: "First version can ship in days." },
+          {
+            question: "Who is it for?",
+            answer: "Growth teams running Reddit as a channel.",
+          },
+          {
+            question: "How fast to launch?",
+            answer: "First version can ship in days.",
+          },
           {
             question: "What is included?",
             answer: "Workflow templates, copy prompts, and reporting loops.",
@@ -60,7 +74,8 @@ describe("landing page generator", () => {
         ],
         finalCta: "Start free",
         metaTitle: "Reddit Pipeline | SignalLoop",
-        metaDescription: "Build repeatable Reddit growth loops with practical execution.",
+        metaDescription:
+          "Build repeatable Reddit growth loops with practical execution.",
       }),
     );
 

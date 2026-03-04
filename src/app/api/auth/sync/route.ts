@@ -77,8 +77,7 @@ export async function POST(_request: Request) {
     }
 
     // Get user metadata (name from signup)
-    const name =
-      user.user_metadata?.name || email.split("@")[0] || "User";
+    const name = user.user_metadata?.name || email.split("@")[0] || "User";
 
     // Create user record
     const newUser = await prisma.user.create({

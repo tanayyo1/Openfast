@@ -19,7 +19,9 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
       ? undefined
       : Number(rawLimit);
   const parsedDays =
-    rawDays == null || rawDays.trim().length === 0 ? undefined : Number(rawDays);
+    rawDays == null || rawDays.trim().length === 0
+      ? undefined
+      : Number(rawDays);
   const cursor = rawCursor && rawCursor.trim().length > 0 ? rawCursor : null;
 
   let session;

@@ -408,7 +408,9 @@ describe("rankSubreddits", () => {
       5,
     );
 
-    const containsNot = ranked.find((item) => item.subredditId === "contains-not");
+    const containsNot = ranked.find(
+      (item) => item.subredditId === "contains-not",
+    );
     const clean = ranked.find((item) => item.subredditId === "clean");
     expect(containsNot).toBeDefined();
     expect(clean).toBeDefined();

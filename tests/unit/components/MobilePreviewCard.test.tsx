@@ -19,7 +19,9 @@ describe("MobilePreviewCard", () => {
 
     expect(screen.getByText("Mobile preview")).toBeInTheDocument();
     expect(screen.getByText("r/startups")).toBeInTheDocument();
-    expect(screen.getByText("Shipping a faster onboarding flow")).toBeInTheDocument();
+    expect(
+      screen.getByText("Shipping a faster onboarding flow"),
+    ).toBeInTheDocument();
     expect(screen.getByText("L1")).toBeInTheDocument();
     expect(screen.getByText("L4")).toBeInTheDocument();
     expect(screen.queryByText("L5")).not.toBeInTheDocument();

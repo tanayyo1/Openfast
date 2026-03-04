@@ -64,7 +64,9 @@ function asSections(input: unknown): LandingPageSections {
   const raw = input as Partial<LandingPageSections>;
   const asStringArray = (value: unknown) =>
     Array.isArray(value)
-      ? value.filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+      ? value.filter(
+          (v): v is string => typeof v === "string" && v.trim().length > 0,
+        )
       : [];
 
   return {
@@ -155,7 +157,12 @@ export function LandingPageManager({ projects, initialDrafts }: Props) {
         },
         ...prev,
       ]);
-      setForm((prev) => ({ ...prev, primaryKeyword: "", audience: "", offer: "" }));
+      setForm((prev) => ({
+        ...prev,
+        primaryKeyword: "",
+        audience: "",
+        offer: "",
+      }));
     } catch {
       setError("Request failed while generating landing page");
     } finally {
@@ -216,7 +223,9 @@ export function LandingPageManager({ projects, initialDrafts }: Props) {
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <select
             value={form.projectId}
-            onChange={(e) => setForm((prev) => ({ ...prev, projectId: e.target.value }))}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, projectId: e.target.value }))
+            }
             disabled={!hasProjects}
             className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
             required
@@ -242,25 +251,33 @@ export function LandingPageManager({ projects, initialDrafts }: Props) {
           />
           <input
             value={form.audience}
-            onChange={(e) => setForm((prev) => ({ ...prev, audience: e.target.value }))}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, audience: e.target.value }))
+            }
             placeholder="Audience (optional)"
             className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
           />
           <input
             value={form.tone}
-            onChange={(e) => setForm((prev) => ({ ...prev, tone: e.target.value }))}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, tone: e.target.value }))
+            }
             placeholder="Tone"
             className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
           />
           <input
             value={form.offer}
-            onChange={(e) => setForm((prev) => ({ ...prev, offer: e.target.value }))}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, offer: e.target.value }))
+            }
             placeholder="Offer (optional)"
             className="rounded-xl border border-border bg-background px-3 py-2 text-sm md:col-span-2"
           />
           <input
             value={form.ctaText}
-            onChange={(e) => setForm((prev) => ({ ...prev, ctaText: e.target.value }))}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, ctaText: e.target.value }))
+            }
             placeholder="CTA text"
             className="rounded-xl border border-border bg-background px-3 py-2 text-sm md:col-span-2"
           />
@@ -290,15 +307,21 @@ export function LandingPageManager({ projects, initialDrafts }: Props) {
           </div>
         ) : (
           drafts.map((draft) => (
-            <div key={draft.id} className="rounded-[24px] border border-border bg-card/80 p-6">
+            <div
+              key={draft.id}
+              className="rounded-[24px] border border-border bg-card/80 p-6"
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-lg font-semibold">{draft.name}</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {draft.project.name} • {draft.primaryKeyword} • {draft.source}
+                    {draft.project.name} • {draft.primaryKeyword} •{" "}
+                    {draft.source}
                   </p>
                   <p className="mt-2 text-sm">{draft.headline}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{draft.subheadline}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {draft.subheadline}
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -341,7 +364,8 @@ export function LandingPageManager({ projects, initialDrafts }: Props) {
                   {draft.sections.finalCta || draft.ctaText}
                 </p>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Slug: /seo/guides/{draft.slug} • Updated {toInputDate(draft.updatedAt)}
+                  Slug: /seo/guides/{draft.slug} • Updated{" "}
+                  {toInputDate(draft.updatedAt)}
                 </p>
               </div>
             </div>

@@ -30,7 +30,10 @@ function hasSupabaseSessionCookie(request: NextRequest) {
     const value = cookie.value?.trim();
     if (!value || value === "deleted") return false;
 
-    if (cookie.name === "sb-access-token" || cookie.name === "sb-refresh-token") {
+    if (
+      cookie.name === "sb-access-token" ||
+      cookie.name === "sb-refresh-token"
+    ) {
       return true;
     }
 

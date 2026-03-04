@@ -110,7 +110,9 @@ export async function POST(req: Request) {
     where: {
       workspaceId: session.workspaceId,
       projectId: project.id,
-      status: { in: [RecommendationStatus.SELECTED, RecommendationStatus.CANDIDATE] },
+      status: {
+        in: [RecommendationStatus.SELECTED, RecommendationStatus.CANDIDATE],
+      },
     },
     select: {
       subredditId: true,
@@ -193,122 +195,122 @@ export async function POST(req: Request) {
   });
   const recommendation = recommendationBySubreddit.get(opportunity.subredditId);
   const dayIndex = (latestTask?.dayIndex ?? 0) + 1;
-  let created:
-    | {
-        task: {
-          id: string;
-          roadmapId: string;
-          dayIndex: number;
-          type: TaskType;
-          subredditId: string | null;
-          fitScore: number | null;
-          title: string | null;
-          instructions: string;
-          status: string;
-          createdAt: Date;
-        };
-        draft: {
-          id: string;
-          taskId: string | null;
-          projectId: string;
-          subredditId: string | null;
-          type: "POST" | "COMMENT";
-          title: string | null;
-          body: string;
-          status: string;
-          createdAt: Date;
-          updatedAt: Date;
-        };
-      }
-    | null = null;
+  let created: {
+    task: {
+      id: string;
+      roadmapId: string;
+      dayIndex: number;
+      type: TaskType;
+      subredditId: string | null;
+      fitScore: number | null;
+      title: string | null;
+      instructions: string;
+      status: string;
+      createdAt: Date;
+    };
+    draft: {
+      id: string;
+      taskId: string | null;
+      projectId: string;
+      subredditId: string | null;
+      type: "POST" | "COMMENT";
+      title: string | null;
+      body: string;
+      status: string;
+      createdAt: Date;
+      updatedAt: Date;
+    };
+  } | null = null;
 
   try {
-    created = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const claim = await tx.threadCandidate.updateMany({
-        where: {
-          id: opportunity.id,
-          status: "ACTIVE",
-          expiresAt: { gt: new Date() },
-        },
-        data: { status: "USED" },
-      });
-      if (claim.count === 0) {
-        throw new Error("OPPORTUNITY_NOT_AVAILABLE");
-      }
-
-      const createdTask = await tx.roadmapTask.create({
-        data: {
-          workspaceId: session.workspaceId,
-          roadmapId: roadmap.id,
-          dayIndex,
-          type: TaskType.COMMENT,
-          subredditId: opportunity.subredditId,
-          fitScore: recommendation?.fitScore ?? null,
-          title: taskTitleFromThread(opportunity.title),
-          instructions:
-            `Reply with a value-first comment on this thread:\n` +
-            `${opportunity.permalink}\n\n` +
-            `Focus on actionable help tied to ${project.name}. Avoid promotional language and direct pitches.`,
-          priority: 3,
-          status: "PENDING",
-        },
-        select: {
-          id: true,
-          roadmapId: true,
-          dayIndex: true,
-          type: true,
-          subredditId: true,
-          fitScore: true,
-          title: true,
-          instructions: true,
-          status: true,
-          createdAt: true,
-        },
-      });
-
-      const createdDraft = await tx.draft.create({
-        data: {
-          workspaceId: session.workspaceId,
-          projectId: project.id,
-          taskId: createdTask.id,
-          subredditId: opportunity.subredditId,
-          type: "COMMENT",
-          title: null,
-          body:
-            `Thread context: ${opportunity.title}\n` +
-            `Permalink: ${opportunity.permalink}\n\n` +
-            `Draft a concise, practical comment that helps the OP and fits subreddit norms.`,
-          mediaUrls: [],
-          variants: Prisma.DbNull,
-          generationParams: {
-            queued: true,
-            source: "opportunity_automation",
-            opportunityId: opportunity.id,
-            opportunityScore: opportunity.score,
-            threadTitle: opportunity.title,
-            threadPermalink: opportunity.permalink,
+    created = await prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        const claim = await tx.threadCandidate.updateMany({
+          where: {
+            id: opportunity.id,
+            status: "ACTIVE",
+            expiresAt: { gt: new Date() },
           },
-          status: "DRAFT",
-          riskScore: 0,
-          riskReasons: [],
-          suggestedFixes: Prisma.DbNull,
-        },
-        select: {
-          id: true,
-          taskId: true,
-          projectId: true,
-          subredditId: true,
-          type: true,
-          title: true,
-          body: true,
-          status: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
+          data: { status: "USED" },
+        });
+        if (claim.count === 0) {
+          throw new Error("OPPORTUNITY_NOT_AVAILABLE");
+        }
 
-      return { task: createdTask, draft: createdDraft };
-    });
+        const createdTask = await tx.roadmapTask.create({
+          data: {
+            workspaceId: session.workspaceId,
+            roadmapId: roadmap.id,
+            dayIndex,
+            type: TaskType.COMMENT,
+            subredditId: opportunity.subredditId,
+            fitScore: recommendation?.fitScore ?? null,
+            title: taskTitleFromThread(opportunity.title),
+            instructions:
+              `Reply with a value-first comment on this thread:\n` +
+              `${opportunity.permalink}\n\n` +
+              `Focus on actionable help tied to ${project.name}. Avoid promotional language and direct pitches.`,
+            priority: 3,
+            status: "PENDING",
+          },
+          select: {
+            id: true,
+            roadmapId: true,
+            dayIndex: true,
+            type: true,
+            subredditId: true,
+            fitScore: true,
+            title: true,
+            instructions: true,
+            status: true,
+            createdAt: true,
+          },
+        });
+
+        const createdDraft = await tx.draft.create({
+          data: {
+            workspaceId: session.workspaceId,
+            projectId: project.id,
+            taskId: createdTask.id,
+            subredditId: opportunity.subredditId,
+            type: "COMMENT",
+            title: null,
+            body:
+              `Thread context: ${opportunity.title}\n` +
+              `Permalink: ${opportunity.permalink}\n\n` +
+              `Draft a concise, practical comment that helps the OP and fits subreddit norms.`,
+            mediaUrls: [],
+            variants: Prisma.DbNull,
+            generationParams: {
+              queued: true,
+              source: "opportunity_automation",
+              opportunityId: opportunity.id,
+              opportunityScore: opportunity.score,
+              threadTitle: opportunity.title,
+              threadPermalink: opportunity.permalink,
+            },
+            status: "DRAFT",
+            riskScore: 0,
+            riskReasons: [],
+            suggestedFixes: Prisma.DbNull,
+          },
+          select: {
+            id: true,
+            taskId: true,
+            projectId: true,
+            subredditId: true,
+            type: true,
+            title: true,
+            body: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+
+        return { task: createdTask, draft: createdDraft };
+      },
+    );
   } catch (err) {
     if (err instanceof Error && err.message === "OPPORTUNITY_NOT_AVAILABLE") {
       return NextResponse.json(

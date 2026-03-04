@@ -81,7 +81,9 @@ describe("getWorkspaceDashboardData", () => {
     expect(out.source).toBe("rollup");
     expect(out.generatedAt).toBe("2026-02-20T07:00:00.000Z");
     expect(out.trend).toHaveLength(1);
-    expect(mockedSnapshot.computeWorkspaceDashboardSnapshot).not.toHaveBeenCalled();
+    expect(
+      mockedSnapshot.computeWorkspaceDashboardSnapshot,
+    ).not.toHaveBeenCalled();
   });
 
   test("falls back to live snapshot when rollup is stale", async () => {
@@ -104,8 +106,8 @@ describe("getWorkspaceDashboardData", () => {
     expect(out.source).toBe("live");
     expect(out.generatedAt).toBe("2026-02-20T08:00:00.000Z");
     expect(out.trend).toHaveLength(1);
-    expect(mockedSnapshot.computeWorkspaceDashboardSnapshot).toHaveBeenCalledWith(
-      "ws_1",
-    );
+    expect(
+      mockedSnapshot.computeWorkspaceDashboardSnapshot,
+    ).toHaveBeenCalledWith("ws_1");
   });
 });

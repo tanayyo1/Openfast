@@ -139,7 +139,9 @@ describe("project demand-scorecard route (RED-57)", () => {
     ]);
 
     const res = await getDemandScorecard(
-      new Request("http://test.local/api/projects/p_empty_rec/demand-scorecard"),
+      new Request(
+        "http://test.local/api/projects/p_empty_rec/demand-scorecard",
+      ),
       { params: { id: "p_empty_rec" } },
     );
 

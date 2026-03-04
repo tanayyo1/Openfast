@@ -9,7 +9,12 @@ jest.mock("@/lib/billing/quota", () => {
     readonly limit: number;
     readonly used: number;
 
-    constructor(opts: { resource: string; limit: number; used: number; message: string }) {
+    constructor(opts: {
+      resource: string;
+      limit: number;
+      used: number;
+      message: string;
+    }) {
       super(opts.message);
       this.resource = opts.resource;
       this.limit = opts.limit;
@@ -129,7 +134,9 @@ describe("tasks from opportunity route (RED-59)", () => {
       user: { id: "u_1" },
       workspaceId: "ws_1",
     });
-    mockedQuota.getWorkspaceEntitlements.mockResolvedValue(defaultEntitlements());
+    mockedQuota.getWorkspaceEntitlements.mockResolvedValue(
+      defaultEntitlements(),
+    );
     mockedQuota.assertWorkspaceQuota.mockResolvedValue(undefined);
   });
 
@@ -236,7 +243,9 @@ describe("tasks from opportunity route (RED-59)", () => {
       id: "p_1",
       name: "Acme",
     });
-    mockedPrisma.projectSubredditRecommendation.findMany.mockResolvedValueOnce([]);
+    mockedPrisma.projectSubredditRecommendation.findMany.mockResolvedValueOnce(
+      [],
+    );
 
     const res = await createTaskFromOpportunity(
       new Request("http://test.local/api/tasks/from-opportunity", {
@@ -337,7 +346,9 @@ describe("tasks from opportunity route (RED-59)", () => {
       createdAt: now,
       updatedAt: now,
     });
-    mockedQueue.enqueueContentGenerateJob.mockResolvedValueOnce({ id: "job_1" });
+    mockedQueue.enqueueContentGenerateJob.mockResolvedValueOnce({
+      id: "job_1",
+    });
 
     const res = await createTaskFromOpportunity(
       new Request("http://test.local/api/tasks/from-opportunity", {

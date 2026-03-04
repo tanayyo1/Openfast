@@ -39,7 +39,10 @@ describe("generateProjectPainPoints", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockedPrisma.project.findFirst.mockResolvedValue({ id: "p_1", name: "Acme" });
+    mockedPrisma.project.findFirst.mockResolvedValue({
+      id: "p_1",
+      name: "Acme",
+    });
     mockedPrisma.$transaction.mockImplementation(async (handler: Function) =>
       handler(tx),
     );
@@ -62,9 +65,9 @@ describe("generateProjectPainPoints", () => {
       projectId: "p_1",
     });
 
-    expect(mockedPrisma.projectSubredditRecommendation.findMany).toHaveBeenCalledTimes(
-      2,
-    );
+    expect(
+      mockedPrisma.projectSubredditRecommendation.findMany,
+    ).toHaveBeenCalledTimes(2);
     expect(
       mockedPrisma.projectSubredditRecommendation.findMany.mock.calls[0]?.[0],
     ).toEqual(
@@ -124,9 +127,9 @@ describe("generateProjectPainPoints", () => {
       projectId: "p_1",
     });
 
-    expect(mockedPrisma.projectSubredditRecommendation.findMany).toHaveBeenCalledTimes(
-      1,
-    );
+    expect(
+      mockedPrisma.projectSubredditRecommendation.findMany,
+    ).toHaveBeenCalledTimes(1);
   });
 
   test("preserves existing pain points when extraction returns no candidates", async () => {

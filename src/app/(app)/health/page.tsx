@@ -119,7 +119,9 @@ export default async function HealthPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         {accounts.length === 0 ? (
           <div className="rounded-[24px] border border-border bg-card/80 p-6">
-            <p className="text-sm font-semibold">No connected Reddit accounts</p>
+            <p className="text-sm font-semibold">
+              No connected Reddit accounts
+            </p>
             <p className="mt-2 text-sm text-muted-foreground">
               Connect a Reddit account before running health snapshots or
               visibility checks.

@@ -89,9 +89,9 @@ describe("scheduling queue health route", () => {
     expect(res.status).toBe(200);
     expect(body.health.level).toBe("OK");
     expect(body.health.generatedAt).toBe("2026-02-21T12:00:00.000Z");
-    expect(mockedQueueHealth.getWorkspaceQueueHealthSnapshot).toHaveBeenCalledWith(
-      "ws_1",
-    );
+    expect(
+      mockedQueueHealth.getWorkspaceQueueHealthSnapshot,
+    ).toHaveBeenCalledWith("ws_1");
   });
 
   test("returns 500 when health service fails", async () => {

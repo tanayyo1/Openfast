@@ -98,7 +98,9 @@ describe("analytics dashboard route", () => {
       new Request("http://test.local/api/analytics/dashboard"),
     );
     expect(res.status).toBe(403);
-    expect(mockedDashboardData.getWorkspaceDashboardData).not.toHaveBeenCalled();
+    expect(
+      mockedDashboardData.getWorkspaceDashboardData,
+    ).not.toHaveBeenCalled();
   });
 
   test("uses fresh rollup payload when available", async () => {

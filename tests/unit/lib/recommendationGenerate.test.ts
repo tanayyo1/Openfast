@@ -41,7 +41,10 @@ describe("generateProjectRecommendations", () => {
     },
   };
 
-  function recommendation(subredditId: string, status: "SELECTED" | "CANDIDATE") {
+  function recommendation(
+    subredditId: string,
+    status: "SELECTED" | "CANDIDATE",
+  ) {
     return {
       id: `rec_${subredditId}`,
       workspaceId: "ws_1",
@@ -53,7 +56,8 @@ describe("generateProjectRecommendations", () => {
       compositeScore: 0.72,
       reasons: { summary: "ok" },
       status,
-      selectedAt: status === "SELECTED" ? new Date("2026-01-01T00:00:00.000Z") : null,
+      selectedAt:
+        status === "SELECTED" ? new Date("2026-01-01T00:00:00.000Z") : null,
       dismissedAt: null,
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -93,15 +97,15 @@ describe("generateProjectRecommendations", () => {
 
     expect(out.recommendations).toHaveLength(1);
     expect(out.recommendations[0]?.status).toBe("SELECTED");
-    expect(mockedPrisma.projectSubredditRecommendation.deleteMany).toHaveBeenCalledWith(
-      {
-        where: {
-          workspaceId: "ws_1",
-          projectId: "p_1",
-          status: { not: "SELECTED" },
-        },
+    expect(
+      mockedPrisma.projectSubredditRecommendation.deleteMany,
+    ).toHaveBeenCalledWith({
+      where: {
+        workspaceId: "ws_1",
+        projectId: "p_1",
+        status: { not: "SELECTED" },
       },
-    );
+    });
     expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
   });
 
@@ -148,12 +152,8 @@ describe("generateProjectRecommendations", () => {
     ]);
     mockedPrisma.projectSubredditRecommendation.findMany
       .mockResolvedValueOnce([{ subredditId: "sub_selected" }])
-      .mockResolvedValueOnce([
-        recommendation("sub_selected", "SELECTED"),
-      ])
-      .mockResolvedValueOnce([
-        recommendation("sub_candidate", "CANDIDATE"),
-      ]);
+      .mockResolvedValueOnce([recommendation("sub_selected", "SELECTED")])
+      .mockResolvedValueOnce([recommendation("sub_candidate", "CANDIDATE")]);
 
     await generateProjectRecommendations({
       workspaceId: "ws_1",
@@ -229,7 +229,8 @@ describe("generateProjectRecommendations", () => {
       projectId: "p_1",
     });
 
-    const createManyArg = tx.projectSubredditRecommendation.createMany.mock.calls[0]?.[0];
+    const createManyArg =
+      tx.projectSubredditRecommendation.createMany.mock.calls[0]?.[0];
     expect(createManyArg?.data).toHaveLength(3);
     expect(out.recommendations).toHaveLength(5);
   });

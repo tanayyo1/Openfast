@@ -34,7 +34,10 @@ function uniqueSubredditNames(names: string[]) {
   return deduped;
 }
 
-async function fetchPersistedRecommendations(workspaceId: string, projectId: string) {
+async function fetchPersistedRecommendations(
+  workspaceId: string,
+  projectId: string,
+) {
   return prisma.projectSubredditRecommendation.findMany({
     where: {
       workspaceId,
@@ -105,7 +108,9 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
     },
     select: { subredditId: true },
   });
-  const selectedSubredditIds = new Set(selectedRows.map((row) => row.subredditId));
+  const selectedSubredditIds = new Set(
+    selectedRows.map((row) => row.subredditId),
+  );
 
   const names = uniqueSubredditNames(
     candidateSubredditNamesForProject({
@@ -133,9 +138,7 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
   );
 
   const ingested = ingestedResults.filter(
-    (
-      subreddit,
-    ): subreddit is Awaited<ReturnType<typeof ingestSubreddit>> =>
+    (subreddit): subreddit is Awaited<ReturnType<typeof ingestSubreddit>> =>
       subreddit !== null,
   );
   if (ingested.length === 0) {

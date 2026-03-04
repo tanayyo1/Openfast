@@ -39,9 +39,10 @@ describe("app navigation config", () => {
     );
   });
 
-  test("keeps quick links focused on support and settings", () => {
+  test("keeps quick links focused on settings, trust, and support", () => {
     expect(appQuickLinks).toEqual([
       { label: "Settings", href: "/settings" },
+      { label: "Trust Center", href: "/trust-center" },
       { label: "Support", href: "/seo/guides/support" },
     ]);
   });
@@ -63,6 +64,11 @@ describe("app navigation config", () => {
     expect(
       isNavItemActive("/seo/guides/supporting", "/seo/guides/support"),
     ).toBe(false);
+    expect(isNavItemActive("/trust-center", "/trust-center")).toBe(true);
+    expect(isNavItemActive("/trust-center/security", "/trust-center")).toBe(
+      true,
+    );
+    expect(isNavItemActive("/trust-centers", "/trust-center")).toBe(false);
   });
 
   test("filters entitlement-gated links consistently", () => {

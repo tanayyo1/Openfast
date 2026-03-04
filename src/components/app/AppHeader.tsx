@@ -37,10 +37,10 @@ export async function AppHeader() {
             Projects
           </Link>
           <Link
-            href="/seo/guides/support"
+            href="/trust-center"
             className="rounded-full border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:border-foreground/40 hover:text-foreground"
           >
-            Support
+            Trust center
           </Link>
           <Link
             href="/settings"

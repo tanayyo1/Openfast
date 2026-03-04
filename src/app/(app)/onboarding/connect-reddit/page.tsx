@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { OnboardingFlowHeader } from "@/components/onboarding/OnboardingFlowHeader";
+import { SafetySignalBadge } from "@/components/safety/SafetySignalBadge";
 import { trackAnalyticsEvent } from "@/lib/analytics/client";
 import {
   mapOnboardingAuthError,
   readResponseJson,
   withHttpStatusFallback,
 } from "@/lib/onboarding/clientResponses";
+import { accountTierSafetySignal } from "@/lib/safetySignals";
 
 const scopes = [
   {
@@ -417,26 +419,35 @@ export default function ConnectRedditPage() {
               </div>
             ) : (
               <div className="mt-4 space-y-3">
-                {accounts.map((account) => (
-                  <div
-                    key={account.id}
-                    className="rounded-2xl border border-border bg-card/80 p-4"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold">
-                          u/{account.redditUsername}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Tier: {account.safetyTier}
-                        </p>
+                {accounts.map((account) => {
+                  const signal = accountTierSafetySignal(account.safetyTier);
+                  return (
+                    <div
+                      key={account.id}
+                      className="rounded-2xl border border-border bg-card/80 p-4"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold">
+                            u/{account.redditUsername}
+                          </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <SafetySignalBadge
+                              level={signal.level}
+                              label={signal.label}
+                            />
+                            <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
+                              Connected
+                            </span>
+                          </div>
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {signal.note}
+                          </p>
+                        </div>
                       </div>
-                      <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
-                        Connected
-                      </span>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

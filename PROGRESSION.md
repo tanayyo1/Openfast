@@ -240,6 +240,13 @@
 - [x] Added duplicate-action and stale-request guards on onboarding step-1/2 actions to reduce racey UI state under repeated refresh/connect/save clicks.
 - [x] Added onboarding client-response helper coverage for parsing/validation/auth-edge behavior (`tests/unit/lib/onboardingClientResponses.test.ts`).
 
+### Recent Safety/Trust UX Batch (RED-69/RED-66/RED-68, 2026-03-04)
+
+- [x] Added reusable safety signal mappings + badge UI (`src/lib/safetySignals.ts`, `src/components/safety/SafetySignalBadge.tsx`) and surfaced them on onboarding account-connect, roadmap generation, and scheduling pages.
+- [x] Added guided onboarding step metadata (`src/lib/onboardingGuidance.ts`) and upgraded `/onboarding` with clearer time estimates, checkpoints, and unblock hints.
+- [x] Added a dedicated public Trust Center route (`/trust-center`) plus app/public navigation links and pricing/onboarding entry points.
+- [x] Added unit coverage for safety signal mapping and guided onboarding derivation (`tests/unit/lib/safetySignals.test.ts`, `tests/unit/lib/onboardingGuidance.test.ts`) and updated nav quick-link assertions.
+
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 
 - [x] RED-62 discovery ranking quality pass merged (intent weighting, broad-audience penalty refinement, reason quality improvements).

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { RoadmapStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { buildGuidedOnboardingItems } from "@/lib/onboardingGuidance";
 import {
   buildOnboardingProgress,
   type OnboardingStepStatus,
@@ -80,6 +81,8 @@ async function loadOnboardingProgress() {
 
 export default async function OnboardingPage() {
   const progress = await loadOnboardingProgress();
+  const guidedItems = buildGuidedOnboardingItems(progress.steps);
+
   return (
     <div className="space-y-8">
       <AnalyticsBeacon
@@ -120,8 +123,16 @@ export default async function OnboardingPage() {
         </div>
       </div>
 
+      <div className="rounded-[24px] border border-border bg-background/70 p-6">
+        <p className="text-sm font-semibold">Guided setup flow</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Follow each step in order. Estimated time to full activation is under
+          10 minutes for most workspaces.
+        </p>
+      </div>
+
       <div className="grid gap-4">
-        {progress.steps.map((step, index) => (
+        {guidedItems.map((step, index) => (
           <div
             key={step.id}
             className={`rounded-[24px] border p-6 ${
@@ -133,14 +144,17 @@ export default async function OnboardingPage() {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Step {index + 1}
+                  Step {index + 1} • ~{step.etaMinutes} min
                 </p>
                 <p className="mt-2 text-lg font-semibold">{step.title}</p>
                 <p className="mt-2 text-sm text-muted-foreground">
                   {step.description}
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {step.detail}
+                  {step.checkpoint}
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {step.hint}
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -184,6 +198,12 @@ export default async function OnboardingPage() {
             className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
           >
             Contact support
+          </Link>
+          <Link
+            href="/trust-center"
+            className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
+          >
+            Trust center
           </Link>
         </div>
       </div>

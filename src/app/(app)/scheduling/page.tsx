@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { SafetySignalBadge } from "@/components/safety/SafetySignalBadge";
+import { queueHealthSafetySignal } from "@/lib/safetySignals";
 
 type ScheduledStatus =
   | "SCHEDULED"
@@ -169,6 +171,10 @@ export default function SchedulingPage() {
       nextRun,
     };
   }, [items]);
+  const queueSignal = useMemo(
+    () => queueHealthSafetySignal(queueHealth?.level ?? null),
+    [queueHealth?.level],
+  );
 
   return (
     <div className="space-y-8">
@@ -243,7 +249,9 @@ export default function SchedulingPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <p className="text-sm font-semibold">Queue health</p>
           {!loading && queueHealth ? (
-            <p className={`text-sm font-semibold ${healthTextClass(queueHealth.level)}`}>
+            <p
+              className={`text-sm font-semibold ${healthTextClass(queueHealth.level)}`}
+            >
               {healthLabel(queueHealth.level)}
             </p>
           ) : null}
@@ -253,12 +261,15 @@ export default function SchedulingPage() {
             Checking queue health...
           </p>
         ) : queueHealthError ? (
-          <p className="mt-2 text-sm text-muted-foreground">{queueHealthError}</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {queueHealthError}
+          </p>
         ) : queueHealth ? (
           <div className="mt-3 space-y-2 text-sm text-muted-foreground">
             <p>
               Queued: {queueHealth.counts.queued} • Due now:{" "}
-              {queueHealth.counts.dueNow} • Overdue: {queueHealth.counts.overdue}
+              {queueHealth.counts.dueNow} • Overdue:{" "}
+              {queueHealth.counts.overdue}
             </p>
             <p>
               Publishing: {queueHealth.counts.publishing} • Stale publishing:{" "}
@@ -291,6 +302,15 @@ export default function SchedulingPage() {
           Posts must be approved before scheduling. If an account is new or
           health is low, scheduling can be blocked by safety guardrails.
         </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <SafetySignalBadge level="safe" label="Approval required" />
+          <SafetySignalBadge level="watch" label="Comment-first for new tier" />
+          <SafetySignalBadge
+            level={queueSignal.level}
+            label={queueSignal.label}
+          />
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">{queueSignal.note}</p>
         {summary.nextRun ? (
           <p className="mt-3 text-sm text-muted-foreground">
             Next run: {new Date(summary.nextRun.scheduledAt).toLocaleString()} (

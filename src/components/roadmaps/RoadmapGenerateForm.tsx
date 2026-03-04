@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { OnboardingFlowHeader } from "@/components/onboarding/OnboardingFlowHeader";
 import { trackAnalyticsEvent } from "@/lib/analytics/client";
 
@@ -37,6 +37,15 @@ type RoadmapErrorPayload = {
 function clampHorizon(value: number) {
   if (!Number.isFinite(value)) return 1;
   return Math.max(1, Math.min(60, Math.round(value)));
+}
+
+function recoverProjectSelection(
+  currentProjectId: string,
+  projects: GenerateProject[],
+) {
+  if (projects.length === 0) return "";
+  const alternate = projects.find((project) => project.id !== currentProjectId);
+  return alternate?.id ?? "";
 }
 
 function mapRoadmapError(input: {
@@ -82,6 +91,17 @@ export function RoadmapGenerateForm({
   const [horizonDays, setHorizonDays] = useState(7);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (projects.length === 0) {
+      if (selectedProjectId !== "") setSelectedProjectId("");
+      return;
+    }
+    const exists = projects.some((project) => project.id === selectedProjectId);
+    if (!exists) {
+      setSelectedProjectId(projects[0]?.id ?? "");
+    }
+  }, [projects, selectedProjectId]);
 
   const canGenerate = useMemo(
     () => Boolean(selectedProjectId) && accounts.length > 0,
@@ -257,10 +277,7 @@ export function RoadmapGenerateForm({
                     projects.length > 0
                   ) {
                     setSelectedProjectId((current) => {
-                      const exists = projects.some(
-                        (project) => project.id === current,
-                      );
-                      return exists ? current : (projects[0]?.id ?? "");
+                      return recoverProjectSelection(current, projects);
                     });
                   }
                   setError(

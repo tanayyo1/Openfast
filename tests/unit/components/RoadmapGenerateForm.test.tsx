@@ -214,7 +214,43 @@ describe("RoadmapGenerateForm", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Project")).toHaveValue("p_1");
+      expect(screen.getByLabelText("Project")).toHaveValue("p_2");
+    });
+  });
+
+  test("switches away from current project after PROJECT_NOT_FOUND when alternatives exist", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      json: async () => ({
+        code: "PROJECT_NOT_FOUND",
+        error: "Project not found",
+      }),
+    });
+
+    render(
+      <RoadmapGenerateForm
+        projects={[
+          { id: "p_1", name: "Project One" },
+          { id: "p_2", name: "Project Two" },
+        ]}
+        accounts={[{ id: "a_1", redditUsername: "user1", safetyTier: "NEW" }]}
+        initialProjectId="p_1"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Project no longer exists. Select another project and retry.",
+        ),
+      ).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Project")).toHaveValue("p_2");
     });
   });
 });

@@ -50,6 +50,7 @@ export default function ConnectRedditPage() {
   const accountsRequestIdRef = useRef(0);
   const oauthRequestIdRef = useRef(0);
   const mountedRef = useRef(true);
+  const connectActionLockRef = useRef(false);
 
   const projectId = searchParams.get("projectId") ?? "";
 
@@ -205,7 +206,7 @@ export default function ConnectRedditPage() {
   }
 
   async function connectLocalAccount() {
-    if (isConnecting) return;
+    if (connectActionLockRef.current) return;
     const clean = username.trim();
     if (!clean) {
       setActionError("Enter a Reddit username to connect.");
@@ -213,6 +214,7 @@ export default function ConnectRedditPage() {
     }
 
     setActionError(null);
+    connectActionLockRef.current = true;
     setIsConnecting(true);
     try {
       const res = await fetch("/api/reddit/accounts/dev-connect", {
@@ -258,6 +260,7 @@ export default function ConnectRedditPage() {
     } catch {
       setActionError("Network issue while connecting account.");
     } finally {
+      connectActionLockRef.current = false;
       setIsConnecting(false);
     }
   }

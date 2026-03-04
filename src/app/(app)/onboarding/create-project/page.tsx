@@ -34,6 +34,7 @@ const goalOptions = [
 export default function CreateProjectPage() {
   const router = useRouter();
   const handoffLoadedRef = useRef(false);
+  const saveActionLockRef = useRef(false);
 
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
@@ -73,7 +74,7 @@ export default function CreateProjectPage() {
   }, []);
 
   async function saveProject() {
-    if (isSaving) return;
+    if (saveActionLockRef.current) return;
     setError(null);
 
     const cleanName = name.trim();
@@ -90,6 +91,7 @@ export default function CreateProjectPage() {
       return;
     }
 
+    saveActionLockRef.current = true;
     setIsSaving(true);
     try {
       const res = await fetch("/api/projects", {
@@ -161,6 +163,7 @@ export default function CreateProjectPage() {
     } catch {
       setError("Network issue while saving project. Try again.");
     } finally {
+      saveActionLockRef.current = false;
       setIsSaving(false);
     }
   }

@@ -72,6 +72,63 @@ describe("RoadmapGenerateForm", () => {
     });
   });
 
+  test("shows detailed horizon message when API returns ROADMAP_HORIZON_LIMIT", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      json: async () => ({
+        code: "ROADMAP_HORIZON_LIMIT",
+        details: { requested: 30, maxAllowed: 7 },
+      }),
+    });
+
+    render(
+      <RoadmapGenerateForm
+        projects={[{ id: "p_1", name: "Project One" }]}
+        accounts={[{ id: "a_1", redditUsername: "user1", safetyTier: "NEW" }]}
+        initialProjectId="p_1"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Your plan allows up to 7 roadmap days."),
+      ).toBeInTheDocument();
+    });
+  });
+
+  test("clamps horizon days to max bound before API call", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => ({ roadmap: { id: "rm_1" } }),
+    });
+
+    render(
+      <RoadmapGenerateForm
+        projects={[{ id: "p_1", name: "Project One" }]}
+        accounts={[{ id: "a_1", redditUsername: "user1", safetyTier: "NEW" }]}
+        initialProjectId="p_1"
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Horizon days"), {
+      target: { value: "120" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    const fetchBody = fetchMock.mock.calls[0]?.[1]?.body as string;
+    const payload = JSON.parse(fetchBody);
+    expect(payload.horizonDays).toBe(60);
+  });
+
   test("navigates to roadmap detail on successful creation", async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
@@ -109,5 +166,55 @@ describe("RoadmapGenerateForm", () => {
       "href",
       "/onboarding/connect-reddit?projectId=p_1",
     );
+  });
+
+  test("shows create-project CTA when no projects exist", () => {
+    render(
+      <RoadmapGenerateForm
+        projects={[]}
+        accounts={[{ id: "a_1", redditUsername: "user1", safetyTier: "NEW" }]}
+        initialProjectId=""
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "Create project" }),
+    ).toHaveAttribute("href", "/onboarding/create-project");
+  });
+
+  test("recovers selection after PROJECT_NOT_FOUND response", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      json: async () => ({
+        code: "PROJECT_NOT_FOUND",
+        error: "Project not found",
+      }),
+    });
+
+    render(
+      <RoadmapGenerateForm
+        projects={[
+          { id: "p_1", name: "Project One" },
+          { id: "p_2", name: "Project Two" },
+        ]}
+        accounts={[{ id: "a_1", redditUsername: "user1", safetyTier: "NEW" }]}
+        initialProjectId="missing_project"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Project no longer exists. Select another project and retry.",
+        ),
+      ).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Project")).toHaveValue("p_1");
+    });
   });
 });

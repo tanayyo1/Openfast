@@ -11,7 +11,7 @@ function authError(err: unknown) {
   return NextResponse.json({ error: "Unauthorized", code }, { status });
 }
 
-export async function GET(_req: Request, ctx: { params?: { id?: string } }) {
+export async function GET(_req: Request, ctx: { params: { id: string } }) {
   let session;
   try {
     session = await requireWorkspaceSession();
@@ -19,7 +19,7 @@ export async function GET(_req: Request, ctx: { params?: { id?: string } }) {
     return authError(err);
   }
   try {
-    const accountId = ctx.params?.id?.trim();
+    const accountId = ctx.params.id.trim();
     if (!accountId) {
       return NextResponse.json(
         { error: "Account id is required", code: "ACCOUNT_ID_REQUIRED" },

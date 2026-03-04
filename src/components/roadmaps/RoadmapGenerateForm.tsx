@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { OnboardingFlowHeader } from "@/components/onboarding/OnboardingFlowHeader";
 import { trackAnalyticsEvent } from "@/lib/analytics/client";
 
@@ -24,6 +24,62 @@ type Props = {
   mode?: "default" | "onboarding";
 };
 
+type RoadmapErrorPayload = {
+  roadmap?: { id?: string };
+  error?: string;
+  code?: string;
+  details?: {
+    requested?: number;
+    maxAllowed?: number;
+  };
+};
+
+function clampHorizon(value: number) {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(1, Math.min(60, Math.round(value)));
+}
+
+function recoverProjectSelection(
+  currentProjectId: string,
+  projects: GenerateProject[],
+) {
+  if (projects.length === 0) return "";
+  const alternate = projects.find((project) => project.id !== currentProjectId);
+  return alternate?.id ?? "";
+}
+
+function mapRoadmapError(input: {
+  status: number;
+  payload: RoadmapErrorPayload | null;
+}) {
+  const code = input.payload?.code;
+  if (code === "ROADMAP_HORIZON_LIMIT") {
+    const maxAllowed = input.payload?.details?.maxAllowed;
+    if (typeof maxAllowed === "number" && Number.isFinite(maxAllowed)) {
+      return `Your plan allows up to ${maxAllowed} roadmap days.`;
+    }
+    return "Roadmap horizon exceeds your plan allowance.";
+  }
+  if (code === "PROJECT_NOT_FOUND") {
+    return "Project no longer exists. Select another project and retry.";
+  }
+  if (code === "WORKSPACE_REQUIRED" || code === "UNAUTHORIZED") {
+    return "Session expired. Please log in again.";
+  }
+  if (code === "VALIDATION_ERROR") {
+    return "Please check project and horizon values.";
+  }
+
+  return (
+    input.payload?.error ??
+    (input.status === 401
+      ? "Please log in and retry."
+      : input.status === 403
+        ? "Your current plan cannot generate this roadmap horizon."
+        : "Failed to generate roadmap.")
+  );
+}
+
 export function RoadmapGenerateForm({
   projects,
   accounts,
@@ -36,10 +92,22 @@ export function RoadmapGenerateForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (projects.length === 0) {
+      if (selectedProjectId !== "") setSelectedProjectId("");
+      return;
+    }
+    const exists = projects.some((project) => project.id === selectedProjectId);
+    if (!exists) {
+      setSelectedProjectId(projects[0]?.id ?? "");
+    }
+  }, [projects, selectedProjectId]);
+
   const canGenerate = useMemo(
     () => Boolean(selectedProjectId) && accounts.length > 0,
     [accounts.length, selectedProjectId],
   );
+  const hasProjects = projects.length > 0;
   const connectHref = selectedProjectId
     ? `/onboarding/connect-reddit?projectId=${encodeURIComponent(selectedProjectId)}`
     : "/onboarding/connect-reddit";
@@ -91,6 +159,14 @@ export function RoadmapGenerateForm({
                 Create a project first.
               </p>
             ) : null}
+            {!hasProjects ? (
+              <Link
+                href="/onboarding/create-project"
+                className="mt-3 inline-flex rounded-full border border-border px-3 py-1 text-xs font-semibold"
+              >
+                Create project
+              </Link>
+            ) : null}
           </div>
           <div>
             <label className="text-sm font-semibold" htmlFor="horizonDays">
@@ -105,6 +181,7 @@ export function RoadmapGenerateForm({
               onChange={(event) =>
                 setHorizonDays(Number.parseInt(event.target.value, 10) || 1)
               }
+              onBlur={() => setHorizonDays((current) => clampHorizon(current))}
               className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm"
             />
             <p className="mt-2 text-xs text-muted-foreground">
@@ -170,41 +247,41 @@ export function RoadmapGenerateForm({
             type="button"
             disabled={!canGenerate || busy}
             onClick={async () => {
+              if (busy) return;
               setBusy(true);
               setError(null);
               try {
+                const normalizedHorizonDays = clampHorizon(horizonDays);
+                if (normalizedHorizonDays !== horizonDays) {
+                  setHorizonDays(normalizedHorizonDays);
+                }
                 const res = await fetch("/api/roadmaps", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
                     projectId: selectedProjectId,
-                    horizonDays,
+                    horizonDays: normalizedHorizonDays,
                   }),
                 });
 
-                let json: {
-                  roadmap?: { id: string };
-                  error?: string;
-                  code?: string;
-                } | null = null;
+                let json: RoadmapErrorPayload | null = null;
                 try {
-                  json = (await res.json()) as {
-                    roadmap?: { id: string };
-                    error?: string;
-                    code?: string;
-                  };
+                  json = (await res.json()) as RoadmapErrorPayload;
                 } catch {
                   json = null;
                 }
                 const roadmapId = json?.roadmap?.id ?? null;
                 if (!res.ok || !roadmapId) {
+                  if (
+                    json?.code === "PROJECT_NOT_FOUND" &&
+                    projects.length > 0
+                  ) {
+                    setSelectedProjectId((current) => {
+                      return recoverProjectSelection(current, projects);
+                    });
+                  }
                   setError(
-                    json?.error ??
-                      (res.status === 401
-                        ? "Please log in and retry."
-                        : res.status === 403
-                          ? "Your current plan cannot generate this roadmap horizon."
-                          : "Failed to generate roadmap."),
+                    mapRoadmapError({ status: res.status, payload: json }),
                   );
                   return;
                 }
@@ -214,7 +291,7 @@ export function RoadmapGenerateForm({
                   onceKey: `onboarding_roadmap_generated_${roadmapId}`,
                   properties: {
                     projectId: selectedProjectId,
-                    horizonDays,
+                    horizonDays: normalizedHorizonDays,
                   },
                 });
                 void trackAnalyticsEvent({
@@ -223,7 +300,7 @@ export function RoadmapGenerateForm({
                   properties: {
                     projectId: selectedProjectId,
                     roadmapId,
-                    horizonDays,
+                    horizonDays: normalizedHorizonDays,
                   },
                 });
                 router.push(`/roadmaps/${encodeURIComponent(roadmapId)}`);

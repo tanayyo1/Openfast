@@ -231,6 +231,12 @@
 - [x] Updated draft detail UI (`/content/drafts/:id`) to surface compliance/value metrics and anti-pattern flags per variant instead of relying only on legacy variant `score`.
 - [x] Added unit coverage for parser behavior and compliance/value rendering in `DraftEditor` (`tests/unit/lib/draftVariants.test.ts`, `tests/unit/components/DraftEditor.test.tsx`).
 
+### Recent Launch Flow Hardening Slice (RED-83, 2026-03-04)
+
+- [x] Hardened onboarding roadmap generation UX with explicit error mapping for `ROADMAP_HORIZON_LIMIT`, `PROJECT_NOT_FOUND`, auth expiry, and validation failures (`src/components/roadmaps/RoadmapGenerateForm.tsx`).
+- [x] Added client-side horizon clamping and empty-project CTA to reduce avoidable API failures in step-3 onboarding.
+- [x] Added RED-83 unit coverage for roadmap-generation edge cases (limit messaging, clamp behavior, missing-project recovery, and no-project CTA) in `tests/unit/components/RoadmapGenerateForm.test.tsx`.
+
 ### Recent Recommendation Quality Batch (Merged 2026-02-20, PR #106)
 
 - [x] RED-62 discovery ranking quality pass merged (intent weighting, broad-audience penalty refinement, reason quality improvements).

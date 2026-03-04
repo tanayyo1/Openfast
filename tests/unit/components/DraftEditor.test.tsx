@@ -104,4 +104,30 @@ describe("DraftEditor edge cases", () => {
     expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Rewrite" })).toBeDisabled();
   });
+
+  test("renders compliance and value metrics when variant metadata is present", () => {
+    render(
+      <DraftEditor
+        variants={[
+          {
+            title: "Variant A",
+            body: "Body A",
+            riskScore: 35,
+            notes: ["Low value density before promotion intent"],
+            complianceScore: 65,
+            valueScore: 52,
+            antiPatternFlags: ["engagement-gating"],
+            expectedTone: "professional",
+            detectedTone: "promotional",
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("Compliance 65 • Value 52")).toBeInTheDocument();
+    expect(
+      screen.getByText("Tone: expected professional, detected promotional"),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Flags: engagement-gating/)).toBeInTheDocument();
+  });
 });

@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { OnboardingFlowHeader } from "@/components/onboarding/OnboardingFlowHeader";
+import { SafetySignalBadge } from "@/components/safety/SafetySignalBadge";
 import { trackAnalyticsEvent } from "@/lib/analytics/client";
+import { accountTierSafetySignal } from "@/lib/safetySignals";
 
 type GenerateProject = {
   id: string;
@@ -205,12 +207,26 @@ export function RoadmapGenerateForm({
                 </div>
               ) : (
                 <ul className="space-y-2 text-sm text-muted-foreground">
-                  {accounts.map((account) => (
-                    <li key={account.id}>
-                      u/{account.redditUsername} (
-                      {account.safetyTier.toLowerCase()})
-                    </li>
-                  ))}
+                  {accounts.map((account) => {
+                    const signal = accountTierSafetySignal(account.safetyTier);
+                    return (
+                      <li
+                        key={account.id}
+                        className="rounded-xl border border-border px-3 py-2"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span>u/{account.redditUsername}</span>
+                          <SafetySignalBadge
+                            level={signal.level}
+                            label={signal.label}
+                          />
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {signal.note}
+                        </p>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>

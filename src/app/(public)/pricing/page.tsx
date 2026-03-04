@@ -144,12 +144,20 @@ export default function PricingPage() {
           <p className="mt-2 text-sm text-muted-foreground">
             We can tailor safety pacing, team seats, and reporting for agencies.
           </p>
-          <Link
-            href="/seo/guides/support"
-            className="mt-6 inline-flex rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground transition hover:border-foreground/40"
-          >
-            Contact sales
-          </Link>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/seo/guides/support"
+              className="inline-flex rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground transition hover:border-foreground/40"
+            >
+              Contact sales
+            </Link>
+            <Link
+              href="/trust-center"
+              className="inline-flex rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground transition hover:border-foreground/40"
+            >
+              Trust center
+            </Link>
+          </div>
         </div>
       </MaxWidth>
     </div>

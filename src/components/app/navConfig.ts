@@ -87,6 +87,7 @@ export function navSectionsForEntitlements(
 
 export const appQuickLinks = [
   { label: "Settings", href: "/settings" },
+  { label: "Trust Center", href: "/trust-center" },
   { label: "Support", href: "/seo/guides/support" },
 ] as const;
 

@@ -4,6 +4,7 @@ import { MaxWidth } from "./MaxWidth";
 const navItems = [
   { label: "Pricing", href: "/pricing" },
   { label: "Tools", href: "/tools/post-generator" },
+  { label: "Trust", href: "/trust-center" },
   { label: "SEO", href: "/seo/industry/saas" },
   { label: "Login", href: "/login" },
 ];

@@ -23,6 +23,7 @@ const footerSections = [
   {
     title: "Resources",
     links: [
+      { label: "Trust center", href: "/trust-center" },
       { label: "SEO hub", href: "/seo/industry/saas" },
       { label: "Industry", href: "/seo/industry/indie-founders" },
       { label: "City", href: "/seo/city/san-francisco" },

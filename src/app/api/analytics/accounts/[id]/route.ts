@@ -3,8 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { requireWorkspaceSession } from "@/lib/server/auth-guards";
 import { getWorkspaceEntitlements } from "@/lib/billing/quota";
 
-export const dynamic = "force-dynamic";
-
 function authError(err: unknown) {
   const code = err instanceof Error ? err.message : "UNAUTHORIZED";
   const status = code === "WORKSPACE_REQUIRED" ? 400 : 401;

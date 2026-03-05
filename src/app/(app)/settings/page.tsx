@@ -109,8 +109,7 @@ export default function SettingsPage() {
         </p>
         <h1 className="mt-3 text-3xl font-semibold">Workspace Settings</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Development controls for authenticated workspace admins. Reset actions
-          are disabled in production.
+          Manage your workspace, reset data, or sign out.
         </p>
       </div>
 

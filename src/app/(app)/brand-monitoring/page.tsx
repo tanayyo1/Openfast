@@ -250,8 +250,16 @@ export default async function BrandMonitoringPage({
               </div>
             </>
           ) : (
-            <div className="rounded-[24px] border border-border bg-card/80 p-6 text-sm text-muted-foreground">
-              Unable to load monitoring snapshot for this project.
+            <div className="rounded-[24px] border border-border bg-card/80 p-6">
+              <p className="text-sm text-muted-foreground">
+                Unable to load monitoring data. This may be a temporary issue.
+              </p>
+              <Link
+                href={`/brand-monitoring${selectedProjectId ? `?projectId=${encodeURIComponent(selectedProjectId)}` : ""}`}
+                className="mt-3 inline-flex rounded-full border border-border px-4 py-2 text-xs font-semibold"
+              >
+                Retry
+              </Link>
             </div>
           )}
         </>

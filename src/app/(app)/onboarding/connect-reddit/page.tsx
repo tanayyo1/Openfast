@@ -233,14 +233,14 @@ export default function ConnectRedditPage() {
           setActionError("That account is already connected.");
         } else if (json?.code === "TOKEN_ENCRYPTION_NOT_CONFIGURED") {
           setActionError(
-            "Token encryption is not configured. Check TOKEN_ENCRYPTION_KEYS.",
+            "Reddit account connection is temporarily unavailable. Please try again later.",
           );
         } else if (json?.code === "VALIDATION_ERROR") {
           setActionError(
             "Username must be 3-20 chars and only use letters, numbers, _ or -.",
           );
         } else if (json?.code === "FORBIDDEN") {
-          setActionError("Local mock connect is disabled in production mode.");
+          setActionError("This connection method is not available.");
         } else {
           setActionError(
             mapOnboardingAuthError(
@@ -318,16 +318,16 @@ export default function ConnectRedditPage() {
 
           <div className="mt-6 rounded-2xl border border-border bg-background/70 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Local mode connect
+              Quick connect
             </p>
             {!devConnectAvailable ? (
               <p className="mt-3 text-xs text-muted-foreground">
-                Local mode connect is disabled in production.
+                Quick connect is not available in this environment.
               </p>
             ) : localModeSession ? (
               <p className="mt-3 text-xs text-muted-foreground">
-                You are in local mode. Connected accounts are placeholder tokens
-                for safe testing.
+                Connected accounts use temporary credentials for testing
+                purposes.
               </p>
             ) : null}
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -371,8 +371,7 @@ export default function ConnectRedditPage() {
           </div>
 
           <p className="mt-4 text-xs text-muted-foreground">
-            Tokens are encrypted at rest. Local mode stores placeholder
-            credentials only.
+            Tokens are encrypted at rest.
           </p>
         </div>
 

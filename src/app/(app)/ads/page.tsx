@@ -66,8 +66,7 @@ export default async function AdsPage() {
         </p>
         <h1 className="mt-3 text-3xl font-semibold">Campaign planner</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          RED-52: plan, validate, and manage Reddit ad campaigns with
-          workspace-scoped controls and async external sync status.
+          Plan, validate, and manage Reddit ad campaigns from your workspace.
         </p>
       </div>
 

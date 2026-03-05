@@ -301,7 +301,7 @@ export default function CreateProjectPage() {
         </div>
 
         {error ? (
-          <p className="mt-4 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-muted-foreground">
+          <p className="mt-4 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {error}
           </p>
         ) : null}

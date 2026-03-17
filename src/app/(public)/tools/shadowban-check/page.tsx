@@ -6,7 +6,22 @@ import { MaxWidth } from "@/components/public/MaxWidth";
 
 type ShadowbanCheckResponse = {
   username: string;
-  result: "OK" | "SUSPICIOUS";
+  result:
+    | "CLEAR"
+    | "SHADOWBANNED"
+    | "SUSPENDED"
+    | "AT_RISK"
+    | "NOT_FOUND"
+    | "UNREACHABLE";
+  reason: string;
+  profile: {
+    karma: number;
+    commentKarma: number;
+    accountAgeDays: number | null;
+    hasVerifiedEmail: boolean;
+    isSuspended: boolean;
+    recentActivityCount: number;
+  } | null;
   checks: {
     redditProfileReachable: boolean;
     redditProfileStatus: number | null;
@@ -14,6 +29,15 @@ type ShadowbanCheckResponse = {
     internalSampleSize: number;
     internalSuspiciousRate: number;
   };
+};
+
+const RESULT_DISPLAY: Record<string, { label: string; color: string }> = {
+  CLEAR: { label: "Account looks healthy", color: "text-emerald-600" },
+  SHADOWBANNED: { label: "Likely shadowbanned", color: "text-red-600" },
+  SUSPENDED: { label: "Account suspended", color: "text-red-600" },
+  AT_RISK: { label: "At risk", color: "text-amber-600" },
+  NOT_FOUND: { label: "Account not found", color: "text-muted-foreground" },
+  UNREACHABLE: { label: "Check failed", color: "text-muted-foreground" },
 };
 
 export default function ShadowbanCheckPage() {
@@ -56,6 +80,10 @@ export default function ShadowbanCheckPage() {
     }
   }
 
+  const display = result
+    ? (RESULT_DISPLAY[result.result] ?? RESULT_DISPLAY.UNREACHABLE)
+    : null;
+
   return (
     <div className="pb-20 pt-16">
       <MaxWidth>
@@ -66,8 +94,8 @@ export default function ShadowbanCheckPage() {
             </p>
             <h1 className="mt-4 text-4xl font-semibold">Shadowban detector</h1>
             <p className="mt-4 text-sm text-muted-foreground">
-              Check visibility signals early so you can reduce posting risk
-              before distribution drops.
+              Check if a Reddit account is shadowbanned, suspended, or at risk
+              of reduced visibility.
             </p>
             <form
               className="mt-8 rounded-[24px] border border-border bg-card/80 p-6"
@@ -90,11 +118,12 @@ export default function ShadowbanCheckPage() {
                   disabled={isLoading}
                   className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground"
                 >
-                  {isLoading ? "Running..." : "Run check"}
+                  {isLoading ? "Checking..." : "Run check"}
                 </button>
               </div>
               <p className="mt-4 text-xs text-muted-foreground">
-                We store checks only when you connect a Reddit account.
+                We check the public Reddit profile and recent activity. No login
+                required.
               </p>
               {error ? (
                 <p className="mt-4 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -105,73 +134,97 @@ export default function ShadowbanCheckPage() {
           </div>
           <div className="space-y-4">
             <div className="rounded-[24px] border border-border bg-background/80 p-6">
-              <p className="text-sm font-semibold">Visibility result</p>
-              <p className="mt-3 text-lg font-semibold">
-                {result
-                  ? result.result === "OK"
-                    ? "Likely visible"
-                    : "Potential visibility risk"
-                  : "Run a check"}
+              <p className="text-sm font-semibold">Result</p>
+              <p
+                className={`mt-3 text-lg font-semibold ${display?.color ?? ""}`}
+              >
+                {display?.label ?? "Run a check"}
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
-                {result
-                  ? result.result === "OK"
-                    ? "Profile and recent internal checks look healthy."
-                    : "Signals indicate elevated visibility risk. Reduce posting pace and verify with manual checks."
-                  : "Use this checker before posting at scale."}
+                {result?.reason ??
+                  "Enter a Reddit username to check for shadowban signals."}
               </p>
             </div>
-            <div className="rounded-[24px] border border-border bg-background/80 p-6">
-              <p className="text-sm font-semibold">Account health snapshot</p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">
-                    Profile status
-                  </p>
-                  <p className="text-sm font-semibold">
-                    {result
-                      ? result.checks.redditProfileTimedOut
-                        ? "Timeout"
-                        : result.checks.redditProfileReachable
-                          ? "Reachable"
-                          : "Unreachable"
-                      : "Unknown"}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">HTTP status</p>
-                  <p className="text-sm font-semibold">
-                    {result?.checks.redditProfileStatus ?? "Unknown"}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">Sample size</p>
-                  <p className="text-sm font-semibold">
-                    {result?.checks.internalSampleSize ?? 0}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">
-                    Suspicious rate
-                  </p>
-                  <p className="text-sm font-semibold">
-                    {result
-                      ? `${Math.round(result.checks.internalSuspiciousRate * 100)}%`
-                      : "N/A"}
-                  </p>
+
+            {result?.profile ? (
+              <div className="rounded-[24px] border border-border bg-background/80 p-6">
+                <p className="text-sm font-semibold">Account details</p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">Total karma</p>
+                    <p
+                      className={`text-sm font-semibold ${result.profile.karma < 0 ? "text-red-600" : ""}`}
+                    >
+                      {result.profile.karma.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">
+                      Comment karma
+                    </p>
+                    <p
+                      className={`text-sm font-semibold ${result.profile.commentKarma < 0 ? "text-red-600" : ""}`}
+                    >
+                      {result.profile.commentKarma.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">Account age</p>
+                    <p className="text-sm font-semibold">
+                      {result.profile.accountAgeDays != null
+                        ? result.profile.accountAgeDays > 365
+                          ? `${Math.floor(result.profile.accountAgeDays / 365)}y ${Math.floor((result.profile.accountAgeDays % 365) / 30)}m`
+                          : `${result.profile.accountAgeDays}d`
+                        : "Unknown"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">
+                      Recent activity
+                    </p>
+                    <p className="text-sm font-semibold">
+                      {result.profile.recentActivityCount > 0
+                        ? `${result.profile.recentActivityCount} posts/comments`
+                        : "No visible activity"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">
+                      Email verified
+                    </p>
+                    <p className="text-sm font-semibold">
+                      {result.profile.hasVerifiedEmail ? "Yes" : "No"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">Status</p>
+                    <p
+                      className={`text-sm font-semibold ${result.profile.isSuspended ? "text-red-600" : ""}`}
+                    >
+                      {result.profile.isSuspended ? "Suspended" : "Active"}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : result ? (
+              <div className="rounded-[24px] border border-border bg-background/80 p-6">
+                <p className="text-sm font-semibold">Account details</p>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Could not load profile data. The account may not exist or
+                  Reddit may be unreachable.
+                </p>
+              </div>
+            ) : null}
           </div>
         </div>
         <div className="mt-10 rounded-[24px] border border-border bg-card/80 p-6">
-          <p className="text-sm font-semibold">
-            Use this before scaling volume
-          </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Combine account-health checks with approval-first publishing to keep
-            growth steady and safer.
-          </p>
+          <p className="text-sm font-semibold">What this tool checks</p>
+          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+            <li>Profile reachability — can Reddit serve the account page?</li>
+            <li>Suspension status — is the account flagged by Reddit?</li>
+            <li>Visible activity — do posts and comments actually appear?</li>
+            <li>Karma health — negative karma triggers automatic filtering.</li>
+          </ul>
           <div className="mt-4 flex flex-wrap gap-3">
             <Link
               href="/signup"

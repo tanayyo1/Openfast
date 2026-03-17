@@ -6,14 +6,6 @@ jest.mock("@/lib/rateLimit/publicTools", () => ({
   enforcePublicToolRateLimit: jest.fn(),
 }));
 
-jest.mock("@/lib/prisma", () => ({
-  prisma: {
-    visibilityCheck: {
-      findMany: jest.fn(),
-    },
-  },
-}));
-
 jest.mock("@/lib/reddit/proxyFetch", () => ({
   fetchRedditJson: jest.fn(),
 }));
@@ -25,9 +17,6 @@ const mockedGuards = jest.requireMock("@/lib/server/auth-guards") as {
 };
 const mockedRateLimit = jest.requireMock("@/lib/rateLimit/publicTools") as {
   enforcePublicToolRateLimit: jest.Mock;
-};
-const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
-  visibilityCheck: { findMany: jest.Mock };
 };
 const mockedProxy = jest.requireMock("@/lib/reddit/proxyFetch") as {
   fetchRedditJson: jest.Mock;
@@ -51,13 +40,20 @@ function mockRedditResponse(
         }),
       );
     }
-    // activity endpoint
     return Promise.resolve(
       new Response(
         JSON.stringify({ data: { children: activityChildren ?? [] } }),
         { status: 200 },
       ),
     );
+  });
+}
+
+function makeRequest(body: unknown) {
+  return new Request("http://test.local/api/tools/shadowban-check", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
 }
 
@@ -71,42 +67,78 @@ describe("shadowban-check tool route", () => {
       remaining: 19,
       resetAfterSeconds: 60,
     });
-    mockedPrisma.visibilityCheck.findMany.mockResolvedValue([]);
   });
 
-  test("returns 400 when username format is invalid", async () => {
+  test("returns 429 when rate limited", async () => {
+    mockedRateLimit.enforcePublicToolRateLimit.mockResolvedValue({
+      allowed: false,
+      limit: 20,
+      remaining: 0,
+      resetAfterSeconds: 60,
+    });
+
+    const res = await postShadowbanCheckTool(makeRequest({ username: "test" }));
+    expect(res.status).toBe(429);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("RATE_LIMITED");
+  });
+
+  test("returns 400 for malformed JSON body", async () => {
     const res = await postShadowbanCheckTool(
       new Request("http://test.local/api/tools/shadowban-check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: "bad name" }),
+        body: "not json",
       }),
     );
+    expect(res.status).toBe(400);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("BAD_JSON");
+  });
 
+  test("returns 400 when username format is invalid", async () => {
+    const res = await postShadowbanCheckTool(
+      makeRequest({ username: "bad name" }),
+    );
     expect(res.status).toBe(400);
     const json = (await readJson(res)) as { code: string };
     expect(json.code).toBe("VALIDATION_ERROR");
+  });
+
+  test("strips u/ prefix from username", async () => {
+    mockRedditResponse(200, { name: "test_user", total_karma: 10 }, [
+      { kind: "t1" },
+    ]);
+
+    const res = await postShadowbanCheckTool(
+      makeRequest({ username: "u/test_user" }),
+    );
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as { username: string };
+    expect(json.username).toBe("test_user");
   });
 
   test("returns NOT_FOUND when profile returns 404", async () => {
     mockRedditResponse(404);
 
     const res = await postShadowbanCheckTool(
-      new Request("http://test.local/api/tools/shadowban-check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: "u/nonexistent_user" }),
-      }),
+      makeRequest({ username: "nonexistent_user" }),
     );
-
     expect(res.status).toBe(200);
-    const json = (await readJson(res)) as {
-      result: string;
-      reason: string;
-      profile: null;
-    };
+    const json = (await readJson(res)) as { result: string; profile: null };
     expect(json.result).toBe("NOT_FOUND");
     expect(json.profile).toBeNull();
+  });
+
+  test("returns SHADOWBANNED when profile returns 403", async () => {
+    mockRedditResponse(403);
+
+    const res = await postShadowbanCheckTool(
+      makeRequest({ username: "blocked_user" }),
+    );
+    expect(res.status).toBe(200);
+    const json = (await readJson(res)) as { result: string };
+    expect(json.result).toBe("SHADOWBANNED");
   });
 
   test("returns CLEAR for healthy account with activity", async () => {
@@ -126,13 +158,8 @@ describe("shadowban-check tool route", () => {
     );
 
     const res = await postShadowbanCheckTool(
-      new Request("http://test.local/api/tools/shadowban-check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: "test_user" }),
-      }),
+      makeRequest({ username: "test_user" }),
     );
-
     expect(res.status).toBe(200);
     const json = (await readJson(res)) as {
       result: string;
@@ -147,17 +174,11 @@ describe("shadowban-check tool route", () => {
     mockRedditResponse(200, { name: "shadow_user", total_karma: 1 }, []);
 
     const res = await postShadowbanCheckTool(
-      new Request("http://test.local/api/tools/shadowban-check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: "shadow_user" }),
-      }),
+      makeRequest({ username: "shadow_user" }),
     );
-
     expect(res.status).toBe(200);
-    const json = (await readJson(res)) as { result: string; reason: string };
+    const json = (await readJson(res)) as { result: string };
     expect(json.result).toBe("SHADOWBANNED");
-    expect(json.reason).toContain("shadowban");
   });
 
   test("returns AT_RISK when karma is negative", async () => {
@@ -168,17 +189,12 @@ describe("shadowban-check tool route", () => {
     );
 
     const res = await postShadowbanCheckTool(
-      new Request("http://test.local/api/tools/shadowban-check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: "neg_user" }),
-      }),
+      makeRequest({ username: "neg_user" }),
     );
-
     expect(res.status).toBe(200);
     const json = (await readJson(res)) as {
       result: string;
-      profile: { karma: number; commentKarma: number };
+      profile: { karma: number };
     };
     expect(json.result).toBe("AT_RISK");
     expect(json.profile.karma).toBe(-10);
@@ -192,13 +208,8 @@ describe("shadowban-check tool route", () => {
     );
 
     const res = await postShadowbanCheckTool(
-      new Request("http://test.local/api/tools/shadowban-check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: "banned_user" }),
-      }),
+      makeRequest({ username: "banned_user" }),
     );
-
     expect(res.status).toBe(200);
     const json = (await readJson(res)) as { result: string };
     expect(json.result).toBe("SUSPENDED");
@@ -210,13 +221,8 @@ describe("shadowban-check tool route", () => {
     mockedProxy.fetchRedditJson.mockRejectedValue(abortError);
 
     const res = await postShadowbanCheckTool(
-      new Request("http://test.local/api/tools/shadowban-check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: "test_user" }),
-      }),
+      makeRequest({ username: "test_user" }),
     );
-
     expect(res.status).toBe(200);
     const json = (await readJson(res)) as {
       result: string;
@@ -224,5 +230,19 @@ describe("shadowban-check tool route", () => {
     };
     expect(json.result).toBe("UNREACHABLE");
     expect(json.checks.redditProfileTimedOut).toBe(true);
+  });
+
+  test("does not expose internal signals to public", async () => {
+    mockRedditResponse(200, { name: "test_user", total_karma: 100 }, [
+      { kind: "t1" },
+    ]);
+
+    const res = await postShadowbanCheckTool(
+      makeRequest({ username: "test_user" }),
+    );
+    const json = (await readJson(res)) as Record<string, unknown>;
+    const checks = json.checks as Record<string, unknown>;
+    expect(checks).not.toHaveProperty("internalSampleSize");
+    expect(checks).not.toHaveProperty("internalSuspiciousRate");
   });
 });

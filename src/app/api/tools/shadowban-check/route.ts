@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
 import { enforcePublicToolRateLimit } from "@/lib/rateLimit/publicTools";
 import { requireSession } from "@/lib/server/auth-guards";
 import { fetchRedditJson } from "@/lib/reddit/proxyFetch";
 
-const schema = z.object({
-  username: z
-    .string()
-    .trim()
-    .min(2)
-    .max(20)
-    .regex(/^(u\/)?[A-Za-z0-9_-]+$/, "Invalid username format"),
-});
+const schema = z
+  .object({
+    username: z
+      .string()
+      .trim()
+      .min(2)
+      .max(22)
+      .regex(/^(u\/)?[A-Za-z0-9_-]+$/, "Invalid username format"),
+  })
+  .transform((val) => ({
+    username: val.username.replace(/^u\//i, ""),
+  }));
 
 type ProfileData = {
   name?: string;
@@ -35,10 +38,18 @@ function assessResult(s: {
   isSuspended: boolean;
   hasActivity: boolean;
   negativeKarma: boolean;
-  internalRisk: number;
 }): { result: string; reason: string } {
   if (!s.profileOk && s.profileStatus === 404)
-    return { result: "NOT_FOUND", reason: "Account does not exist on Reddit." };
+    return {
+      result: "NOT_FOUND",
+      reason: "Account does not exist on Reddit.",
+    };
+  if (!s.profileOk && s.profileStatus === 403)
+    return {
+      result: "SHADOWBANNED",
+      reason:
+        "Reddit is blocking access to this profile. This is a strong indicator of a shadowban.",
+    };
   if (!s.profileOk)
     return {
       result: "UNREACHABLE",
@@ -60,12 +71,6 @@ function assessResult(s: {
       result: "AT_RISK",
       reason:
         "Account has negative karma which increases risk of reduced visibility and automatic filtering.",
-    };
-  if (s.internalRisk > 0.5)
-    return {
-      result: "AT_RISK",
-      reason:
-        "Internal signals indicate elevated visibility risk from past checks.",
     };
   return {
     result: "CLEAR",
@@ -110,8 +115,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const username = parsed.data.username.replace(/^u\//i, "");
-  const usernameLookup = username.toLowerCase();
+  const { username } = parsed.data;
 
   let profileOk = false;
   let profileStatus: number | null = null;
@@ -135,43 +139,35 @@ export async function POST(req: Request) {
     profileOk = profileRes.ok;
 
     if (profileOk) {
-      const body = (await profileRes.json()) as { data?: ProfileData };
-      profileData = body?.data ?? null;
+      try {
+        const body = (await profileRes.json()) as { data?: ProfileData };
+        profileData = body?.data ?? null;
+      } catch {
+        // JSON parse failed but profile was reachable — keep profileOk true
+      }
     }
 
     if (activityRes?.ok) {
-      const body = (await activityRes.json()) as {
-        data?: { children?: unknown[] };
-      };
-      activityCount = body?.data?.children?.length ?? 0;
+      try {
+        const body = (await activityRes.json()) as {
+          data?: { children?: unknown[] };
+        };
+        activityCount = body?.data?.children?.length ?? 0;
+      } catch {
+        // Activity JSON parse failed — treat as no activity data
+      }
     }
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       profileTimedOut = true;
     }
-    profileStatus = null;
-    profileOk = false;
+    // Only overwrite if we never got a response
+    if (profileStatus === null) {
+      profileOk = false;
+    }
   } finally {
     clearTimeout(timer);
   }
-
-  const internalSignals = await prisma.visibilityCheck.findMany({
-    where: {
-      redditAccount: {
-        redditUsername: { equals: usernameLookup, mode: "insensitive" },
-      },
-    },
-    orderBy: { checkedAt: "desc" },
-    take: 10,
-    select: { result: true, checkedAt: true },
-  });
-
-  const suspiciousCount = internalSignals.filter(
-    (s) => s.result === "SUSPICIOUS",
-  ).length;
-  const internalRisk = internalSignals.length
-    ? suspiciousCount / internalSignals.length
-    : 0;
 
   const totalKarma = profileData?.total_karma ?? 0;
   const isSuspended = Boolean(profileData?.is_suspended);
@@ -182,7 +178,6 @@ export async function POST(req: Request) {
     isSuspended,
     hasActivity: activityCount > 0,
     negativeKarma: profileOk && totalKarma < 0,
-    internalRisk,
   });
 
   return NextResponse.json({
@@ -203,8 +198,6 @@ export async function POST(req: Request) {
       redditProfileReachable: profileOk,
       redditProfileStatus: profileStatus,
       redditProfileTimedOut: profileTimedOut,
-      internalSampleSize: internalSignals.length,
-      internalSuspiciousRate: Number(internalRisk.toFixed(3)),
     },
     meta: {
       limit: rl.limit,

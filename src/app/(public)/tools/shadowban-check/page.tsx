@@ -25,9 +25,7 @@ type ShadowbanCheckResponse = {
   checks: {
     redditProfileReachable: boolean;
     redditProfileStatus: number | null;
-    redditProfileTimedOut?: boolean;
-    internalSampleSize: number;
-    internalSuspiciousRate: number;
+    redditProfileTimedOut: boolean;
   };
 };
 

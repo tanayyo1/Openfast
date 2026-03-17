@@ -55,51 +55,24 @@ export async function POST(req: Request) {
   let profileOk = false;
   let profileStatus: number | null = null;
   let profileTimedOut = false;
-  const userAgent =
-    process.env.REDDIT_USER_AGENT ??
-    "Mozilla/5.0 (compatible; Openfast/0.1; +https://openfast-nine.vercel.app)";
-
-  const endpoints = [
-    `https://www.reddit.com/user/${encodeURIComponent(username)}/about.json`,
-    `https://old.reddit.com/user/${encodeURIComponent(username)}/about.json`,
-  ];
-
-  // Fetch both endpoints in parallel — use first successful response
-  const results = await Promise.allSettled(
-    endpoints.map(async (url) => {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 5_000);
-      try {
-        const res = await fetch(url, {
-          signal: controller.signal,
-          cache: "no-store",
-          headers: { "User-Agent": userAgent },
-        });
-        return { status: res.status, ok: res.ok, timedOut: false };
-      } catch (error) {
-        const timedOut = error instanceof Error && error.name === "AbortError";
-        return { status: null, ok: false, timedOut };
-      } finally {
-        clearTimeout(timer);
-      }
-    }),
-  );
-
-  for (const r of results) {
-    if (r.status === "fulfilled" && r.value.ok) {
-      profileOk = true;
-      profileStatus = r.value.status;
-      break;
+  const { fetchRedditJson } = await import("@/lib/reddit/proxyFetch");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8_000);
+  try {
+    const res = await fetchRedditJson(
+      `/user/${encodeURIComponent(username)}/about.json`,
+      { signal: controller.signal },
+    );
+    profileStatus = res.status;
+    profileOk = res.ok;
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      profileTimedOut = true;
     }
-  }
-  if (!profileOk) {
-    // No successful response — use the best signal from what we got
-    for (const r of results) {
-      if (r.status === "fulfilled") {
-        profileStatus = r.value.status ?? profileStatus;
-        profileTimedOut = profileTimedOut || r.value.timedOut;
-      }
-    }
+    profileStatus = null;
+    profileOk = false;
+  } finally {
+    clearTimeout(timer);
   }
 
   const internalSignals = await prisma.visibilityCheck.findMany({

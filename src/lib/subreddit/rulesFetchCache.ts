@@ -261,12 +261,9 @@ async function writeCache(
   writeMemoryCache(key, serialized, ttlSeconds);
 }
 
-async function fetchJson(url: string) {
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": process.env.REDDIT_USER_AGENT ?? "ReditFast/0.1",
-    },
-  });
+async function fetchJson(path: string) {
+  const { fetchRedditJson } = await import("@/lib/reddit/proxyFetch");
+  const res = await fetchRedditJson(path);
   if (!res.ok) {
     throw new Error(`REDDIT_FETCH_FAILED:${res.status}`);
   }
@@ -296,7 +293,7 @@ async function fetchFromReddit(
   normalizedName: string,
 ): Promise<IngestedSubredditData> {
   const aboutJson = (await fetchJson(
-    `https://www.reddit.com/r/${encodeURIComponent(normalizedName)}/about.json`,
+    `/r/${encodeURIComponent(normalizedName)}/about.json`,
   )) as {
     data?: {
       display_name?: string;
@@ -311,9 +308,7 @@ async function fetchFromReddit(
   };
 
   const rulesJson = (await fetchJson(
-    `https://www.reddit.com/r/${encodeURIComponent(
-      normalizedName,
-    )}/about/rules.json`,
+    `/r/${encodeURIComponent(normalizedName)}/about/rules.json`,
   )) as {
     rules?: unknown[];
   };

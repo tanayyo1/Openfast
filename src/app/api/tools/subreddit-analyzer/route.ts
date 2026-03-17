@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import {
-  enqueueSubredditComputeTimeWindowsJob,
-  enqueueSubredditIngestJob,
-} from "@/lib/queue/enqueue";
 import { enforcePublicToolRateLimit } from "@/lib/rateLimit/publicTools";
 import { requireSession } from "@/lib/server/auth-guards";
+import { fetchSubredditDataWithCache } from "@/lib/subreddit/rulesFetchCache";
 
 const querySchema = z.object({
   name: z
@@ -59,19 +56,25 @@ export async function GET(req: Request) {
     },
   });
 
-  let queued = false;
-  if (!subreddit) {
-    try {
-      await enqueueSubredditIngestJob({ subredditName: name });
-      queued = true;
-    } catch {
-      queued = false;
-    }
+  if (subreddit) {
     return NextResponse.json({
-      queued,
-      message: queued
-        ? "Subreddit not in cache yet. Ingest queued."
-        : "Subreddit not in cache yet and queue is unavailable. Retry shortly.",
+      subreddit: {
+        id: subreddit.id,
+        name: subreddit.name,
+        title: subreddit.title,
+        subscribers: subreddit.subscribers,
+        activeUsers: subreddit.activeUsers,
+        nsfw: subreddit.nsfw,
+        isRestricted: subreddit.isRestricted,
+        isQuarantined: subreddit.isQuarantined,
+      },
+      policy: subreddit.policy,
+      topTimeWindows: subreddit.timeSlots,
+      latestRulesFetchedAt: subreddit.rules[0]?.fetchedAt ?? null,
+      staleHours: Math.floor(
+        (Date.now() - subreddit.lastFetchedAt.getTime()) / (1000 * 60 * 60),
+      ),
+      source: "database",
       meta: {
         limit: rl.limit,
         remaining: rl.remaining,
@@ -80,53 +83,43 @@ export async function GET(req: Request) {
     });
   }
 
-  const staleHours = Math.floor(
-    (Date.now() - subreddit.lastFetchedAt.getTime()) / (1000 * 60 * 60),
-  );
-  let queueUnavailable = false;
-  if (staleHours >= 24) {
-    let ingestQueued = false;
-    let windowsQueued = false;
-
-    try {
-      await enqueueSubredditIngestJob({ subredditName: name });
-      ingestQueued = true;
-    } catch {
-      queueUnavailable = true;
-    }
-
-    try {
-      await enqueueSubredditComputeTimeWindowsJob({
-        subredditId: subreddit.id,
-      });
-      windowsQueued = true;
-    } catch {
-      queueUnavailable = true;
-    }
-
-    queued = ingestQueued || windowsQueued;
+  // No DB record — fetch inline via .json endpoints (works without Reddit API)
+  let fetched;
+  try {
+    fetched = await fetchSubredditDataWithCache(name);
+  } catch {
+    return NextResponse.json(
+      {
+        error: "Could not fetch subreddit data. Check the name and try again.",
+        code: "FETCH_FAILED",
+      },
+      { status: 502 },
+    );
   }
 
   return NextResponse.json({
     subreddit: {
-      id: subreddit.id,
-      name: subreddit.name,
-      title: subreddit.title,
-      subscribers: subreddit.subscribers,
-      activeUsers: subreddit.activeUsers,
-      nsfw: subreddit.nsfw,
-      isRestricted: subreddit.isRestricted,
-      isQuarantined: subreddit.isQuarantined,
+      id: null,
+      name: fetched.data.name,
+      title: fetched.data.title,
+      subscribers: fetched.data.subscribers,
+      activeUsers: fetched.data.activeUsers,
+      nsfw: fetched.data.nsfw,
+      isRestricted: fetched.data.isRestricted,
+      isQuarantined: fetched.data.isQuarantined,
     },
-    policy: subreddit.policy,
-    topTimeWindows: subreddit.timeSlots,
-    latestRulesFetchedAt: subreddit.rules[0]?.fetchedAt ?? null,
-    staleHours,
-    queuedRefresh: queued,
-    refreshWarning:
-      queueUnavailable && !queued
-        ? "Refresh queue unavailable; returning cached data."
-        : null,
+    policy: {
+      promoAllowed: null,
+      linkPolicy: null,
+      flairRequired: false,
+      noLinksInPosts: false,
+      textOnly: false,
+    },
+    rules: fetched.data.rules,
+    topTimeWindows: [],
+    latestRulesFetchedAt: null,
+    staleHours: 0,
+    source: fetched.source,
     meta: {
       limit: rl.limit,
       remaining: rl.remaining,

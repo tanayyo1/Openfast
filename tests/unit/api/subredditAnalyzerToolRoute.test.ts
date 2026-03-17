@@ -14,9 +14,8 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 
-jest.mock("@/lib/queue/enqueue", () => ({
-  enqueueSubredditIngestJob: jest.fn(),
-  enqueueSubredditComputeTimeWindowsJob: jest.fn(),
+jest.mock("@/lib/subreddit/rulesFetchCache", () => ({
+  fetchSubredditDataWithCache: jest.fn(),
 }));
 
 import { GET as getSubredditAnalyzerTool } from "@/app/api/tools/subreddit-analyzer/route";
@@ -30,9 +29,8 @@ const mockedRateLimit = jest.requireMock("@/lib/rateLimit/publicTools") as {
 const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
   subredditCatalog: { findFirst: jest.Mock };
 };
-const mockedQueue = jest.requireMock("@/lib/queue/enqueue") as {
-  enqueueSubredditIngestJob: jest.Mock;
-  enqueueSubredditComputeTimeWindowsJob: jest.Mock;
+const mockedFetch = jest.requireMock("@/lib/subreddit/rulesFetchCache") as {
+  fetchSubredditDataWithCache: jest.Mock;
 };
 
 async function readJson(res: Response) {
@@ -50,12 +48,6 @@ describe("subreddit-analyzer tool route", () => {
       remaining: 19,
       resetAfterSeconds: 60,
     });
-    mockedQueue.enqueueSubredditIngestJob.mockResolvedValue({
-      id: "job_ingest",
-    });
-    mockedQueue.enqueueSubredditComputeTimeWindowsJob.mockResolvedValue({
-      id: "job_windows",
-    });
   });
 
   test("returns 400 when subreddit name has invalid format", async () => {
@@ -71,8 +63,25 @@ describe("subreddit-analyzer tool route", () => {
     expect(json.error).toBe("Invalid query params");
   });
 
-  test("queues ingest when subreddit is not cached", async () => {
+  test("fetches inline when subreddit is not cached", async () => {
     mockedPrisma.subredditCatalog.findFirst.mockResolvedValue(null);
+    mockedFetch.fetchSubredditDataWithCache.mockResolvedValue({
+      data: {
+        name: "startups",
+        title: "Startups",
+        description: "Community discussions in r/startups",
+        subscribers: 1000,
+        activeUsers: 120,
+        avgPostsPerDay: 88,
+        avgCommentsPerPost: 16,
+        rules: ["No blatant self-promo"],
+        nsfw: false,
+        isRestricted: false,
+        isQuarantined: false,
+      },
+      source: "reddit",
+      cacheHit: false,
+    });
 
     const res = await getSubredditAnalyzerTool(
       new Request(
@@ -82,22 +91,21 @@ describe("subreddit-analyzer tool route", () => {
 
     expect(res.status).toBe(200);
     const json = (await readJson(res)) as {
-      queued: boolean;
-      message: string;
+      subreddit: { name: string };
+      source: string;
+      rules: string[];
       meta: { limit: number; remaining: number; resetAfterSeconds: number };
     };
-    expect(json.queued).toBe(true);
-    expect(json.message).toContain("Ingest queued");
+    expect(json.subreddit.name).toBe("startups");
+    expect(json.source).toBe("reddit");
+    expect(json.rules).toContain("No blatant self-promo");
     expect(json.meta.resetAfterSeconds).toBe(60);
-    expect(mockedQueue.enqueueSubredditIngestJob).toHaveBeenCalledWith({
-      subredditName: "startups",
-    });
   });
 
-  test("returns queued=false on cache miss when ingest queue is unavailable", async () => {
+  test("returns 502 when inline fetch fails on cache miss", async () => {
     mockedPrisma.subredditCatalog.findFirst.mockResolvedValue(null);
-    mockedQueue.enqueueSubredditIngestJob.mockRejectedValue(
-      new Error("queue down"),
+    mockedFetch.fetchSubredditDataWithCache.mockRejectedValue(
+      new Error("SUBREDDIT_NAME_REQUIRED"),
     );
 
     const res = await getSubredditAnalyzerTool(
@@ -106,13 +114,12 @@ describe("subreddit-analyzer tool route", () => {
       ),
     );
 
-    expect(res.status).toBe(200);
-    const json = (await readJson(res)) as { queued: boolean; message: string };
-    expect(json.queued).toBe(false);
-    expect(json.message).toContain("queue is unavailable");
+    expect(res.status).toBe(502);
+    const json = (await readJson(res)) as { code: string };
+    expect(json.code).toBe("FETCH_FAILED");
   });
 
-  test("returns cached data and queues refresh when stale", async () => {
+  test("returns cached data from database when available", async () => {
     mockedPrisma.subredditCatalog.findFirst.mockResolvedValue({
       id: "sub_1",
       name: "startups",
@@ -122,7 +129,7 @@ describe("subreddit-analyzer tool route", () => {
       nsfw: false,
       isRestricted: false,
       isQuarantined: false,
-      lastFetchedAt: new Date(Date.now() - 26 * 60 * 60 * 1000),
+      lastFetchedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
       policy: {
         promoAllowed: false,
         linkPolicy: "DISALLOWED_IN_POSTS",
@@ -143,54 +150,12 @@ describe("subreddit-analyzer tool route", () => {
     expect(res.status).toBe(200);
     const json = (await readJson(res)) as {
       subreddit: { name: string };
-      staleHours: number;
-      queuedRefresh: boolean;
+      source: string;
       topTimeWindows: Array<{ dayOfWeek: number; hourUtc: number }>;
     };
     expect(json.subreddit.name).toBe("startups");
-    expect(json.staleHours).toBeGreaterThanOrEqual(24);
-    expect(json.queuedRefresh).toBe(true);
+    expect(json.source).toBe("database");
     expect(json.topTimeWindows[0]).toMatchObject({ dayOfWeek: 2, hourUtc: 13 });
-    expect(mockedQueue.enqueueSubredditIngestJob).toHaveBeenCalledTimes(1);
-    expect(
-      mockedQueue.enqueueSubredditComputeTimeWindowsJob,
-    ).toHaveBeenCalledWith({ subredditId: "sub_1" });
-  });
-
-  test("returns cached data with queuedRefresh=false when refresh queue is unavailable", async () => {
-    mockedPrisma.subredditCatalog.findFirst.mockResolvedValue({
-      id: "sub_1",
-      name: "startups",
-      title: "Startups",
-      subscribers: 1000,
-      activeUsers: 120,
-      nsfw: false,
-      isRestricted: false,
-      isQuarantined: false,
-      lastFetchedAt: new Date(Date.now() - 26 * 60 * 60 * 1000),
-      policy: null,
-      rules: [{ fetchedAt: new Date() }],
-      timeSlots: [],
-    });
-    mockedQueue.enqueueSubredditIngestJob.mockRejectedValue(
-      new Error("queue down"),
-    );
-    mockedQueue.enqueueSubredditComputeTimeWindowsJob.mockRejectedValue(
-      new Error("queue down"),
-    );
-
-    const res = await getSubredditAnalyzerTool(
-      new Request(
-        "http://test.local/api/tools/subreddit-analyzer?name=startups",
-      ),
-    );
-
-    expect(res.status).toBe(200);
-    const json = (await readJson(res)) as {
-      queuedRefresh: boolean;
-      refreshWarning: string | null;
-    };
-    expect(json.queuedRefresh).toBe(false);
-    expect(json.refreshWarning).toContain("Refresh queue unavailable");
+    expect(mockedFetch.fetchSubredditDataWithCache).not.toHaveBeenCalled();
   });
 });

@@ -31,7 +31,7 @@ export default function SignupPage() {
             Get started
           </p>
           <h1 className="mt-3 text-3xl font-semibold">
-            Create your ReditFast account
+            Create your Openfast account
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Start with free tools and unlock roadmaps when you are ready.

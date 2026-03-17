@@ -10,7 +10,7 @@ const typeLabels: Record<string, string> = {
 const typeDescriptions: Record<string, string> = {
   city: "Localized Reddit strategy for regional communities and meetups.",
   industry: "Tactics tailored to founders and teams in your sector.",
-  alternatives: "How ReditFast compares and when to choose each option.",
+  alternatives: "How Openfast compares and when to choose each option.",
   guides: "Step-by-step playbooks to build trusted Reddit presence.",
 };
 

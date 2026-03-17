@@ -35,7 +35,7 @@ export default function LoginPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Welcome back
           </p>
-          <h1 className="mt-3 text-3xl font-semibold">Sign in to ReditFast</h1>
+          <h1 className="mt-3 text-3xl font-semibold">Sign in to Openfast</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Access your workspaces and review scheduled posts.
           </p>

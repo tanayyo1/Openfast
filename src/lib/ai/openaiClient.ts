@@ -23,8 +23,8 @@ export type AIFeature =
   | "general";
 
 const FEATURE_MODEL_DEFAULTS: Record<AIFeature, string> = {
-  "draft-writer": "gpt-5.3",
-  "landing-page": "gpt-5.3",
+  "draft-writer": "gpt-5.3-chat-latest",
+  "landing-page": "gpt-5.3-chat-latest",
   roadmap: "gpt-5.4-mini",
   "risk-scoring": "gpt-4.1-mini",
   general: "gpt-5.4-mini",

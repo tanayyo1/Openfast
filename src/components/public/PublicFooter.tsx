@@ -38,13 +38,13 @@ export function PublicFooter() {
       <MaxWidth className="py-12">
         <div className="grid gap-10 md:grid-cols-[1.3fr_2fr]">
           <div>
-            <p className="text-lg font-semibold">ReditFast</p>
+            <p className="text-lg font-semibold">Openfast</p>
             <p className="mt-3 max-w-sm text-sm text-muted-foreground">
-              Build compliant Reddit growth engines with clear timing, safe
-              pacing, and review-first workflows.
+              Free tools and a full workflow to help founders grow on Reddit
+              without getting shadowbanned or filtered.
             </p>
             <p className="mt-6 text-xs text-muted-foreground">
-              Copyright 2026 ReditFast. All rights reserved.
+              Copyright 2026 Openfast. All rights reserved.
             </p>
           </div>
           <div className="grid gap-8 sm:grid-cols-3">

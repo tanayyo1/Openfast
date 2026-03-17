@@ -14,13 +14,13 @@ export function PublicHeader() {
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
       <MaxWidth className="flex items-center justify-between py-4">
         <Link href="/" className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-primary text-primary-foreground grid place-items-center text-lg font-semibold">
-            RF
+          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary text-lg font-semibold text-primary-foreground">
+            OF
           </div>
           <div>
-            <p className="text-lg font-semibold tracking-tight">ReditFast</p>
+            <p className="text-lg font-semibold tracking-tight">Openfast</p>
             <p className="text-xs text-muted-foreground">
-              Compliance-first Reddit growth
+              Reddit growth tools for founders
             </p>
           </div>
         </Link>

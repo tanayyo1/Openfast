@@ -2,103 +2,95 @@ import Link from "next/link";
 import { AnalyticsBeacon } from "@/components/analytics/AnalyticsBeacon";
 import { MaxWidth } from "@/components/public/MaxWidth";
 
-const heroSignals = [
-  "Safe output by default",
-  "Lower ban-risk workflow",
-  "Fast weekly execution loop",
+const tools = [
+  {
+    title: "Shadowban checker",
+    description:
+      "See if your account is healthy, suspended, or shadow-removed. Real data from Reddit.",
+    href: "/tools/shadowban-check",
+    cta: "Check your account",
+  },
+  {
+    title: "Subreddit analyzer",
+    description:
+      "Check rules, promo policies, and activity before you commit to posting in a subreddit.",
+    href: "/tools/subreddit-analyzer",
+    cta: "Analyze a subreddit",
+  },
+  {
+    title: "Post generator",
+    description:
+      "Generate discussion-first Reddit drafts that don't sound promotional. AI-powered, tone-aware.",
+    href: "/tools/post-generator",
+    cta: "Generate a draft",
+  },
 ];
 
-const proofCards = [
+const painPoints = [
   {
-    label: "Risk Score",
-    value: "12 / 100",
-    detail: "Draft checked against subreddit policy hints before approval",
+    title: "Your posts get zero traction",
+    detail:
+      "You write a thoughtful post, hit submit, and nothing happens. No upvotes, no comments. It might be shadow-removed and you'd never know.",
   },
   {
-    label: "Time To First Value",
-    value: "< 20 min",
-    detail: "Connect, generate first roadmap, and ship first safe draft cycle",
+    title: "You don't know which subreddits allow promotion",
+    detail:
+      "Every subreddit has different rules. Some ban links, some require flair, some auto-remove new accounts. Finding safe places to post is a guessing game.",
   },
   {
-    label: "Approval Gate",
-    value: "100%",
-    detail: "Nothing posts without explicit human approval",
-  },
-];
-
-const pillars = [
-  {
-    title: "Find where you can post safely",
-    description:
-      "Map product goals to subreddits with rules, risk context, and realistic timing windows.",
+    title: "Writing non-promotional posts takes forever",
+    detail:
+      "You know direct promotion gets you banned. So you write discussion-first posts, but crafting something that's helpful AND mentions your product takes 30+ minutes each time.",
   },
   {
-    title: "Generate drafts without spam patterns",
-    description:
-      "Create variants with compliance cues and keep only drafts that pass risk checks.",
-  },
-  {
-    title: "Ship fast with guardrails on",
-    description:
-      "Use approval-first scheduling with queue safety and post-publish feedback loops.",
+    title: "You can't tell if your account is flagged",
+    detail:
+      "Reddit doesn't tell you when your posts are being filtered. You keep posting into the void, burning time and credibility without realizing it.",
   },
 ];
 
 const steps = [
   {
-    title: "Create project + connect Reddit",
+    title: "Check your account health",
     detail:
-      "Set tone, goals, and constraints. Then connect Reddit via OAuth with encrypted token storage.",
+      "Run the shadowban checker to see if your profile is visible, suspended, or being filtered. Know your starting point.",
   },
   {
-    title: "Generate recommendations + roadmap",
+    title: "Find subreddits that fit",
     detail:
-      "Pick top subreddits and receive day-by-day post/comment tasks with suggested time windows.",
+      "Analyze subreddits for rules, promo policies, and activity levels. Stop guessing where to post.",
   },
   {
-    title: "Approve, schedule, improve",
+    title: "Generate discussion-first drafts",
     detail:
-      "Review every draft, schedule safely, and use analytics snapshots to improve the next cycle.",
+      "Create posts that sound human, lead with value, and avoid the promotional patterns that trigger removals.",
+  },
+  {
+    title: "Review before publishing",
+    detail:
+      "Every post goes through compliance checks and requires your approval. Nothing gets posted without you saying yes.",
   },
 ];
 
-const featureGrid = [
+const guardrails = [
   {
-    title: "Safety-first activation",
-    body: "Three clear steps to first value: create project, connect account, generate roadmap.",
+    title: "Human approval required",
+    detail: "Nothing posts without your explicit review and approval.",
   },
   {
-    title: "Draft lifecycle controls",
-    body: "Move drafts through review states before scheduling to avoid accidental risky posting.",
+    title: "Comment-first for new accounts",
+    detail:
+      "New accounts start with commenting, not posting. Build karma safely before scaling.",
   },
   {
-    title: "Queue-backed execution",
-    body: "Use deterministic jobs and retries to prevent duplicate or unsafe publish behavior.",
+    title: "Encrypted Reddit tokens",
+    detail:
+      "Your Reddit credentials are encrypted at rest. We never store plaintext tokens.",
   },
   {
-    title: "Feedback loop analytics",
-    body: "Track risk, engagement, and timing to improve the next cycle instead of guessing.",
-  },
-];
-
-const tools = [
-  {
-    title: "Post generator",
-    description:
-      "Draft compliant post variants quickly with tone and structure guidance.",
-    href: "/tools/post-generator",
-  },
-  {
-    title: "Subreddit analyzer",
-    description:
-      "Check rules, activity signals, and posting windows before committing to a subreddit.",
-    href: "/tools/subreddit-analyzer",
-  },
-  {
-    title: "Shadowban check",
-    description:
-      "Validate visibility signals so you can slow down early if account risk rises.",
-    href: "/tools/shadowban-check",
+    title: "No unattended posting",
+    detail:
+      "There is no auto-post mode. You control every piece of content that goes out.",
   },
 ];
 
@@ -110,84 +102,47 @@ export default function HomePage() {
         source="web_public"
         onceKey="public_homepage_view"
       />
-      <section className="relative pb-20 pt-16">
+
+      <section className="relative pb-16 pt-16">
         <MaxWidth>
-          <div className="grid gap-12 lg:grid-cols-[1.15fr_0.85fr]">
-            <div>
-              <p className="inline-flex items-center gap-2 rounded-full border border-border bg-background/80 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Safety + quality + speed
-              </p>
-              <h1 className="mt-6 text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
-                Grow on Reddit without gambling your account.
-              </h1>
-              <p className="mt-6 text-base text-muted-foreground sm:text-lg">
-                ReditFast helps founders ship useful Reddit content with lower
-                ban risk: subreddit fit, safer drafts, approval-first
-                scheduling, and feedback loops.
-              </p>
-              <div className="mt-8 flex flex-wrap items-center gap-3">
-                <Link
-                  href="/signup"
-                  className="rounded-full bg-primary px-7 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
-                >
-                  Start free
-                </Link>
-                <Link
-                  href="/pricing"
-                  className="rounded-full border border-border px-7 py-3 text-sm font-semibold text-foreground transition hover:border-foreground/40"
-                >
-                  View plans
-                </Link>
-              </div>
-              <div className="mt-10 grid gap-3 sm:grid-cols-3">
-                {heroSignals.map((item) => (
-                  <div
-                    key={item}
-                    className="rounded-2xl border border-border bg-background/80 px-4 py-3 text-sm font-semibold"
-                  >
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="relative">
-              <div className="absolute -left-8 top-6 h-44 w-44 rounded-[40px] bg-secondary/70 blur-xl" />
-              <div className="absolute -right-6 bottom-2 h-40 w-40 rounded-full bg-primary/20 blur-xl" />
-              <div className="relative rounded-[32px] border border-border bg-card/90 p-6 shadow-xl animate-fade-up">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Operator dashboard
-                </p>
-                <div className="mt-4 space-y-4">
-                  {proofCards.map((card) => (
-                    <div
-                      key={card.label}
-                      className="rounded-2xl border border-border bg-background px-4 py-3"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-semibold">{card.label}</p>
-                        <p className="text-sm font-semibold text-foreground/80">
-                          {card.value}
-                        </p>
-                      </div>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        {card.detail}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          <div className="mx-auto max-w-3xl text-center">
+            <h1 className="text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
+              Stop guessing why your Reddit posts disappear.
+            </h1>
+            <p className="mx-auto mt-6 max-w-2xl text-base text-muted-foreground sm:text-lg">
+              Check account health, subreddit fit, and promotional risk before
+              you post. Generate discussion-first drafts, review every post, and
+              grow on Reddit with tighter guardrails.
+            </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <Link
+                href="/tools/shadowban-check"
+                className="rounded-full bg-primary px-7 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+              >
+                Check your account
+              </Link>
+              <Link
+                href="/tools/subreddit-analyzer"
+                className="rounded-full border border-border px-7 py-3 text-sm font-semibold text-foreground transition hover:border-foreground/40"
+              >
+                Analyze a subreddit
+              </Link>
             </div>
           </div>
         </MaxWidth>
       </section>
 
-      <section className="py-16">
+      <section className="py-12">
         <MaxWidth>
-          <div className="grid gap-6 md:grid-cols-3">
-            {pillars.map((item, index) => (
-              <div
-                key={item.title}
-                className={`rounded-[28px] border border-border bg-card/80 p-6 shadow-sm ${
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Free tools — no signup required
+          </p>
+          <div className="mt-6 grid gap-6 md:grid-cols-3">
+            {tools.map((tool, index) => (
+              <Link
+                key={tool.title}
+                href={tool.href}
+                className={`group rounded-[28px] border border-border bg-card/80 p-6 transition hover:-translate-y-1 hover:border-foreground/40 ${
                   index === 0
                     ? "animate-fade-up"
                     : index === 1
@@ -195,9 +150,47 @@ export default function HomePage() {
                       : "animate-fade-up-delay-2"
                 }`}
               >
-                <p className="text-lg font-semibold">{item.title}</p>
+                <p className="text-lg font-semibold">{tool.title}</p>
                 <p className="mt-3 text-sm text-muted-foreground">
-                  {item.description}
+                  {tool.description}
+                </p>
+                <p className="mt-6 text-sm font-semibold text-primary">
+                  {tool.cta}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </MaxWidth>
+      </section>
+
+      <section className="py-16">
+        <MaxWidth>
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-semibold sm:text-4xl">
+              Why Reddit feels random
+            </h2>
+            <p className="mt-4 text-sm text-muted-foreground">
+              It's not random. There are specific reasons your posts get
+              filtered, removed, or ignored. Here are the most common ones.
+            </p>
+          </div>
+          <div className="mt-10 grid gap-4 sm:grid-cols-2">
+            {painPoints.map((item, index) => (
+              <div
+                key={item.title}
+                className={`rounded-[24px] border border-border bg-background/80 p-6 ${
+                  index === 0
+                    ? "animate-fade-up"
+                    : index === 1
+                      ? "animate-fade-up-delay-1"
+                      : index === 2
+                        ? "animate-fade-up-delay-2"
+                        : "animate-fade-up-delay-3"
+                }`}
+              >
+                <p className="text-base font-semibold">{item.title}</p>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  {item.detail}
                 </p>
               </div>
             ))}
@@ -210,14 +203,14 @@ export default function HomePage() {
           <div className="grid gap-10 lg:grid-cols-[0.95fr_1.05fr]">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                How it works
+                How Openfast works
               </p>
               <h2 className="mt-4 text-3xl font-semibold sm:text-4xl">
-                One operating loop from idea to measured outcome.
+                Know before you post. Review before you publish.
               </h2>
               <p className="mt-4 text-sm text-muted-foreground">
-                The product is built for durable systems, not one-off viral
-                attempts. Every task is planned, reviewed, and measured.
+                Every step is designed to reduce risk and save time. Start with
+                free tools, move into the full workflow when you're ready.
               </p>
             </div>
             <div className="grid gap-4">
@@ -229,7 +222,9 @@ export default function HomePage() {
                       ? "animate-fade-up"
                       : index === 1
                         ? "animate-fade-up-delay-1"
-                        : "animate-fade-up-delay-2"
+                        : index === 2
+                          ? "animate-fade-up-delay-2"
+                          : "animate-fade-up-delay-3"
                   }`}
                 >
                   <p className="text-sm font-semibold text-muted-foreground">
@@ -249,24 +244,14 @@ export default function HomePage() {
       <section className="py-16">
         <MaxWidth>
           <div className="rounded-[32px] border border-border bg-card/75 p-8 sm:p-10">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Product surface
-                </p>
-                <h2 className="mt-3 text-3xl font-semibold sm:text-4xl">
-                  Everything needed for a practical Reddit growth stack.
-                </h2>
-              </div>
-              <Link
-                href="/signup"
-                className="rounded-full border border-border px-5 py-2 text-sm font-semibold transition hover:border-foreground/40"
-              >
-                Start activation flow
-              </Link>
-            </div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Built-in guardrails
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold sm:text-4xl">
+              Safety is the default, not an add-on.
+            </h2>
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              {featureGrid.map((item, index) => (
+              {guardrails.map((item, index) => (
                 <div
                   key={item.title}
                   className={`rounded-2xl border border-border bg-background/80 p-5 ${
@@ -281,7 +266,7 @@ export default function HomePage() {
                 >
                   <p className="text-base font-semibold">{item.title}</p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    {item.body}
+                    {item.detail}
                   </p>
                 </div>
               ))}
@@ -290,66 +275,23 @@ export default function HomePage() {
         </MaxWidth>
       </section>
 
-      <section className="py-16">
-        <MaxWidth>
-          <div className="flex items-end justify-between gap-6">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Free tools
-              </p>
-              <h2 className="mt-4 text-3xl font-semibold sm:text-4xl">
-                Try core value before signup.
-              </h2>
-            </div>
-            <Link
-              href="/tools/post-generator"
-              className="hidden rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground transition hover:border-foreground/40 md:inline-flex"
-            >
-              View all tools
-            </Link>
-          </div>
-          <div className="mt-8 grid gap-6 md:grid-cols-3">
-            {tools.map((tool, index) => (
-              <Link
-                key={tool.title}
-                href={tool.href}
-                className={`group rounded-[28px] border border-border bg-card/80 p-6 transition hover:-translate-y-1 hover:border-foreground/40 ${
-                  index === 0
-                    ? "animate-fade-up"
-                    : index === 1
-                      ? "animate-fade-up-delay-1"
-                      : "animate-fade-up-delay-2"
-                }`}
-              >
-                <p className="text-lg font-semibold">{tool.title}</p>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  {tool.description}
-                </p>
-                <p className="mt-6 text-sm font-semibold text-foreground">
-                  Open tool
-                </p>
-              </Link>
-            ))}
-          </div>
-        </MaxWidth>
-      </section>
-
       <section className="py-20">
         <MaxWidth>
           <div className="rounded-[32px] border border-border bg-primary/10 p-10 text-center">
             <h2 className="text-3xl font-semibold sm:text-4xl">
-              Ready for safer Reddit growth with less guesswork?
+              Find out what Reddit actually sees when you post.
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-sm text-muted-foreground">
-              Start with free tools, then move into the guided 3-step activation
-              flow and your first full execution cycle.
+              Start with the free tools. Check your account, analyze a
+              subreddit, and generate your first draft. Then move into the full
+              workflow when you're ready.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-4">
               <Link
-                href="/signup"
+                href="/tools/shadowban-check"
                 className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
               >
-                Start free
+                Check your account
               </Link>
               <Link
                 href="/pricing"

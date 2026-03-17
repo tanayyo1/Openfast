@@ -178,12 +178,17 @@ export default function ShadowbanCheckPage() {
                   </div>
                   <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">
                     <p className="text-xs text-muted-foreground">
-                      Recent activity
+                      Publicly visible activity
                     </p>
                     <p className="text-sm font-semibold">
                       {result.profile.recentActivityCount > 0
                         ? `${result.profile.recentActivityCount} posts/comments`
                         : "No visible activity"}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Posts removed by mods or spam filters won't appear here.
+                      If this is lower than expected, some of your content may
+                      be shadow-removed.
                     </p>
                   </div>
                   <div className="rounded-2xl border border-border bg-card/80 px-4 py-3">

@@ -88,9 +88,9 @@ const guardrails = [
       "Your Reddit credentials are encrypted at rest. We never store plaintext tokens.",
   },
   {
-    title: "No unattended posting",
+    title: "Nothing posts without approval",
     detail:
-      "There is no auto-post mode. You control every piece of content that goes out.",
+      "Every draft requires your explicit approval before it can be scheduled or published.",
   },
 ];
 

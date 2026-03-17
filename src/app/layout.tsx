@@ -17,7 +17,7 @@ const bodyFont = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "ReditFast",
+  title: "Openfast",
   description: "Compliance-first Reddit marketing automation for founders.",
 };
 

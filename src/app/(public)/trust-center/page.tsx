@@ -38,7 +38,7 @@ export default function TrustCenterPage() {
             Safety and reliability commitments
           </h1>
           <p className="mt-4 max-w-3xl text-sm text-muted-foreground">
-            ReditFast is designed to reduce ban-risk behavior while keeping
+            Openfast is designed to reduce ban-risk behavior while keeping
             execution practical. This page summarizes the product controls that
             protect accounts, data boundaries, and publishing workflows.
           </p>

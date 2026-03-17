@@ -55,28 +55,35 @@ export async function POST(req: Request) {
   let profileOk = false;
   let profileStatus: number | null = null;
   let profileTimedOut = false;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8_000);
-  try {
-    const res = await fetch(
-      `https://www.reddit.com/user/${encodeURIComponent(username)}/about.json`,
-      {
+  const userAgent =
+    process.env.REDDIT_USER_AGENT ??
+    "Mozilla/5.0 (compatible; Openfast/0.1; +https://openfast-nine.vercel.app)";
+
+  const endpoints = [
+    `https://www.reddit.com/user/${encodeURIComponent(username)}/about.json`,
+    `https://old.reddit.com/user/${encodeURIComponent(username)}/about.json`,
+  ];
+
+  for (const url of endpoints) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8_000);
+    try {
+      const res = await fetch(url, {
         signal: controller.signal,
-        headers: {
-          "User-Agent": process.env.REDDIT_USER_AGENT ?? "ReditFast/0.1",
-        },
-      },
-    );
-    profileStatus = res.status;
-    profileOk = res.ok;
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      profileTimedOut = true;
+        headers: { "User-Agent": userAgent },
+      });
+      profileStatus = res.status;
+      profileOk = res.ok;
+      if (profileOk) break;
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        profileTimedOut = true;
+      }
+      profileStatus = null;
+      profileOk = false;
+    } finally {
+      clearTimeout(timeout);
     }
-    profileStatus = null;
-    profileOk = false;
-  } finally {
-    clearTimeout(timeout);
   }
 
   const internalSignals = await prisma.visibilityCheck.findMany({

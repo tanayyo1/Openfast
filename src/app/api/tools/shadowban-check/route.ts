@@ -9,7 +9,7 @@ const schema = z.object({
     .string()
     .trim()
     .min(2)
-    .max(80)
+    .max(20)
     .regex(/^(u\/)?[A-Za-z0-9_-]+$/, "Invalid username format"),
 });
 
@@ -64,25 +64,41 @@ export async function POST(req: Request) {
     `https://old.reddit.com/user/${encodeURIComponent(username)}/about.json`,
   ];
 
-  for (const url of endpoints) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8_000);
-    try {
-      const res = await fetch(url, {
-        signal: controller.signal,
-        headers: { "User-Agent": userAgent },
-      });
-      profileStatus = res.status;
-      profileOk = res.ok;
-      if (profileOk) break;
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        profileTimedOut = true;
+  // Fetch both endpoints in parallel — use first successful response
+  const results = await Promise.allSettled(
+    endpoints.map(async (url) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5_000);
+      try {
+        const res = await fetch(url, {
+          signal: controller.signal,
+          cache: "no-store",
+          headers: { "User-Agent": userAgent },
+        });
+        return { status: res.status, ok: res.ok, timedOut: false };
+      } catch (error) {
+        const timedOut = error instanceof Error && error.name === "AbortError";
+        return { status: null, ok: false, timedOut };
+      } finally {
+        clearTimeout(timer);
       }
-      profileStatus = null;
-      profileOk = false;
-    } finally {
-      clearTimeout(timeout);
+    }),
+  );
+
+  for (const r of results) {
+    if (r.status === "fulfilled" && r.value.ok) {
+      profileOk = true;
+      profileStatus = r.value.status;
+      break;
+    }
+  }
+  if (!profileOk) {
+    // No successful response — use the best signal from what we got
+    for (const r of results) {
+      if (r.status === "fulfilled") {
+        profileStatus = r.value.status ?? profileStatus;
+        profileTimedOut = profileTimedOut || r.value.timedOut;
+      }
     }
   }
 

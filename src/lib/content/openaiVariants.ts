@@ -111,6 +111,7 @@ export async function generateDraftVariantsWithOpenAI(
   const raw = await generateChatText({
     systemPrompt,
     userPrompt,
+    feature: "draft-writer",
   });
   if (!raw) return null;
 

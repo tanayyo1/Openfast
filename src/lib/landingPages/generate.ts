@@ -231,6 +231,7 @@ export async function generateLandingPage(input: GenerateLandingPageInput) {
     raw = await generateChatText({
       systemPrompt,
       userPrompt,
+      feature: "landing-page",
       temperature: 0.5,
       maxTokens: 1700,
     });

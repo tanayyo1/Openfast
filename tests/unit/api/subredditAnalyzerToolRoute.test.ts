@@ -9,7 +9,7 @@ jest.mock("@/lib/rateLimit/publicTools", () => ({
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     subredditCatalog: {
-      findFirst: jest.fn(),
+      findUnique: jest.fn(),
     },
   },
 }));
@@ -27,7 +27,7 @@ const mockedRateLimit = jest.requireMock("@/lib/rateLimit/publicTools") as {
   enforcePublicToolRateLimit: jest.Mock;
 };
 const mockedPrisma = jest.requireMock("@/lib/prisma").prisma as {
-  subredditCatalog: { findFirst: jest.Mock };
+  subredditCatalog: { findUnique: jest.Mock };
 };
 const mockedFetch = jest.requireMock("@/lib/subreddit/rulesFetchCache") as {
   fetchSubredditDataWithCache: jest.Mock;
@@ -64,7 +64,7 @@ describe("subreddit-analyzer tool route", () => {
   });
 
   test("fetches inline when subreddit is not cached", async () => {
-    mockedPrisma.subredditCatalog.findFirst.mockResolvedValue(null);
+    mockedPrisma.subredditCatalog.findUnique.mockResolvedValue(null);
     mockedFetch.fetchSubredditDataWithCache.mockResolvedValue({
       data: {
         name: "startups",
@@ -103,7 +103,7 @@ describe("subreddit-analyzer tool route", () => {
   });
 
   test("returns 502 when inline fetch fails on cache miss", async () => {
-    mockedPrisma.subredditCatalog.findFirst.mockResolvedValue(null);
+    mockedPrisma.subredditCatalog.findUnique.mockResolvedValue(null);
     mockedFetch.fetchSubredditDataWithCache.mockRejectedValue(
       new Error("SUBREDDIT_NAME_REQUIRED"),
     );
@@ -120,7 +120,7 @@ describe("subreddit-analyzer tool route", () => {
   });
 
   test("returns cached data from database when available", async () => {
-    mockedPrisma.subredditCatalog.findFirst.mockResolvedValue({
+    mockedPrisma.subredditCatalog.findUnique.mockResolvedValue({
       id: "sub_1",
       name: "startups",
       title: "Startups",

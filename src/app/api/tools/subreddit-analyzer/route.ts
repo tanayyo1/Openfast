@@ -10,9 +10,28 @@ const querySchema = z.object({
     .string()
     .trim()
     .min(2)
-    .max(120)
+    .max(21)
     .regex(/^(r\/)?[A-Za-z0-9_]+$/, "Invalid subreddit format"),
 });
+
+function pickPolicy(
+  policy: {
+    promoAllowed: unknown;
+    linkPolicy: unknown;
+    flairRequired: unknown;
+    noLinksInPosts: unknown;
+    textOnly: unknown;
+  } | null,
+) {
+  if (!policy) return null;
+  return {
+    promoAllowed: policy.promoAllowed ?? null,
+    linkPolicy: policy.linkPolicy ?? null,
+    flairRequired: Boolean(policy.flairRequired),
+    noLinksInPosts: Boolean(policy.noLinksInPosts),
+    textOnly: Boolean(policy.textOnly),
+  };
+}
 
 export async function GET(req: Request) {
   const userId = await requireSession()
@@ -47,7 +66,7 @@ export async function GET(req: Request) {
 
   const name = parsed.data.name.toLowerCase().replace(/^r\//, "");
 
-  const subreddit = await prisma.subredditCatalog.findFirst({
+  const subreddit = await prisma.subredditCatalog.findUnique({
     where: { name },
     include: {
       policy: true,
@@ -57,6 +76,11 @@ export async function GET(req: Request) {
   });
 
   if (subreddit) {
+    const staleMs = Date.now() - subreddit.lastFetchedAt.getTime();
+    const staleHours = Number.isFinite(staleMs)
+      ? Math.max(0, Math.floor(staleMs / (1000 * 60 * 60)))
+      : 0;
+
     return NextResponse.json({
       subreddit: {
         id: subreddit.id,
@@ -68,12 +92,11 @@ export async function GET(req: Request) {
         isRestricted: subreddit.isRestricted,
         isQuarantined: subreddit.isQuarantined,
       },
-      policy: subreddit.policy,
+      policy: pickPolicy(subreddit.policy),
+      rules: [],
       topTimeWindows: subreddit.timeSlots,
       latestRulesFetchedAt: subreddit.rules[0]?.fetchedAt ?? null,
-      staleHours: Math.floor(
-        (Date.now() - subreddit.lastFetchedAt.getTime()) / (1000 * 60 * 60),
-      ),
+      staleHours,
       source: "database",
       meta: {
         limit: rl.limit,
@@ -108,13 +131,7 @@ export async function GET(req: Request) {
       isRestricted: fetched.data.isRestricted,
       isQuarantined: fetched.data.isQuarantined,
     },
-    policy: {
-      promoAllowed: null,
-      linkPolicy: null,
-      flairRequired: false,
-      noLinksInPosts: false,
-      textOnly: false,
-    },
+    policy: null,
     rules: fetched.data.rules,
     topTimeWindows: [],
     latestRulesFetchedAt: null,

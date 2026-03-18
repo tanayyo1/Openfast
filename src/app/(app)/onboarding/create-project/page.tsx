@@ -158,7 +158,7 @@ export default function CreateProjectPage() {
       });
       clearPostGeneratorHandoff();
       router.push(
-        `/onboarding/connect-reddit?projectId=${encodeURIComponent(json.project.id)}`,
+        `/onboarding/generate-roadmap?projectId=${encodeURIComponent(json.project.id)}`,
       );
     } catch {
       setError("Network issue while saving project. Try again.");

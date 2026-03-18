@@ -1,7 +1,7 @@
 export type OnboardingStepStatus = "complete" | "current" | "blocked";
 
 export type OnboardingStep = {
-  id: "project" | "reddit" | "roadmap";
+  id: "project" | "roadmap";
   title: string;
   description: string;
   href: string;
@@ -39,42 +39,26 @@ function buildRoadmapHref(projectId: string | null) {
   return `/onboarding/generate-roadmap?projectId=${encodeURIComponent(projectId)}`;
 }
 
-function buildConnectHref(projectId: string | null) {
-  if (!projectId) return "/onboarding/connect-reddit";
-  return `/onboarding/connect-reddit?projectId=${encodeURIComponent(projectId)}`;
-}
-
 export function buildOnboardingProgress(
   input: OnboardingProgressInput,
 ): OnboardingProgress {
-  const totalCount = 3;
+  const totalCount = 2;
 
   if (!input.hasWorkspace) {
     const steps: OnboardingStep[] = [
       {
         id: "project",
         title: "Create your first project",
-        description: "Define your product, goals, and initial constraints.",
+        description: "Define your product, goals, and target audience.",
         href: "/onboarding/create-project",
         action: "Create project",
         status: "blocked",
         detail: "Workspace setup is still syncing. Refresh and try again.",
       },
       {
-        id: "reddit",
-        title: "Connect Reddit account",
-        description:
-          "Secure OAuth connection with rate limits and token encryption.",
-        href: "/onboarding/connect-reddit",
-        action: "Connect account",
-        status: "blocked",
-        detail: "Workspace setup must finish before account linking.",
-      },
-      {
         id: "roadmap",
         title: "Generate your roadmap",
-        description:
-          "Create an initial plan once project and Reddit account are ready.",
+        description: "Create a posting plan with subreddit targets and timing.",
         href: "/onboarding/generate-roadmap",
         action: "Generate roadmap",
         status: "blocked",
@@ -96,14 +80,13 @@ export function buildOnboardingProgress(
   }
 
   const projectDone = input.projectCount > 0;
-  const redditDone = input.activeRedditAccountCount > 0;
   const roadmapDone = input.activeRoadmapCount > 0;
 
   const steps: OnboardingStep[] = [
     {
       id: "project",
       title: "Create your first project",
-      description: "Define your product, goals, and initial constraints.",
+      description: "Define your product, goals, and target audience.",
       href: "/onboarding/create-project",
       action: projectDone ? "Add another project" : "Create project",
       status: projectDone ? "complete" : "current",
@@ -112,36 +95,18 @@ export function buildOnboardingProgress(
         : "Create at least one project to continue.",
     },
     {
-      id: "reddit",
-      title: "Connect Reddit account",
-      description:
-        "Secure OAuth connection with rate limits and token encryption.",
-      href: buildConnectHref(input.latestProjectId),
-      action: redditDone ? "Manage accounts" : "Connect account",
-      status: redditDone ? "complete" : projectDone ? "current" : "blocked",
-      detail: redditDone
-        ? `${formatCount(input.activeRedditAccountCount, "account", "accounts")} connected.`
-        : projectDone
-          ? "Connect at least one active Reddit account."
-          : "Create a project first.",
-    },
-    {
       id: "roadmap",
       title: "Generate your roadmap",
       description:
-        "Turn your project and account setup into an executable posting plan.",
+        "Turn your project into a posting plan with subreddit targets and timing windows.",
       href: roadmapDone ? "/roadmaps" : buildRoadmapHref(input.latestProjectId),
       action: roadmapDone ? "View roadmaps" : "Generate roadmap",
-      status: roadmapDone
-        ? "complete"
-        : projectDone && redditDone
-          ? "current"
-          : "blocked",
+      status: roadmapDone ? "complete" : projectDone ? "current" : "blocked",
       detail: roadmapDone
         ? `${formatCount(input.activeRoadmapCount, "active roadmap", "active roadmaps")} generated.`
-        : projectDone && redditDone
-          ? "Generate your first active roadmap."
-          : "Requires a project and a connected Reddit account.",
+        : projectDone
+          ? "Generate your first posting roadmap."
+          : "Create a project first.",
     },
   ];
 

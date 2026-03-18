@@ -95,7 +95,8 @@ export default async function OnboardingPage() {
         </p>
         <h1 className="mt-3 text-3xl font-semibold">Set up your workspace</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Follow this 3-step flow to unlock scheduling and analytics.
+          Complete these steps to start monitoring subreddits and drafting
+          content.
         </p>
       </div>
 

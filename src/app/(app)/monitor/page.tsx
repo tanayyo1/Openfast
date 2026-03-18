@@ -26,16 +26,21 @@ type MonitoredSub = {
   isActive: boolean;
 };
 
+type Project = { id: string; name: string };
+
 export default function MonitorPage() {
   const [posts, setPosts] = useState<MonitoredPost[]>([]);
   const [subs, setSubs] = useState<MonitoredSub[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [draftingId, setDraftingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Add subreddit form
   const [newSub, setNewSub] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [addingError, setAddingError] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -44,9 +49,10 @@ export default function MonitorPage() {
   async function loadData() {
     setIsLoading(true);
     try {
-      const [postsRes, subsRes] = await Promise.all([
+      const [postsRes, subsRes, projectsRes] = await Promise.all([
         fetch("/api/monitor/posts"),
         fetch("/api/monitor/subreddits"),
+        fetch("/api/projects"),
       ]);
       if (postsRes.ok) {
         const data = (await postsRes.json()) as { items: MonitoredPost[] };
@@ -55,6 +61,17 @@ export default function MonitorPage() {
       if (subsRes.ok) {
         const data = (await subsRes.json()) as { items: MonitoredSub[] };
         setSubs(data.items);
+      }
+      if (projectsRes.ok) {
+        const data = (await projectsRes.json()) as {
+          items?: Project[];
+          projects?: Project[];
+        };
+        const list = data.items ?? data.projects ?? [];
+        setProjects(list);
+        if (list.length > 0 && !selectedProjectId) {
+          setSelectedProjectId(list[0].id);
+        }
       }
     } catch {
       setError("Failed to load monitoring data.");
@@ -65,24 +82,35 @@ export default function MonitorPage() {
 
   async function addSubreddit() {
     if (!newSub.trim()) return;
-    setAddingError(null);
-
-    // Need a project — use the first one for now
-    // In a real UI we'd let user pick
-    const res = await fetch("/api/monitor/subreddits", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subreddit: newSub.trim() }),
-    });
-
-    if (!res.ok) {
-      const data = (await res.json()) as { error?: string };
-      setAddingError(data.error ?? "Failed to add subreddit");
+    if (!selectedProjectId) {
+      setAddingError("Create a project first in Onboarding.");
       return;
     }
+    setAddingError(null);
+    setIsAdding(true);
+    try {
+      const res = await fetch("/api/monitor/subreddits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subreddit: newSub.trim(),
+          projectId: selectedProjectId,
+        }),
+      });
 
-    setNewSub("");
-    void loadData();
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        setAddingError(data.error ?? "Failed to add subreddit");
+        return;
+      }
+
+      setNewSub("");
+      void loadData();
+    } catch {
+      setAddingError("Network error. Try again.");
+    } finally {
+      setIsAdding(false);
+    }
   }
 
   async function draftReply(postId: string) {
@@ -248,7 +276,29 @@ export default function MonitorPage() {
         <div className="space-y-4">
           <div className="rounded-[24px] border border-border bg-card/80 p-5">
             <p className="text-sm font-semibold">Monitored subreddits</p>
-            <div className="mt-4 flex gap-2">
+            {projects.length > 0 ? (
+              <div className="mt-3">
+                <label
+                  className="text-xs text-muted-foreground"
+                  htmlFor="project-select"
+                >
+                  Project
+                </label>
+                <select
+                  id="project-select"
+                  value={selectedProjectId}
+                  onChange={(e) => setSelectedProjectId(e.target.value)}
+                  className="mt-1 w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm"
+                >
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+            <div className="mt-3 flex gap-2">
               <input
                 type="text"
                 value={newSub}
@@ -262,18 +312,20 @@ export default function MonitorPage() {
               <button
                 type="button"
                 onClick={() => void addSubreddit()}
-                className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground"
+                disabled={isAdding || !selectedProjectId}
+                className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
               >
-                Add
+                {isAdding ? "Adding..." : "Add"}
               </button>
             </div>
             {addingError ? (
               <p className="mt-2 text-xs text-destructive">{addingError}</p>
             ) : null}
-            <p className="mt-2 text-xs text-muted-foreground">
-              Needs a project. Add subreddits from your project settings for
-              now.
-            </p>
+            {projects.length === 0 ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Create a project in Onboarding first.
+              </p>
+            ) : null}
 
             {subs.length > 0 ? (
               <div className="mt-4 space-y-2">

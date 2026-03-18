@@ -24,10 +24,10 @@ Rules:
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } },
+  routeCtx: { params: Promise<{ id: string }> },
 ) {
   const ctx = await requireWorkspaceSession();
-  const postId = params.id;
+  const { id: postId } = await routeCtx.params;
 
   // Get the post + its project context
   const post = await prisma.monitoredPost.findUnique({

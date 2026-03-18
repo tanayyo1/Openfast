@@ -44,47 +44,51 @@ export async function POST(req: Request) {
   let totalNewPosts = 0;
   let totalQualified = 0;
 
-  for (const sub of monitored) {
-    // Fetch RSS feed for this subreddit
-    let posts;
-    try {
-      posts = await fetchSubredditRss(sub.subreddit);
-    } catch {
-      // RSS fetch failed — skip this subreddit, continue with others
-      continue;
-    }
+  // Fetch all RSS feeds in parallel (5 at a time) to avoid Vercel timeout
+  const BATCH_SIZE = 5;
+  for (let i = 0; i < monitored.length; i += BATCH_SIZE) {
+    const batch = monitored.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map(async (sub) => {
+        const posts = await fetchSubredditRss(sub.subreddit);
+        return { sub, posts };
+      }),
+    );
 
-    // Store new posts (skip duplicates via upsert)
-    for (const post of posts) {
-      try {
-        const existing = await prisma.monitoredPost.findUnique({
-          where: {
-            monitoredSubredditId_redditPostId: {
+    for (const result of results) {
+      if (result.status !== "fulfilled") continue;
+      const { sub, posts } = result.value;
+
+      for (const post of posts) {
+        try {
+          const existing = await prisma.monitoredPost.findUnique({
+            where: {
+              monitoredSubredditId_redditPostId: {
+                monitoredSubredditId: sub.id,
+                redditPostId: post.id,
+              },
+            },
+            select: { id: true },
+          });
+
+          if (existing) continue;
+
+          await prisma.monitoredPost.create({
+            data: {
               monitoredSubredditId: sub.id,
               redditPostId: post.id,
+              title: post.title,
+              url: post.url,
+              author: post.author,
+              snippet: post.snippet,
+              postedAt: post.publishedAt,
             },
-          },
-          select: { id: true },
-        });
+          });
 
-        if (existing) continue; // already stored
-
-        await prisma.monitoredPost.create({
-          data: {
-            monitoredSubredditId: sub.id,
-            redditPostId: post.id,
-            title: post.title,
-            url: post.url,
-            author: post.author,
-            snippet: post.snippet,
-            postedAt: post.publishedAt,
-          },
-        });
-
-        totalNewPosts++;
-      } catch {
-        // Unique constraint race condition or other DB error — skip
-        continue;
+          totalNewPosts++;
+        } catch {
+          continue;
+        }
       }
     }
   }

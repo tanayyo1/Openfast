@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { enforcePublicToolRateLimit } from "@/lib/rateLimit/publicTools";
 import { requireSession } from "@/lib/server/auth-guards";
 import { fetchSubredditDataWithCache } from "@/lib/subreddit/rulesFetchCache";
+import { analyzeSubredditRules } from "@/lib/subreddit/analyzeRules";
 
 const querySchema = z.object({
   name: z
@@ -13,25 +14,6 @@ const querySchema = z.object({
     .max(21)
     .regex(/^(r\/)?[A-Za-z0-9_]+$/, "Invalid subreddit format"),
 });
-
-function pickPolicy(
-  policy: {
-    promoAllowed: unknown;
-    linkPolicy: unknown;
-    flairRequired: unknown;
-    noLinksInPosts: unknown;
-    textOnly: unknown;
-  } | null,
-) {
-  if (!policy) return null;
-  return {
-    promoAllowed: policy.promoAllowed ?? null,
-    linkPolicy: policy.linkPolicy ?? null,
-    flairRequired: Boolean(policy.flairRequired),
-    noLinksInPosts: Boolean(policy.noLinksInPosts),
-    textOnly: Boolean(policy.textOnly),
-  };
-}
 
 export async function GET(req: Request) {
   const userId = await requireSession()
@@ -66,6 +48,7 @@ export async function GET(req: Request) {
 
   const name = parsed.data.name.toLowerCase().replace(/^r\//, "");
 
+  // Try DB first
   const subreddit = await prisma.subredditCatalog.findUnique({
     where: { name },
     include: {
@@ -75,68 +58,97 @@ export async function GET(req: Request) {
     },
   });
 
+  let subredditData: {
+    name: string;
+    title: string;
+    description: string;
+    subscribers: number;
+    activeUsers: number;
+    nsfw: boolean;
+    isRestricted: boolean;
+    isQuarantined: boolean;
+    rules: string[];
+  };
+  let source: string;
+  let topTimeWindows: Array<{
+    dayOfWeek: number;
+    hourUtc: number;
+    score: number;
+  }> = [];
+
   if (subreddit) {
-    const staleMs = Date.now() - subreddit.lastFetchedAt.getTime();
-    const staleHours = Number.isFinite(staleMs)
-      ? Math.max(0, Math.floor(staleMs / (1000 * 60 * 60)))
-      : 0;
-
-    return NextResponse.json({
-      subreddit: {
-        id: subreddit.id,
-        name: subreddit.name,
-        title: subreddit.title,
-        subscribers: subreddit.subscribers,
-        activeUsers: subreddit.activeUsers,
-        nsfw: subreddit.nsfw,
-        isRestricted: subreddit.isRestricted,
-        isQuarantined: subreddit.isQuarantined,
-      },
-      policy: pickPolicy(subreddit.policy),
+    subredditData = {
+      name: subreddit.name,
+      title: subreddit.title,
+      description: subreddit.description ?? "",
+      subscribers: subreddit.subscribers,
+      activeUsers: subreddit.activeUsers,
+      nsfw: subreddit.nsfw,
+      isRestricted: subreddit.isRestricted,
+      isQuarantined: subreddit.isQuarantined,
       rules: [],
-      topTimeWindows: subreddit.timeSlots,
-      latestRulesFetchedAt: subreddit.rules[0]?.fetchedAt ?? null,
-      staleHours,
-      source: "database",
-      meta: {
-        limit: rl.limit,
-        remaining: rl.remaining,
-        resetAfterSeconds: rl.resetAfterSeconds,
-      },
-    });
-  }
+    };
+    source = "database";
+    topTimeWindows = subreddit.timeSlots.map((s) => ({
+      dayOfWeek: s.dayOfWeek,
+      hourUtc: s.hourUtc,
+      score: Number(s.score),
+    }));
+  } else {
+    // Fetch from Reddit inline
+    let fetched;
+    try {
+      fetched = await fetchSubredditDataWithCache(name);
+    } catch {
+      return NextResponse.json(
+        {
+          error:
+            "Could not fetch subreddit data. Check the name and try again.",
+          code: "FETCH_FAILED",
+        },
+        { status: 502 },
+      );
+    }
 
-  // No DB record — fetch inline via .json endpoints (works without Reddit API)
-  let fetched;
-  try {
-    fetched = await fetchSubredditDataWithCache(name);
-  } catch {
-    return NextResponse.json(
-      {
-        error: "Could not fetch subreddit data. Check the name and try again.",
-        code: "FETCH_FAILED",
-      },
-      { status: 502 },
-    );
-  }
-
-  return NextResponse.json({
-    subreddit: {
-      id: null,
+    subredditData = {
       name: fetched.data.name,
       title: fetched.data.title,
+      description: fetched.data.description,
       subscribers: fetched.data.subscribers,
       activeUsers: fetched.data.activeUsers,
       nsfw: fetched.data.nsfw,
       isRestricted: fetched.data.isRestricted,
       isQuarantined: fetched.data.isQuarantined,
+      rules: fetched.data.rules,
+    };
+    source = fetched.source;
+  }
+
+  // Run AI analysis on the rules
+  const analysis = await analyzeSubredditRules({
+    subredditName: subredditData.name,
+    subscribers: subredditData.subscribers,
+    description: subredditData.description,
+    rules: subredditData.rules,
+    isRestricted: subredditData.isRestricted,
+    isQuarantined: subredditData.isQuarantined,
+    nsfw: subredditData.nsfw,
+  }).catch(() => null);
+
+  return NextResponse.json({
+    subreddit: {
+      name: subredditData.name,
+      title: subredditData.title,
+      subscribers: subredditData.subscribers,
+      activeUsers: subredditData.activeUsers,
+      nsfw: subredditData.nsfw,
+      isRestricted: subredditData.isRestricted,
+      isQuarantined: subredditData.isQuarantined,
     },
-    policy: null,
-    rules: fetched.data.rules,
-    topTimeWindows: [],
-    latestRulesFetchedAt: null,
-    staleHours: 0,
-    source: fetched.source,
+    analysis,
+    rules: subredditData.rules,
+    topTimeWindows,
+    source,
     meta: {
       limit: rl.limit,
       remaining: rl.remaining,

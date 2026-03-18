@@ -18,6 +18,29 @@ jest.mock("@/lib/subreddit/rulesFetchCache", () => ({
   fetchSubredditDataWithCache: jest.fn(),
 }));
 
+jest.mock("@/lib/subreddit/analyzeRules", () => ({
+  analyzeSubredditRules: jest.fn().mockResolvedValue({
+    verdict: "CAUTION",
+    verdictLabel: "Proceed with Caution",
+    verdictSummary: "Test summary",
+    dealBreakers: [],
+    rules: [
+      {
+        category: "promotion",
+        title: "No spam",
+        detail: "Don't spam",
+        severity: "warning",
+      },
+    ],
+    postingStrategy: {
+      approach: "Be helpful",
+      tips: [],
+      bestContentType: "Discussion",
+    },
+    relatedSubreddits: ["entrepreneur"],
+  }),
+}));
+
 import { GET as getSubredditAnalyzerTool } from "@/app/api/tools/subreddit-analyzer/route";
 
 const mockedGuards = jest.requireMock("@/lib/server/auth-guards") as {
@@ -94,11 +117,13 @@ describe("subreddit-analyzer tool route", () => {
       subreddit: { name: string };
       source: string;
       rules: string[];
+      analysis: { verdict: string };
       meta: { limit: number; remaining: number; resetAfterSeconds: number };
     };
     expect(json.subreddit.name).toBe("startups");
     expect(json.source).toBe("reddit");
     expect(json.rules).toContain("No blatant self-promo");
+    expect(json.analysis.verdict).toBe("CAUTION");
     expect(json.meta.resetAfterSeconds).toBe(60);
   });
 
@@ -124,19 +149,14 @@ describe("subreddit-analyzer tool route", () => {
       id: "sub_1",
       name: "startups",
       title: "Startups",
+      description: "Community discussions",
       subscribers: 1000,
       activeUsers: 120,
       nsfw: false,
       isRestricted: false,
       isQuarantined: false,
       lastFetchedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      policy: {
-        promoAllowed: false,
-        linkPolicy: "DISALLOWED_IN_POSTS",
-        flairRequired: true,
-        noLinksInPosts: true,
-        textOnly: true,
-      },
+      policy: null,
       rules: [{ fetchedAt: new Date() }],
       timeSlots: [{ dayOfWeek: 2, hourUtc: 13, score: 0.78 }],
     });
@@ -151,10 +171,12 @@ describe("subreddit-analyzer tool route", () => {
     const json = (await readJson(res)) as {
       subreddit: { name: string };
       source: string;
+      analysis: { verdict: string };
       topTimeWindows: Array<{ dayOfWeek: number; hourUtc: number }>;
     };
     expect(json.subreddit.name).toBe("startups");
     expect(json.source).toBe("database");
+    expect(json.analysis.verdict).toBe("CAUTION");
     expect(json.topTimeWindows[0]).toMatchObject({ dayOfWeek: 2, hourUtc: 13 });
     expect(mockedFetch.fetchSubredditDataWithCache).not.toHaveBeenCalled();
   });

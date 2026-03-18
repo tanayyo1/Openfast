@@ -53,7 +53,11 @@ export async function GET(req: Request) {
     where: { name },
     include: {
       policy: true,
-      rules: { orderBy: { fetchedAt: "desc" }, take: 1 },
+      rules: {
+        orderBy: { fetchedAt: "desc" },
+        take: 1,
+        select: { rawRules: true, fetchedAt: true },
+      },
       timeSlots: { orderBy: { score: "desc" }, take: 5 },
     },
   });
@@ -77,6 +81,19 @@ export async function GET(req: Request) {
   }> = [];
 
   if (subreddit) {
+    // Extract rules from the latest SubredditRule record
+    let dbRules: string[] = [];
+    const latestRule = subreddit.rules[0];
+    if (latestRule) {
+      const raw = latestRule.rawRules;
+      if (typeof raw === "string" && raw.trim().length > 0) {
+        dbRules = raw
+          .split(/\n/)
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0);
+      }
+    }
+
     subredditData = {
       name: subreddit.name,
       title: subreddit.title,
@@ -86,7 +103,7 @@ export async function GET(req: Request) {
       nsfw: subreddit.nsfw,
       isRestricted: subreddit.isRestricted,
       isQuarantined: subreddit.isQuarantined,
-      rules: [],
+      rules: dbRules,
     };
     source = "database";
     topTimeWindows = subreddit.timeSlots.map((s) => ({

@@ -8,36 +8,29 @@ export type GuidedOnboardingItem = OnboardingStep & {
 
 const STEP_ETA_MINUTES: Record<OnboardingStep["id"], number> = {
   project: 2,
-  reddit: 3,
   roadmap: 2,
 };
 
 const STEP_CHECKPOINT: Record<OnboardingStep["id"], string> = {
   project: "Project context saved with goals and brand voice.",
-  reddit: "At least one active Reddit account is connected.",
-  roadmap: "First roadmap generated and ready for execution.",
+  roadmap: "First roadmap generated and ready for monitoring.",
 };
 
 function hintForStep(step: OnboardingStep) {
   if (step.status === "complete") {
     if (step.id === "project") return "You can add more projects anytime.";
-    if (step.id === "reddit")
-      return "You can connect additional accounts later in Account Health.";
-    return "Move to execution: content, approvals, and scheduling.";
+    return "Head to Monitor to start tracking subreddits and drafting replies.";
   }
 
   if (step.status === "current") {
     if (step.id === "project")
       return "Add product basics and one clear goal to continue.";
-    if (step.id === "reddit")
-      return "Connect one account with OAuth or local mode to unlock roadmap.";
-    return "Generate your roadmap to unlock scheduling and analytics.";
+    return "Generate your roadmap to start monitoring and creating content.";
   }
 
   if (step.id === "project")
     return "Workspace setup is still syncing. Refresh when ready.";
-  if (step.id === "reddit") return "Create a project before linking accounts.";
-  return "Complete project + account steps before generating roadmap.";
+  return "Create a project before generating a roadmap.";
 }
 
 export function buildGuidedOnboardingItems(

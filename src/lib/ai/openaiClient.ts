@@ -20,6 +20,7 @@ export type AIFeature =
   | "landing-page"
   | "roadmap"
   | "risk-scoring"
+  | "subreddit-analysis"
   | "general";
 
 const FEATURE_MODEL_DEFAULTS: Record<AIFeature, string> = {
@@ -27,6 +28,7 @@ const FEATURE_MODEL_DEFAULTS: Record<AIFeature, string> = {
   "landing-page": "gpt-5.3-chat-latest",
   roadmap: "gpt-5.4-mini",
   "risk-scoring": "gpt-4.1-mini",
+  "subreddit-analysis": "gpt-5.2",
   general: "gpt-5.4-mini",
 };
 
@@ -35,6 +37,7 @@ const FEATURE_ENV_KEYS: Record<AIFeature, string> = {
   "landing-page": "OPENAI_MODEL_LANDING_PAGE",
   roadmap: "OPENAI_MODEL_ROADMAP",
   "risk-scoring": "OPENAI_MODEL_RISK_SCORING",
+  "subreddit-analysis": "OPENAI_MODEL_SUBREDDIT_ANALYSIS",
   general: "OPENAI_MODEL",
 };
 

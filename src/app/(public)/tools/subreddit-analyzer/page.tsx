@@ -15,8 +15,8 @@ type AnalyzerResponse = {
     isQuarantined: boolean;
   };
   policy?: {
-    promoAllowed: unknown;
-    linkPolicy: unknown;
+    promoAllowed: boolean | null;
+    linkPolicy: string | null;
     flairRequired: boolean;
     noLinksInPosts: boolean;
     textOnly: boolean;
@@ -33,7 +33,7 @@ function toDayLabel(dayOfWeek: number) {
 }
 
 function formatNumber(n: number | null | undefined): string {
-  if (n == null || n === 0) return "N/A";
+  if (n == null || !Number.isFinite(n)) return "N/A";
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
@@ -145,13 +145,17 @@ export default function SubredditAnalyzerPage() {
                   <li>
                     Promo allowed:{" "}
                     <span className="font-semibold text-foreground">
-                      {result!.policy!.promoAllowed ? "Yes" : "No"}
+                      {result!.policy!.promoAllowed === null
+                        ? "Unknown"
+                        : result!.policy!.promoAllowed
+                          ? "Yes"
+                          : "No"}
                     </span>
                   </li>
                   <li>
                     Link policy:{" "}
                     <span className="font-semibold text-foreground">
-                      {String(result!.policy!.linkPolicy ?? "Unknown")}
+                      {result!.policy!.linkPolicy ?? "Unknown"}
                     </span>
                   </li>
                   <li>
@@ -216,7 +220,9 @@ export default function SubredditAnalyzerPage() {
                     <p className="text-sm font-semibold">
                       {result.source === "database"
                         ? "Cached"
-                        : "Live from Reddit"}
+                        : result.source === "fallback"
+                          ? "Estimated (Reddit unavailable)"
+                          : "Live from Reddit"}
                     </p>
                   </div>
                 </div>

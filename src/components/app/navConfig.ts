@@ -22,6 +22,7 @@ export const appNavSections: AppNavSection[] = [
   {
     title: "Execution",
     items: [
+      { label: "Monitor", href: "/monitor" },
       { label: "Content", href: "/content" },
       { label: "Approvals", href: "/approvals" },
       { label: "Scheduling", href: "/scheduling" },

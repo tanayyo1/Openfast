@@ -60,6 +60,7 @@ model Workspace {
   visibilityChecks VisibilityCheck[]
   redditAdCampaigns RedditAdCampaign[]
   landingPageDrafts LandingPageDraft[]
+  monitoredSubreddits MonitoredSubreddit[]
 
   @@map("workspaces")
 }
@@ -191,6 +192,7 @@ model Project {
   painPoints      ProjectPainPoint[]
   redditAdCampaigns RedditAdCampaign[]
   landingPageDrafts LandingPageDraft[]
+  monitoredSubreddits MonitoredSubreddit[]
 
   @@index([workspaceId])
   @@map("projects")
@@ -826,6 +828,58 @@ model AnalyticsEvent {
   @@index([eventName, eventTs])
   @@index([anonymousSessionId, eventTs])
   @@map("analytics_events")
+}
+
+// ── Subreddit Monitoring ──────────────────────────────────────────────
+// Tracks which subreddits a project is monitoring for relevant posts.
+
+model MonitoredSubreddit {
+  id          String @id @default(cuid())
+  workspaceId String @map("workspace_id")
+  projectId   String @map("project_id")
+  subreddit   String // e.g. "startups" (no r/ prefix)
+  isActive    Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  posts     MonitoredPost[]
+
+  @@unique([projectId, subreddit])
+  @@index([workspaceId])
+  @@map("monitored_subreddits")
+}
+
+// Each post discovered from RSS. Deduped by redditPostId so we never store
+// the same post twice even if the cron runs multiple times.
+
+model MonitoredPost {
+  id                   String @id @default(cuid())
+  monitoredSubredditId String @map("monitored_subreddit_id")
+  redditPostId         String @map("reddit_post_id") // e.g. "t3_abc123"
+  title                String
+  url                  String
+  author               String
+  snippet              String @db.Text // short preview from RSS
+
+  relevanceScore Int?    @map("relevance_score") // 0-100 from AI qualifier
+  relevanceReason String? @map("relevance_reason") @db.Text
+
+  draftReply     String? @map("draft_reply") @db.Text // AI-generated comment draft
+  draftReplyAt   DateTime? @map("draft_reply_at")
+
+  discoveredAt DateTime @default(now()) @map("discovered_at")
+  postedAt     DateTime @map("posted_at") // when the Reddit post was created
+
+  // Relations
+  monitoredSubreddit MonitoredSubreddit @relation(fields: [monitoredSubredditId], references: [id], onDelete: Cascade)
+
+  @@unique([monitoredSubredditId, redditPostId])
+  @@index([monitoredSubredditId, discoveredAt])
+  @@index([relevanceScore])
+  @@map("monitored_posts")
 }
 
 // ==================== AUDIT & LOGS ====================

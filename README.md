@@ -9,7 +9,7 @@
 [![Supabase](https://img.shields.io/badge/Supabase-Auth-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com/)
 [![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4-412991?style=flat-square&logo=openai)](https://openai.com/)
 
-[🚀 Live Demo](https://reditfast.com) • [📖 Docs](./docs) • [⚡ Quick Start](./QUICKSTART.md) • [🎯 Tasks](./TASK_ASSIGNMENTS.md)
+[📖 Docs](./docs) • [⚡ Quick Start](./QUICKSTART.md) • [🎯 Tasks](./TASK_ASSIGNMENTS.md)
 
 ---
 
